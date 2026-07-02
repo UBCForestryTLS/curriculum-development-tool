@@ -1,7 +1,18 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-boto3==1.26.137
-python-dotenv==1.0.0
-pydantic-settings==2.10.1
-python-json-logger==3.3.0
-pypdf==6.13.1
+fastapi==0.135.2
+uvicorn==0.42.0
+pydantic==2.12.4
+pydantic-settings==2.13.1
+python-dotenv==1.2.2
+python-json-logger==4.1.0
+nltk==3.9.4
+PyMuPDF==1.28.0
+pytesseract==0.3.13
+Pillow==12.3.0
+regex==2026.4.4
+yake[lemmatization]==0.7.3
+pytest==9.0.2
+httpx==0.28.1
+boto3==1.42.80
+botocore==1.42.80
+# bertopic==0.16.4
+# rake-nltk==1.0.6

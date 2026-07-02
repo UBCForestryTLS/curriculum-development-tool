@@ -131,10 +131,10 @@
                                             style="cursor: help;"
                                             data-bs-toggle="tooltip"
                                             data-bs-placement="right"
-                                            title="Local Tesseract: runs on laravel-end, good for smaller files. AWS Textract: cloud service, good for large files, ~$0.15 per 1000 pages."></i>
+                                            title="Tesseract OCR runs in the extraction service. AWS Textract is a cloud OCR service (~$0.15 per 1000 pages)."></i>
                                     </label>
                                     <select id="extractionEngine" name="extraction_engine" class="form-select form-select-sm" onchange="toggleThresholdByEngine(this)">
-                                        <option value="tesseract">Local (Tesseract OCR)</option>
+                                        <option value="tesseract">Tesseract</option>
                                         <option value="textract">AWS Textract (cloud)</option>
                                     </select>
                                 </div>
@@ -198,13 +198,13 @@
                                             </small>
                                         </div>
                                         <div>
-                                            @if ($material->ocr_enabled || $material->extraction_engine === 'textract')
+                                            @if ($material->ocr_enabled)
                                                 @php
                                                     if ($material->extraction_engine === 'textract') {
                                                         $badgeLabel = 'OCR (AWS)';
-                                                        $tooltipTitle = 'Textract';
+                                                        $tooltipTitle = 'AWS Textract';
                                                     } else {
-                                                        $badgeLabel = 'OCR (Local)';
+                                                        $badgeLabel = 'OCR';
                                                         $tooltipTitle = 'Tesseract';
                                                     }
                                                     if ($material->processing_time_seconds !== null) {

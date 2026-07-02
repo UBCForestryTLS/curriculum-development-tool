@@ -131,13 +131,13 @@
                                                     </small>
                                                 </div>
                                                 <div>
-                                                    @if ($material->ocr_enabled || $material->extraction_engine === 'textract')
+                                                    @if ($material->ocr_enabled)
                                                         @php
                                                             if ($material->extraction_engine === 'textract') {
                                                                 $badgeLabel = 'OCR (AWS)';
-                                                                $tooltipTitle = 'Textract';
+                                                                $tooltipTitle = 'AWS Textract';
                                                             } else {
-                                                                $badgeLabel = 'OCR (Local)';
+                                                                $badgeLabel = 'OCR';
                                                                 $tooltipTitle = 'Tesseract';
                                                             }
                                                             if ($material->processing_time_seconds !== null) {

@@ -212,7 +212,7 @@
                                                                 <select name="extraction_engine"
                                                                     class="form-select form-select-sm"
                                                                     onchange="toggleOcrThresholdSetting(this)">
-                                                                    <option value="tesseract">Local (Tesseract OCR)</option>
+                                                                    <option value="tesseract">Tesseract</option>
                                                                     <option value="textract">AWS Textract (cloud)</option>
                                                                 </select>
                                                             </div>

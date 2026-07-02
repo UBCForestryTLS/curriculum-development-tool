@@ -39,12 +39,9 @@ return [
         'base_url' => env('LO_MAPPING_SERVICE_URL', 'http://127.0.0.1:8002'),
     ],
 
+    // Extracts text and topics
     'text_extraction' => [
         'base_url' => env('TEXT_EXTRACTION_SERVICE_URL', 'http://127.0.0.1:5000'),
-    ],
-
-    'topic_extraction' => [
-        'base_url' => env('TOPIC_EXTRACTION_SERVICE_URL', 'http://127.0.0.1:8003'),
     ],
 
     // When running on Windows, the php server has trouble finding pdftoppm.exe.

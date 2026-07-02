@@ -5,12 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.schemas import ExtractRequest, ExtractResponse
-from app.services import text_extraction_service
+from app.schemas import ExtractRequest, ExtractResponse, PageContent
+from app.services import document_extractor, type_specific_handlers
 
 
 app = FastAPI(
-    title="Text Extraction Service",
+    title="Course Material Text & Topic Extraction Service",
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -32,10 +32,28 @@ async def health_check() -> dict[str, str]:
 
 @app.post("/extract", response_model=ExtractResponse)
 async def extract(request: ExtractRequest) -> ExtractResponse:
+    """Extract per-page text and topics from a PDF in a single pass."""
     try:
         file_bytes = base64.b64decode(request.file)
-        pages = text_extraction_service.extract_text(file_bytes)
-        return ExtractResponse(pages=pages)
+        pages, page_count = document_extractor.extract(
+            file_bytes,
+            request.ocr_enabled,
+            request.extraction_engine,
+            request.ocr_threshold,
+        )
+        # TODO: See how best to handle text-only input from Textract here
+        handler = type_specific_handlers.get_handler(request.material_type)
+        topics = handler.extract_topics(pages)
+
+        return ExtractResponse(
+            pages=[
+                PageContent(page_number=page["page_number"], content=page["text"])
+                for page in pages
+                if page["text"]
+            ],
+            page_count=page_count,
+            topics=topics,
+        )
     except Exception as e:
         logger.error(f"Extraction failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

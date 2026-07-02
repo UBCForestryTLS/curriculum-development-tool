@@ -60,4 +60,14 @@ class CourseMaterialFile extends Model
     {
         return $this->hasMany(CourseMaterialChunk::class, 'course_material_file_id');
     }
+
+    public function topics()
+    {
+        return $this->belongsToMany(
+            CourseTopic::class,
+            'course_material_file_topic',
+            'course_material_file_id',
+            'course_topic_id'
+        );
+    }
 }

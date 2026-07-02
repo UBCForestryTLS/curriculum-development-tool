@@ -274,7 +274,6 @@ Route::delete('/courses/{course}/materials/{material}/files/{file}', [CourseMate
 Route::get('/courses/{course}/materials/{material}/files/{file}/thumbnail', [CourseMaterialFileController::class, 'thumbnail'])->name('course.material.files.thumbnail');
 Route::get('/courses/{course}/materials/{material}/files/{file}/view', [CourseMaterialFileController::class, 'view'])->name('course.material.files.view');
 Route::get('/courses/{course}/materials/{material}/files/{file}/download', [CourseMaterialFileController::class, 'download'])->name('course.material.files.download');
-Route::post('/courses/{course}/materials/{material}/files/{file}/extract-topics', [CourseMaterialFileController::class, 'extractTopics'])->name('course.material.files.extractTopics');
 Route::get('/courses/{course}/coverage-analysis', [CoverageAnalysisController::class, 'course'])->name('course.coverageAnalysis');
 Route::get('/courses/{course}/materials/search', [CoverageAnalysisController::class, 'searchCourse'])->name('course.materials.search');
 Route::get('/programs/{program}/materials/search', [CoverageAnalysisController::class, 'searchProgram'])->name('program.materials.search');

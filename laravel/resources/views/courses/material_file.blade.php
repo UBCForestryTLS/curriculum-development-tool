@@ -23,13 +23,13 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0">Extraction Details</h6>
             <div>
-                @if ($file->ocr_enabled || $file->extraction_engine === 'textract')
+                @if ($file->ocr_enabled)
                     @php
                         if ($file->extraction_engine === 'textract') {
                             $ocrLabel = 'OCR (AWS)';
                             $ocrTip   = 'AWS Textract';
                         } else {
-                            $ocrLabel = 'OCR (Local)';
+                            $ocrLabel = 'OCR';
                             $ocrTip   = 'Tesseract';
                         }
                         if ($file->processing_time_seconds !== null) {
@@ -74,8 +74,8 @@
                 <dt class="col-sm-3">Extraction engine</dt>
                 <dd class="col-sm-9">
                     @if ($file->ocr_enabled)
-                        {{ $file->extraction_engine === 'textract' ? 'AWS Textract' : 'Local (Tesseract OCR)' }}
-                        @if ($file->extraction_engine === 'tesseract')
+                        {{ $file->extraction_engine === 'textract' ? 'AWS Textract' : 'Tesseract OCR' }}
+                        @if ($file->extraction_engine !== 'textract')
                             <span class="text-muted">(threshold: {{ $file->ocr_threshold }} chars)</span>
                         @endif
                     @else
@@ -108,26 +108,18 @@
     </div>
 
     <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header">
             <h6 class="mb-0">Extracted Topics</h6>
-            <div class="d-flex align-items-center gap-2">
-                <button type="button" id="extract-topics-btn" class="btn btn-sm btn-primary"
-                        @if ($file->status !== 'INDEXED' || $file->chunks->isEmpty()) disabled @endif>
-                    <i class="bi bi-tags"></i> Extract topics
-                </button>
-            </div>
         </div>
         <div class="card-body">
-            @if ($file->status !== 'INDEXED' || $file->chunks->isEmpty())
+            @if ($file->topics->isEmpty())
                 <p class="text-muted mb-0 small">
-                    Topics can be extracted once the file has been indexed and text is available.
+                    No topics were extracted from this file.
                 </p>
             @else
-                <p class="text-muted small mb-3">
-                    Extract topics from this file's text.
-                </p>
-                <div id="topics-status" class="d-none"></div>
-                <div id="topics-results"></div>
+                @foreach ($file->topics as $topic)
+                    <span class="badge bg-light text-dark border me-1 mb-1 fw-normal">{{ $topic->topic }}</span>
+                @endforeach
             @endif
         </div>
     </div>
@@ -176,83 +168,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
-    });
-</script>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const btn = document.getElementById('extract-topics-btn');
-        if (!btn) return;
-
-        const statusEl  = document.getElementById('topics-status');
-        const resultsEl = document.getElementById('topics-results');
-        const endpoint  = "{{ route('course.material.files.extractTopics', [$course_id, $material_id, $file->course_material_file_id]) }}";
-
-        btn.addEventListener('click', async function () {
-            const originalHtml = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Extracting...';
-            resultsEl.innerHTML = '';
-            showStatus('Extracting topics...', 'info');
-
-            try {
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({}),
-                });
-
-                const data = await response.json();
-
-                if (!response.ok || data.status !== 'success') {
-                    showStatus(data.message || 'Topic extraction failed.', 'danger');
-                    return;
-                }
-
-                renderTopics(data.topics || []);
-            } catch (e) {
-                showStatus('Could not reach the server. Please try again.', 'danger');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
-            }
-        });
-
-        function showStatus(message, type) {
-            statusEl.className = 'alert alert-' + type + ' py-2';
-            statusEl.textContent = message;
-        }
-
-        function hideStatus() {
-            statusEl.className = 'd-none';
-            statusEl.textContent = '';
-        }
-
-        function renderTopics(topics) {
-            if (!topics.length) {
-                showStatus('No topics were found in this file.', 'warning');
-                return;
-            }
-            hideStatus();
-
-            topics.forEach(function (topic) {
-                const badge = document.createElement('span');
-                badge.className = 'badge bg-light text-dark border me-1 mb-1 fw-normal';
-                badge.textContent = topic.topic;
-
-                const score = document.createElement('span');
-                score.className = 'text-muted ms-1';
-                score.style.fontSize = '0.85em';
-                score.textContent = '(' + topic.score + ')';
-                badge.appendChild(score);
-
-                resultsEl.appendChild(badge);
-            });
-        }
     });
 </script>
 

@@ -5,6 +5,7 @@ from pydantic import field_validator
 
 class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = ""
+    TEXTRACT_ENABLED: bool = True
     AWS_REGION: str = "ca-central-1"
     AWS_S3_BUCKET: str = "text-extraction-temp"
     AWS_ACCESS_KEY_ID: str | None = None
