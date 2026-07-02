@@ -1039,6 +1039,17 @@ public function test_search_groups_matching_courses_under_their_program()
         'topic' => 'Quantum systems and applications',
     ]);
 
+    $unassignedCourse = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 905,
+        'course_title' => 'Unassigned Quantum Course',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $unassignedCourse->course_id,
+        'topic' => 'Quantum theory without a program assignment',
+    ]);
+
     DB::table('course_programs')->insert([
         'course_id' => $course->course_id,
         'program_id' => $programId,
@@ -1059,6 +1070,8 @@ public function test_search_groups_matching_courses_under_their_program()
     $this->assertCount(1, $programResults->first()->courses);
     $this->assertSame($course->course_id, $programResults->first()->courses->first()->course_id);
     $response->assertSee('Matching courses: 1');
+    $response->assertSee('Courses: 1');
+    $response->assertDontSee('Unassigned Quantum Course');
     $response->assertSee(route('courseWizard.step1', $course->course_id));
 }
 

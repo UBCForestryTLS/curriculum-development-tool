@@ -42,6 +42,14 @@ class SearchController extends Controller
             $programResults = $this->groupCourseResultsByProgram($results, $programMatches);
             $stats['programs'] = $programResults->count();
 
+            if ($selectedView === 'programs') {
+                $stats['courses'] = $programResults
+                    ->flatMap(fn ($program) => $program->courses)
+                    ->pluck('course_id')
+                    ->unique()
+                    ->count();
+            }
+
         }
 
         $results = $this->paginateResults($results, $request); //so if many results/courses are returned they can 
