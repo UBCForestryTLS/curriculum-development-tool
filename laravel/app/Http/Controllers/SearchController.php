@@ -10,11 +10,21 @@ use Illuminate\Pagination\LengthAwarePaginator;
 class SearchController extends Controller
 
 {
+    /**
+     * Validates and normalizes the search request, collects matching course and program results,
+     * and displays the selected search results view.
+     *
+     * @param Request $request The incoming request containing the search query and selected result view
+     *
+     * @return view - the search page with its query, results, statistics, and selected view
+     */
     public function index(Request $request){
+
         $validated = $request->validate([
             'query' => ['nullable', 'string', 'max:200'],
             'view' => ['nullable', 'in:courses,programs'],
-        ]); // The query is optional, and the result view must be one of the supported options.
+        ]); 
+        // The query is optional, and the result view must be one of the supported options
 
         $searchTerm = $validated['query'] ?? '';
         $searchTerm = trim($searchTerm);
@@ -24,7 +34,7 @@ class SearchController extends Controller
         $results = collect();
         $programMatches = collect();
         $programResults = collect();
-        $stats =  [
+        $stats =  [//search statistics
             'courses' => 0,
             'programs' => 0,
             'topics' => 0,
@@ -48,12 +58,12 @@ class SearchController extends Controller
                     ->pluck('course_id')
                     ->unique()
                     ->count();
+                    //for the program view, only courses assigned to a program are counted in the statistics
             }
 
         }
 
-        $results = $this->paginateResults($results, $request); //so if many results/courses are returned they can 
-        // show up as multiple pages in the UI
+        $results = $this->paginateResults($results, $request); //handle many restults via pagination
         $programResults = $this->paginateResults($programResults, $request);
 
         return view('search.index', [
@@ -66,6 +76,13 @@ class SearchController extends Controller
         ]);
 }
 
+    /**
+     * Searches all supported course properties and prepares combined course results and statistics.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     *
+     * @return array The combined course results and overall search statistics.
+     */
     public function searchCourses(string $searchTerm){
         $searchResults = collect()
             ->merge($this->searchCourseNames($searchTerm))
@@ -85,6 +102,14 @@ class SearchController extends Controller
         ];
     }
 
+    /**
+     * Paginates a result collection while preserving the current search query parameters.
+     *
+     * @param Collection $results The complete collection of results to paginate.
+     * @param Request $request The current request used to build pagination URLs.
+     *
+     * @return LengthAwarePaginator The current page of results and its pagination metadata.
+     */
     private function paginateResults(Collection $results, Request $request): LengthAwarePaginator
     {
         $perPage = 10;
@@ -103,6 +128,13 @@ class SearchController extends Controller
         );
     }
 
+    /**
+     * Attaches each matching course's associated programs to its result object.
+     *
+     * @param Collection $results The combined course results to enrich with program information.
+     *
+     * @return Collection The course results with a programs collection attached to each course.
+     */
     private function attachProgramsToCourseResults(Collection $results): Collection
     {
         $courseIds = $results->pluck('course_id');
@@ -126,6 +158,13 @@ class SearchController extends Controller
         return $results;
     }
 
+    /**
+     * Finds course topics matching the search term and creates highlighted result snippets.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     *
+     * @return Collection The matching topic records with their course details and snippets.
+     */
     public function searchTopics(string $searchTerm){
         $results = DB::table('course_topics')
             ->join('courses', 'courses.course_id', '=', 'course_topics.course_id')
@@ -150,6 +189,13 @@ class SearchController extends Controller
             return $results;
     }
 
+    /**
+     * Finds learning outcomes matching the search term and creates highlighted result snippets.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     *
+     * @return Collection The matching learning outcomes with their course details and snippets.
+     */
     public function searchLearningObjectives(string $searchTerm){
         $results = DB::table('learning_outcomes')
         ->join('courses', 'courses.course_id', '=', 'learning_outcomes.course_id')
@@ -174,6 +220,13 @@ class SearchController extends Controller
         return $results;
     }
 
+    /**
+     * Finds course descriptions matching the search term and creates highlighted result snippets.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     *
+     * @return Collection The matching descriptions with their course details and snippets.
+     */
     public function searchDescriptions(string $searchTerm){
         $results = DB::table('course_description')
         ->join('courses', 'courses.course_id', '=', 'course_description.course_id')
@@ -198,6 +251,13 @@ class SearchController extends Controller
         return $results;
     }
 
+    /**
+     * Searches material names, types, and descriptions and creates highlighted result snippets.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     *
+     * @return Collection The matching materials with their course details and snippets.
+     */
     public function searchMaterials(string $searchTerm){
         $results = DB::table('course_materials')
         ->join('courses', 'courses.course_id', '=', 'course_materials.course_id')
@@ -222,6 +282,13 @@ class SearchController extends Controller
         return $results;
     }
 
+    /**
+     * Finds assessment methods matching the search term and creates highlighted result snippets.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     *
+     * @return Collection The matching assessments with their course details and snippets.
+     */
     public function searchAssessments(string $searchTerm){
         $results = DB::table('assessment_methods')
         ->join('courses', 'courses.course_id', '=', 'assessment_methods.course_id')
@@ -246,6 +313,13 @@ class SearchController extends Controller
         return $results;
     }
 
+    /**
+     * Searches course codes, numbers, and titles for direct course matches.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     *
+     * @return Collection The matching courses with highlighted course snippets.
+     */
     public function searchCourseNames(string $searchTerm){
         $searchText = "concat_ws(' ', courses.course_code, courses.course_num, courses.course_title)";
         $normalizedSearchTerm = preg_replace('/^([A-Za-z]+)\s*(\d+)$/', '$1 $2', $searchTerm); //normalize course code/nums for better search
@@ -274,6 +348,13 @@ class SearchController extends Controller
         return $results;
     }
 
+    /**
+     * Searches program names for direct program matches.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     *
+     * @return Collection The matching programs with highlighted name snippets.
+     */
     public function searchProgramNames(string $searchTerm){
         $results = DB::table('programs')
             ->whereRaw(
@@ -297,6 +378,14 @@ class SearchController extends Controller
         return $results;
     }
 
+    /**
+     * Groups matching courses under their programs and merges them with direct program matches
+     *
+     * @param Collection $courseResults The combined matching course results and their programs
+     * @param Collection $programMatches Programs whose names directly matched the search term
+     *
+     * @return Collection One result per program containing its matching courses
+     */
     public function groupCourseResultsByProgram(Collection $courseResults, Collection $programMatches): Collection
     {
         $programResults = collect();
@@ -332,6 +421,13 @@ class SearchController extends Controller
             ->values();
     }
 
+    /**
+     * Combines raw property matches by course and calculates scores and per-course statistics.
+     *
+     * @param Collection $matches Raw matches returned by all course property searches.
+     *
+     * @return Collection One ranked result per matching course.
+     */
     public function combineMatchesByCourse(Collection $matches): Collection{
 
         $propertyWeights = [
@@ -415,6 +511,14 @@ class SearchController extends Controller
 
     }
 
+    /**
+     * Calculates distinct course and program totals and match counts for each course property.
+     *
+     * @param Collection $matches Raw matches returned by all course property searches.
+     * @param Collection $results Combined course results with their associated programs.
+     *
+     * @return array The overall course, program, and property match totals.
+     */
     public function calculateSearchStats(Collection $matches, Collection $results): array{
         return [
             'courses' => $matches->pluck('course_id')->unique()->count(),
