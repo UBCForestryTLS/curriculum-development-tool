@@ -1062,4 +1062,42 @@ public function test_search_groups_matching_courses_under_their_program()
     $response->assertSee(route('courseWizard.step1', $course->course_id));
 }
 
+public function test_program_search_results_are_paginated_with_ten_programs_per_page()
+{
+    $programs = [];
+
+    for ($index = 1; $index <= 11; $index++) {
+        $programs[] = [
+            'program' => "Aetherium Program {$index}",
+            'level' => 'Bachelors',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+
+    DB::table('programs')->insert($programs);
+
+    $firstPage = $this->get(route('search.index', [
+        'query' => 'aetherium',
+        'view' => 'programs',
+    ]));
+
+    $firstPageResults = $firstPage->viewData('programResults');
+
+    $firstPage->assertStatus(200);
+    $this->assertSame(11, $firstPageResults->total());
+    $this->assertCount(10, $firstPageResults);
+    $this->assertTrue($firstPageResults->hasPages());
+
+    $secondPage = $this->get(route('search.index', [
+        'query' => 'aetherium',
+        'view' => 'programs',
+        'page' => 2,
+    ]));
+
+    $secondPage->assertStatus(200);
+    $this->assertCount(1, $secondPage->viewData('programResults'));
+}
+
 }

@@ -40,11 +40,13 @@ class SearchController extends Controller
             $stats = $resultsAndStats['stats'];
             $programMatches = $this->searchProgramNames($searchTerm);
             $programResults = $this->groupCourseResultsByProgram($results, $programMatches);
+            $stats['programs'] = $programResults->count();
 
         }
 
         $results = $this->paginateResults($results, $request); //so if many results/courses are returned they can 
         // show up as multiple pages in the UI
+        $programResults = $this->paginateResults($programResults, $request);
 
         return view('search.index', [
             'searchTerm' => $searchTerm,

@@ -146,34 +146,30 @@
         </form>
     </div>
     
-    @if($searchTerm !== '' && $stats['courses'] > 0)
+    @php
+        $hasSelectedResults = $selectedView === 'courses'
+            ? $stats['courses'] > 0
+            : $stats['programs'] > 0;
+
+        $visibleStats = collect([
+            'Courses' => $stats['courses'],
+            'Programs' => $stats['programs'],
+            'Topics' => $stats['topics'],
+            'Learning Objectives' => $stats['learning_outcomes'],
+            'Assessments' => $stats['assessments'],
+            'Descriptions' => $stats['descriptions'],
+            'Materials' => $stats['materials'],
+        ])->filter(fn ($count) => $count > 0);
+    @endphp
+
+    @if($searchTerm !== '' && $hasSelectedResults)
         <div class="search-stats text-center mb-4">
-            <span>Courses: {{ $stats['courses'] }}</span>
-            @if($stats['programs'] > 0)
-                <span class="mx-2">|</span><span>Programs: {{ $stats['programs'] }}</span>
-            @endif
-
-            @if($stats['topics'] > 0)
-                <span class="mx-2">|</span><span>Topics: {{ $stats['topics'] }}</span>
-            @endif
-
-            @if($stats['learning_outcomes'] > 0)
-                <span class="mx-2">|</span><span>Learning Objectives: {{ $stats['learning_outcomes'] }}</span>
-            @endif
-
-            @if($stats['assessments'] > 0)
-                <span class="mx-2">|</span><span>Assessments: {{ $stats['assessments'] }}</span>
-            @endif
-
-            @if($stats['descriptions'] > 0)
-                <span class="mx-2">|</span><span>Descriptions: {{ $stats['descriptions'] }}</span>
-            @endif
-
-            @if($stats['materials'] > 0)
-                <span class="mx-2">|</span><span>Materials: {{ $stats['materials'] }}</span>
-            @endif
+            @foreach($visibleStats as $label => $count)
+                @if(!$loop->first)<span class="mx-2">|</span>@endif
+                <span>{{ $label }}: {{ $count }}</span>
+            @endforeach
         </div>
-    @elseif($searchTerm !== '' && (($selectedView === 'courses' && $results->isEmpty()) || ($selectedView === 'programs' && $programResults->isEmpty())))
+    @elseif($searchTerm !== '')
         <p class="text-center">No matches found.</p>
     @endif
 
@@ -312,5 +308,11 @@
                 @endforeach
             </div>
         @endforeach
+
+        @if($programResults->hasPages())
+            <div class="mt-4 d-flex justify-content-center">
+                {{ $programResults->links() }}
+            </div>
+        @endif
     @endif
 @endsection
