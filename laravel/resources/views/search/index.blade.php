@@ -97,6 +97,8 @@
         <h1 class="mb-3">Course Search</h1>
 
         <form method="GET" action="{{ route('search.index') }}">
+            <input type="hidden" name="property_filters_applied" value="1">
+
             <div class="input-group">
                 <input
                     type="search"
@@ -133,6 +135,35 @@
                             <i class="bi bi-diagram-3 me-1"></i> Programs
                         </label>
                     </div>
+
+                    <div class="search-filter-heading mt-3">Properties</div>
+
+                    @php
+                        $propertyOptions = [
+                            'course' => 'Course Identity',
+                            'topics' => 'Topics',
+                            'learning_outcomes' => 'Learning Objectives',
+                            'assessments' => 'Assessments',
+                            'descriptions' => 'Descriptions',
+                            'materials' => 'Materials',
+                        ];
+                    @endphp
+
+                    @foreach($propertyOptions as $value => $label)
+                        <div class="form-check">
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                name="properties[]"
+                                value="{{ $value }}"
+                                id="property-{{ $value }}"
+                                @checked(in_array($value, $selectedProperties))
+                            >
+                            <label class="form-check-label" for="property-{{ $value }}">
+                                {{ $label }}
+                            </label>
+                        </div>
+                    @endforeach
                 </div>
 
                 <button type="submit" class="btn btn-primary search-action-button">Search</button>
