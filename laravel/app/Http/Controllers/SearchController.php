@@ -23,13 +23,31 @@ class SearchController extends Controller
         $validated = $request->validate([
             'query' => ['nullable', 'string', 'max:200'],
             'view' => ['nullable', 'in:courses,programs'],
-        ]); 
+            'property_filters_applied' => ['nullable', 'boolean'],
+            'properties' => ['nullable', 'array'],
+            'properties.*' => [
+                'in:course,topics,learning_outcomes,assessments,descriptions,materials',
+            ],
+        ]);
         // The query is optional, and the result view must be one of the supported options
+        // we also validate property filters applied
 
         $searchTerm = $validated['query'] ?? '';
         $searchTerm = trim($searchTerm);
         $searchTerm = preg_replace('/\s+/', ' ', $searchTerm); #for normalizing internal whitepace
         $selectedView = $validated['view'] ?? 'courses';
+
+        $availableProperties = [
+            'course',
+            'topics',
+            'learning_outcomes',
+            'assessments',
+            'descriptions',
+            'materials',
+        ];
+
+        $propertyFiltersApplied = (bool) ($validated['property_filters_applied'] ?? false);
+        $selectedProperties = $propertyFiltersApplied ? ($validated['properties'] ?? []) : $availableProperties;
 
         $results = collect();
         $programMatches = collect();
@@ -45,7 +63,7 @@ class SearchController extends Controller
         ];
 
         if($searchTerm !== ''){
-            $resultsAndStats = $this->searchCourses($searchTerm);
+            $resultsAndStats = $this->searchCourses($searchTerm, $selectedProperties);
             $results = $resultsAndStats['results'];
             $stats = $resultsAndStats['stats'];
             $programMatches = $this->searchProgramNames($searchTerm);
@@ -73,24 +91,57 @@ class SearchController extends Controller
             'selectedView' => $selectedView,
             'programMatches' => $programMatches,
             'programResults' => $programResults,
+            'selectedProperties' => $selectedProperties,
         ]);
 }
 
     /**
-     * Searches all supported course properties and prepares combined course results and statistics.
+     * searches the selected course properties (if selected) and prepares combined results and statistics
      *
      * @param string $searchTerm The normalized text to search for.
+     * @param array $selectedProperties The course properties included in the search.
      *
      * @return array The combined course results and overall search statistics.
      */
-    public function searchCourses(string $searchTerm){
-        $searchResults = collect()
-            ->merge($this->searchCourseNames($searchTerm))
-            ->merge($this->searchTopics($searchTerm))
-            ->merge($this->searchLearningObjectives($searchTerm))
-            ->merge($this->searchDescriptions($searchTerm))
-            ->merge($this->searchMaterials($searchTerm))
-            ->merge($this->searchAssessments($searchTerm));
+    public function searchCourses(string $searchTerm, array $selectedProperties){
+        $searchResults = collect();
+
+        //if the property is selected in filters, only then call search and merge
+        if (in_array('course', $selectedProperties)) {
+            $searchResults = $searchResults->merge(
+                $this->searchCourseNames($searchTerm)
+            );
+        }
+
+        if (in_array('topics', $selectedProperties)) {
+            $searchResults = $searchResults->merge(
+                $this->searchTopics($searchTerm)
+            );
+        }
+
+        if (in_array('learning_outcomes', $selectedProperties)) {
+            $searchResults = $searchResults->merge(
+                $this->searchLearningObjectives($searchTerm)
+            );
+        }
+
+        if (in_array('assessments', $selectedProperties)) {
+            $searchResults = $searchResults->merge(
+                $this->searchAssessments($searchTerm)
+            );
+        }
+
+        if (in_array('descriptions', $selectedProperties)) {
+            $searchResults = $searchResults->merge(
+                $this->searchDescriptions($searchTerm)
+            );
+        }
+
+        if (in_array('materials', $selectedProperties)) {
+            $searchResults = $searchResults->merge(
+                $this->searchMaterials($searchTerm)
+            );
+        }
 
         $results = $this->combineMatchesByCourse($searchResults);
         $results = $this->attachProgramsToCourseResults($results);
