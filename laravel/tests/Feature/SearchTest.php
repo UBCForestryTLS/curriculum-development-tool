@@ -1113,4 +1113,129 @@ public function test_program_search_results_are_paginated_with_ten_programs_per_
     $this->assertCount(1, $secondPage->viewData('programResults'));
 }
 
+public function test_search_defaults_to_all_properties()
+{
+    $this->createCourseScaleCategory();
+
+    $topicCourse = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 910,
+        'course_title' => 'Default Topic Filter Course',
+    ]);
+
+    $descriptionCourse = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 911,
+        'course_title' => 'Default Description Filter Course',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $topicCourse->course_id,
+        'topic' => 'Filterium topic applications',
+    ]);
+
+    DB::table('course_description')->insert([
+        'course_id' => $descriptionCourse->course_id,
+        'description' => 'This description examines filterium in curriculum design.',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $response = $this->get(route('search.index', [
+        'query' => 'filterium',
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('Default Topic Filter Course');
+    $response->assertSee('Default Description Filter Course');
+    $response->assertViewHas('selectedProperties', [
+        'course',
+        'topics',
+        'learning_outcomes',
+        'assessments',
+        'descriptions',
+        'materials',
+    ]);
+}
+
+public function test_topic_only_filter_excludes_description_matches()
+{
+    $this->createCourseScaleCategory();
+
+    $topicCourse = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 912,
+        'course_title' => 'Topic Only Filter Course',
+    ]);
+
+    $descriptionCourse = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 913,
+        'course_title' => 'Excluded Description Filter Course',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $topicCourse->course_id,
+        'topic' => 'Filterium topic applications',
+    ]);
+
+    DB::table('course_description')->insert([
+        'course_id' => $descriptionCourse->course_id,
+        'description' => 'This description examines filterium in curriculum design.',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $response = $this->get(route('search.index', [
+        'query' => 'filterium',
+        'property_filters_applied' => 1,
+        'properties' => ['topics'],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('Topic Only Filter Course');
+    $response->assertDontSee('Excluded Description Filter Course');
+    $response->assertViewHas('selectedProperties', ['topics']);
+}
+
+public function test_multiple_property_filters_work_together()
+{
+    $this->createCourseScaleCategory();
+
+    $topicCourse = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 914,
+        'course_title' => 'Multiple Topic Filter Course',
+    ]);
+
+    $descriptionCourse = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 915,
+        'course_title' => 'Multiple Description Filter Course',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $topicCourse->course_id,
+        'topic' => 'Filterium topic applications',
+    ]);
+
+    DB::table('course_description')->insert([
+        'course_id' => $descriptionCourse->course_id,
+        'description' => 'This description examines filterium in curriculum design.',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $response = $this->get(route('search.index', [
+        'query' => 'filterium',
+        'property_filters_applied' => 1,
+        'properties' => ['topics', 'descriptions'],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('Multiple Topic Filter Course');
+    $response->assertSee('Multiple Description Filter Course');
+    $response->assertViewHas('selectedProperties', ['topics', 'descriptions']);
+}
+
 }
