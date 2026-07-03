@@ -11,8 +11,8 @@
             <div class="modal-body">
                 <div class="form-text text-muted mb-4">
                     <p>Give others access to this syllabus and assign them roles.</p>
-                    <li class="mb-1 mr-4 ml-4"><b>Editors</b> have access to edit and view your syllabus but cannot delete your syllabus or add/remove collaborators.</li>
-                    <li class="mb-3 mr-4 ml-4"><b>Viewers</b> have access to view your syllabus but cannot edit or delete your syllabus or add/remove collaborators.</li>
+                    <li class="mb-1 me-4 ms-4"><b>Editors</b> have access to edit and view your syllabus but cannot delete your syllabus or add/remove collaborators.</li>
+                    <li class="mb-3 me-4 ms-4"><b>Viewers</b> have access to view your syllabus but cannot edit or delete your syllabus or add/remove collaborators.</li>
                 </div>
 
                 @if ($syllabusPermission->pivot->permission == 1)
@@ -23,13 +23,13 @@
                                 <input id="syllabus_collab_email{{$syllabus->id}}" type="email" name="email" class="form-control" placeholder="john.doe@ubc.ca" aria-label="email" required>
                                 <div class="invalid-tooltip">
                                     Please provide a valid email ending with ubc.ca.
-                                </div> 
+                                </div>
                             </div>
                             <div class="col-3">
                                 <select class="form-select" id="syllabus_collab_permission{{$syllabus->id}}" name="permission">
                                     <option value="edit" selected>Editor</option>
                                     <option value="view">Viewer</option>
-                                </select>                   
+                                </select>
                             </div>
                             <div class="col-3">
                                 <button id="addSyllabusCollabBtn{{$syllabus->id}}" type="submit" class="btn btn-primary col"><i class="bi bi-plus"></i> Collaborator</button>
@@ -42,11 +42,11 @@
                     <div class="col-8">
                         <hr>
                     </div>
-                </div> 
+                </div>
 
                 @if ($syllabus->users->count() < 1)
                     <div class="alert alert-warning wizard">
-                        <i class="bi bi-exclamation-circle-fill"></i>You have not added any collaborators to this syllabus yet.                    
+                        <i class="bi bi-exclamation-circle-fill"></i>You have not added any collaborators to this syllabus yet.
                     </div>
                 @else
                     <table id="addSyllabusCollabsTbl{{$syllabus->id}}" class="table table-light borderless" >
@@ -88,7 +88,7 @@
                                     @endif
                                     @if ($syllabusCollaborator->email == $user->email)
                                         <td class="text-center align-middle" colspan="2">
-                                            <button type="button" class="btn btn-danger btn" data-toggle="modal" data-target="#leaveSyllabusConfirmation{{$syllabus->id}}">Leave</button>
+                                            <button type="button" class="btn btn-danger btn" data-bs-toggle="modal" data-bs-target="#leaveSyllabusConfirmation{{$syllabus->id}}">Leave</button>
                                         </td>
 
                                         <!-- Leave Confirmation Modal -->
@@ -97,18 +97,16 @@
                                                 <div class="modal-content">
                                                     <div class="modal-header">
                                                         <h5 class="modal-title" id="exampleModalLabel">Leave Syllabus Confirmation</h5>
-                                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                            <span aria-hidden="true">&times;</span>
-                                                        </button>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                     </div>
                                                     <div class="modal-body">Are you sure you want to leave {{$syllabus->course_title}} syllabus?</div>
-                                                    <form action="{{ action([\App\Http\Controllers\SyllabusUserController::class, 'leave']) }}" method="post" class="float-right">
+                                                    <form action="{{ action([\App\Http\Controllers\SyllabusUserController::class, 'leave']) }}" method="post" class="float-end">
                                                         @csrf
 
                                                         <input type="hidden" class="form-check-input " name="syllabus_id" value={{$syllabus->id}}>
                                                         <input type="hidden" class="form-check-input " name="syllabusCollaboratorId" value={{$syllabusCollaborator->id}}>
                                                         <div class="modal-footer">
-                                                            <button style="width:60px" type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                                                            <button style="width:60px" type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                                                             <button style="width:60px" type="submit" class="btn btn-danger btn-sm">Leave</button>
                                                         </div>
                                                     </form>
@@ -119,7 +117,7 @@
                                         @if ($syllabusPermission->pivot->permission == 1)
                                             <td class="text-center align-middle">
 
-                                                <button type="input" class="btn btn-primary" data-toggle="modal" data-target="#transferSyllabusConfirmation{{$syllabus->id}}">Transfer Ownership</button>
+                                                <button type="input" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#transferSyllabusConfirmation{{$syllabus->id}}">Transfer Ownership</button>
                                                 <!--
                                                 <form style='display:inline' action="{{ action([\App\Http\Controllers\SyllabusUserController::class, 'transferOwnership']) }}">
                                                             @csrf
@@ -129,21 +127,19 @@
                                                             <button type="input" class="btn btn-primary">Transfer Ownership</button>
                                                         </form>
 
-                                                <span class="ml-2 mr-2"></span>
+                                                <span class="ms-2 me-2"></span>
                                                 -->
                                                 <button type="input" class="btn btn-danger btn" onclick="deleteSyllabusCollab(this)">Remove</button>
-                                                
+
                                             </td>
-            
-                                            
+
+
                                             <div class="modal fade" id="transferSyllabusConfirmation{{$syllabus->id}}" tabindex="-1" role="dialog" aria-labelledby="transferSyllabusConfirmation{{$syllabus->id}}" aria-hidden="true">
                                                 <div class="modal-dialog modal-dialog-centered" role="document">
                                                     <div class="modal-content">
                                                         <div class="modal-header">
                                                             <h5 class="modal-title" id="exampleModalLabel">Transfer Syllabus Confirmation</h5>
-                                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                                <span aria-hidden="true">&times;</span>
-                                                            </button>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                         </div>
                                                         <div class="modal-body">Are you sure you want to give ownership of the syllabus: {{$syllabus->course_title}} to the user: {{$syllabusCollaborator->name}}?</div>
                                                         <form action="{{ action([\App\Http\Controllers\SyllabusUserController::class, 'transferOwnership']) }}" method="post">
@@ -153,7 +149,7 @@
                                                             <input type="hidden" class="form-check-input " name="oldOwnerId" value={{$user->id}}>
 
                                                             <div class="modal-footer">
-                                                                <button style="width:60px" type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                                                                <button style="width:60px" type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                                                                 <button type="input" class="btn btn-primary btn-sm">Transfer Ownership</button>
                                                             </div>
                                                         </form>
@@ -187,7 +183,7 @@
 <script>
 
     $(document).ready(function () {
-        
+
         $('.addSyllabusCollabForm').submit(function (event) {
             // get the syllabus ID
             var syllabusId = event.currentTarget.dataset.syllabus_id;
@@ -200,7 +196,7 @@
                 // && email.val().endsWith('@ubc.ca')
             ) {
                 addSyllabusCollab(syllabusId);
-                // reset form 
+                // reset form
                 $(this).trigger('reset');
                 $(this).removeClass('was-validated');
             } else {
@@ -208,7 +204,7 @@
                 $(this).addClass('was-validated');
             }
             // readjust modal's position/height
-            document.querySelector('#addSyllabusCollaboratorsModal' + syllabusId).handleUpdate();
+            $('#addSyllabusCollaboratorsModal' + syllabusId).modal("handleUpdate");
 
         });
 
@@ -221,9 +217,9 @@
             //         <tr>
             //             <td>
             //                 <b>{{$syllabusCollaborator->name}} @if ($syllabusCollaborator->email == $user->email) (Me) @endif</b>
-            //                 <p>{{$syllabusCollaborator->email}}</p>                        
+            //                 <p>{{$syllabusCollaborator->email}}</p>
             //             </td>
-                        
+
             //             @if ($syllabusCollaborator->pivot->permission == 1)
             //                 <td class="text-center">
             //                     <input value="Owner" form="saveSyllabusCollabChanges{{$syllabus->id}}" class="form-control fw-bold" type="text" readonly>
@@ -245,10 +241,10 @@
             // `);
         });
 
-        
+
     });
 
-    function isEmailValid(email) 
+    function isEmailValid(email)
     {
         // return (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/).test(email) && email.endsWith('ubc.ca');
         return (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/).test(email);
@@ -270,8 +266,8 @@
                         <option value="edit" ${($('#syllabus_collab_permission' + syllabusId).val() == 'edit') ? 'selected' : ''}>Editor</option>
                         <option value="view" ${($('#syllabus_collab_permission' + syllabusId).val() == 'view') ? 'selected' : ''}>Viewer</option>
                     </select>
-                </td> 
-            
+                </td>
+
                 <td class="text-center">
                     <button type="input" class="btn btn-danger" onclick="deleteSyllabusCollab(this)">Remove</button>
                 </td>

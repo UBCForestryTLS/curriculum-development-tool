@@ -1,0 +1,17 @@
+{
+  "Variables": {
+    "ACCESS_KEY": "REPLACE_ME",
+    "SECRET_KEY": "REPLACE_ME",
+    "IAM_ROLE_ARN": "arn:aws:iam::368677659554:role/AmazonSageMaker-ExecutionRole-20260120T160168",
+    "HF_MODEL_ID": "Qwen/Qwen3-8B",
+    "HF_IMAGE_URI": "763104351884.dkr.ecr.ca-central-1.amazonaws.com/huggingface-pytorch-tgi-inference:2.7.0-tgi3.3.6-gpu-py311-cu124-ubuntu22.04",
+    "HF_TASK": "text-generation",
+    "INSTANCE_TYPE": "ml.g5.2xlarge",
+    "INSTANCE_COUNT": "1",
+    "OUTPUT_S3_URI": "s3://curriculum-map-testing-bucket/output/",
+    "JOB_NAME_PREFIX": "hf-batch-transform",
+    "MODEL_NAME_PREFIX": "hf-batch-transform-model",
+    "LO_MAPPING_DYNAMODB_REQUESTS_TABLE": "lo-mapping-requests",
+    "DYNAMODB_STATUS_INDEX": "status-created_at-index"
+  }
+}

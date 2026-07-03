@@ -62,6 +62,9 @@ hub_env = {
 }
 MODEL_NAME_PREFIX = os.environ.get("MODEL_NAME_PREFIX", "hf-batch-transform-model")
 
+APP_NAME = os.getenv("APP_NAME") 
+SAGEMAKER_TAGS = [{"Key": "AppName", "Value": APP_NAME}] if APP_NAME else []
+
 
 def get_running_transform_job() -> dict | None:
     """Return the first InProgress/Stopping job matching our prefix, or None."""
@@ -80,18 +83,25 @@ def get_running_transform_job() -> dict | None:
 
 
 def create_model(model_name: str):
-    
+    try:
+        sm.describe_model(ModelName=model_name)
+        logger.info("SageMaker model %s already exists, reusing it.", model_name)
+        return
+    except sm.exceptions.ClientError as e:
+        if e.response.get("Error", {}).get("Code") != "ValidationException":
+            raise
+
     sm.create_model(
         ModelName=model_name,
         PrimaryContainer={
             "Image": HF_IMAGE_URI,
-            "Environment": {
-                **hub_env
-            },
+            "Environment": {**hub_env},
         },
         ExecutionRoleArn=SAGEMAKER_ROLE_ARN,
+        Tags=SAGEMAKER_TAGS,
     )
     logger.info("Created SageMaker model: %s", model_name)
+
 
 
 def start_transform_job(job_name, model_name, input_s3_uri):
@@ -127,6 +137,7 @@ def start_transform_job(job_name, model_name, input_s3_uri):
             "InstanceType": INSTANCE_TYPE,
             "InstanceCount": INSTANCE_COUNT,
         },
+        Tags=SAGEMAKER_TAGS,
     )
     logger.info("Submitted transform job: %s", job_name)
 
@@ -200,6 +211,11 @@ def build_job_name(record) -> str:
     timestamp      = datetime.now().strftime("%Y%m%d%H%M%S")
     course_number  = record.get("course_id")
     program_number = record.get("program_id")
+    
+    if course_number is not None:
+        course_number = str(course_number)
+    if program_number is not None:
+        program_number = str(program_number)
 
     if _is_known(course_number) and _is_known(program_number):
         safe_course  = _sanitize_for_job_name(course_number)

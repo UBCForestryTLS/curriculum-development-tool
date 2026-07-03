@@ -261,6 +261,9 @@ Route::post('/courseMaterials/store', [CourseMaterialController::class, 'store']
 
 Route::post('courseWizard/{courseId}/{programId}/manualMap', [CourseProgramController::class, 'updateManualMapStatus']);
 Route::post('courseWizard/{courseId}/{programId}/aiSuggestion', [CourseProgramController::class, 'updateAiSuggestionStatus']);
+Route::post('courseWizard/{courseId}/{programId}/generate-ai-suggestions', [CourseProgramController::class, 'generateAiSuggestions']);
+Route::post('courseWizard/{courseId}/{programId}/check-ai-results', [CourseProgramController::class, 'checkAiResults']);
+Route::post('courseWizard/{courseId}/{programId}/check-in-flight', [CourseProgramController::class, 'checkInFlight']);
 
 Route::post('/courseDescription/{course}/store', [\App\Http\Controllers\CourseDescriptionController::class, 'store'])->name('courseDescription.store');
 

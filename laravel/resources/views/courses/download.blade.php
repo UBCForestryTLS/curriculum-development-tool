@@ -1671,11 +1671,11 @@
             background-color: #fcf8e3;
         }
 
-        .text-left {
+        .text-start {
             text-align: left;
         }
 
-        .text-right {
+        .text-end {
             text-align: right;
         }
 
@@ -3416,7 +3416,7 @@
             }
         }
 
-        .form-group {
+        .mb-3 {
             margin-bottom: 15px;
         }
 
@@ -3522,7 +3522,7 @@
             height: auto;
         }
 
-        .form-group-sm .form-control {
+        .mb-3-sm .form-control {
             height: 30px;
             padding: 5px 10px;
             font-size: 12px;
@@ -3530,17 +3530,17 @@
             border-radius: 3px;
         }
 
-        .form-group-sm select.form-control {
+        .mb-3-sm select.form-control {
             height: 30px;
             line-height: 30px;
         }
 
-        .form-group-sm textarea.form-control,
-        .form-group-sm select[multiple].form-control {
+        .mb-3-sm textarea.form-control,
+        .mb-3-sm select[multiple].form-control {
             height: auto;
         }
 
-        .form-group-sm .form-control-static {
+        .mb-3-sm .form-control-static {
             height: 30px;
             min-height: 32px;
             padding: 6px 10px;
@@ -3566,7 +3566,7 @@
             height: auto;
         }
 
-        .form-group-lg .form-control {
+        .mb-3-lg .form-control {
             height: 46px;
             padding: 10px 16px;
             font-size: 18px;
@@ -3574,17 +3574,17 @@
             border-radius: 6px;
         }
 
-        .form-group-lg select.form-control {
+        .mb-3-lg select.form-control {
             height: 46px;
             line-height: 46px;
         }
 
-        .form-group-lg textarea.form-control,
-        .form-group-lg select[multiple].form-control {
+        .mb-3-lg textarea.form-control,
+        .mb-3-lg select[multiple].form-control {
             height: auto;
         }
 
-        .form-group-lg .form-control-static {
+        .mb-3-lg .form-control-static {
             height: 46px;
             min-height: 38px;
             padding: 11px 16px;
@@ -3615,7 +3615,7 @@
 
         .input-lg+.form-control-feedback,
         .input-group-lg+.form-control-feedback,
-        .form-group-lg .form-control+.form-control-feedback {
+        .mb-3-lg .form-control+.form-control-feedback {
             width: 46px;
             height: 46px;
             line-height: 46px;
@@ -3623,7 +3623,7 @@
 
         .input-sm+.form-control-feedback,
         .input-group-sm+.form-control-feedback,
-        .form-group-sm .form-control+.form-control-feedback {
+        .mb-3-sm .form-control+.form-control-feedback {
             width: 30px;
             height: 30px;
             line-height: 30px;
@@ -3750,7 +3750,7 @@
         }
 
         @media (min-width: 768px) {
-            .form-inline .form-group {
+            .form-inline .mb-3 {
                 display: inline-block;
                 margin-bottom: 0;
                 vertical-align: middle;
@@ -3824,7 +3824,7 @@
             min-height: 27px;
         }
 
-        .form-horizontal .form-group {
+        .form-horizontal .mb-3 {
             margin-right: -15px;
             margin-left: -15px;
         }
@@ -3842,14 +3842,14 @@
         }
 
         @media (min-width: 768px) {
-            .form-horizontal .form-group-lg .control-label {
+            .form-horizontal .mb-3-lg .control-label {
                 padding-top: 11px;
                 font-size: 18px;
             }
         }
 
         @media (min-width: 768px) {
-            .form-horizontal .form-group-sm .control-label {
+            .form-horizontal .mb-3-sm .control-label {
                 padding-top: 6px;
                 font-size: 12px;
             }
@@ -4790,10 +4790,10 @@
             left: auto;
         }
 
-        [data-toggle="buttons"]>.btn input[type="radio"],
-        [data-toggle="buttons"]>.btn-group>.btn input[type="radio"],
-        [data-toggle="buttons"]>.btn input[type="checkbox"],
-        [data-toggle="buttons"]>.btn-group>.btn input[type="checkbox"] {
+        [data-bs-toggle="buttons"]>.btn input[type="radio"],
+        [data-bs-toggle="buttons"]>.btn-group>.btn input[type="radio"],
+        [data-bs-toggle="buttons"]>.btn input[type="checkbox"],
+        [data-bs-toggle="buttons"]>.btn-group>.btn input[type="checkbox"] {
             position: absolute;
             clip: rect(0, 0, 0, 0);
             pointer-events: none;
@@ -5475,7 +5475,7 @@
         }
 
         @media (min-width: 768px) {
-            .navbar-form .form-group {
+            .navbar-form .mb-3 {
                 display: inline-block;
                 margin-bottom: 0;
                 vertical-align: middle;
@@ -5536,11 +5536,11 @@
         }
 
         @media (max-width: 767px) {
-            .navbar-form .form-group {
+            .navbar-form .mb-3 {
                 margin-bottom: 5px;
             }
 
-            .navbar-form .form-group:last-child {
+            .navbar-form .mb-3:last-child {
                 margin-bottom: 0;
             }
         }
@@ -7961,8 +7961,8 @@
         .container-fluid:after,
         .row:before,
         .row:after,
-        .form-horizontal .form-group:before,
-        .form-horizontal .form-group:after,
+        .form-horizontal .mb-3:before,
+        .form-horizontal .mb-3:after,
         .btn-toolbar:before,
         .btn-toolbar:after,
         .btn-group-vertical>.btn-group:before,
@@ -7992,7 +7992,7 @@
         .container:after,
         .container-fluid:after,
         .row:after,
-        .form-horizontal .form-group:after,
+        .form-horizontal .mb-3:after,
         .btn-toolbar:after,
         .btn-group-vertical>.btn-group:after,
         .nav:after,
@@ -8599,7 +8599,7 @@
         -->
 
         <div class="mt-2 mb-3">
-            <p class="float-right">{{date("Y-m-d")}}</p>
+            <p class="float-end">{{date("Y-m-d")}}</p>
             <h3>{{$course->course_code}}{{$course->course_num}}: Course Summary</h3>
             <p><b>Course:</b> {{$course->year}} {{$course->semester}} {{$course->course_code}}{{$course->course_num}} {{$course->section}}
             - {{$course->course_title}}</p>

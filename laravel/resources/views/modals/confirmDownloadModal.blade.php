@@ -13,8 +13,8 @@
                             </div> 
             
                             <div class="modal-body" style="height: auto;">
-                                <div class="alert alert-info d-flex align-items-center ml-3 mr-3" role="alert" style="text-align:justify">
-                                    <i class="bi bi-info-circle-fill pr-2 fs-1"></i>                        
+                                <div class="alert alert-info d-flex align-items-center ms-3 me-3" role="alert" style="text-align:justify">
+                                    <i class="bi bi-info-circle-fill pe-2 fs-1"></i>                        
                                         <div> Google Chrome and Mozilla Firefox are strongly recommended for this feature.</div>
                                         
                                 </div>

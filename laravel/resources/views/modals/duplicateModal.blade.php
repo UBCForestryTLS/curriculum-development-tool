@@ -11,7 +11,7 @@
                 @csrf
                 {{method_field('GET')}}
                 <div class="modal-body text-start">
-                    <div class="form-group row">
+                    <div class="mb-3 row">
                         <label for="course_code" class="col-md-3 col-form-label">Course Code <span class="requiredField">*</span></label>
                         <div class="col-md-8">
                             <input id="course_code" type="text" pattern="[A-Za-z]+" minlength="1" oninput="validateMaxlength()" onpaste="validateMaxlength()" maxlength="4" class="form-control @error('course_code') is-invalid @enderror" value="{{$syllabus->course_code}}" name="course_code" required autofocus>
@@ -26,7 +26,7 @@
                         </div>
                     </div>
 
-                    <div class="form-group row">
+                    <div class="mb-3 row">
                         <label for="course_num" class="col-md-3 col-form-label">Course Number <span class="requiredField">*</span></label>
                         <div class="col-md-8">
                             <input id="course_num" type="number" pattern="[0-9]*" class="form-control @error('course_num') is-invalid @enderror" name="course_num" value="{{$syllabus->course_num}}" required autofocus>
@@ -38,7 +38,7 @@
                         </div>
                     </div>
 
-                    <div class="form-group row">
+                    <div class="mb-3 row">
                         <label for="course_title" class="col-md-3 col-form-label">Course Title <span class="requiredField">*</span></label>
                         <div class="col-md-8">
                             <input id="course_title" type="text" class="form-control @error('course_title') is-invalid @enderror" name="course_title" value="{{$syllabus->course_title}} - Copy" required autofocus>

@@ -17,3 +17,11 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+// Endpoints called by Python microservices. Group routes by source service so each one's
+// concerns stay isolated and future services (e.g. syllabi) can add their own without collisions.
+Route::prefix('microservices')->group(function () {
+    Route::prefix('lo-mapping')->group(function () {
+        Route::post('/ai-suggestions/store', [\App\Http\Controllers\CourseProgramController::class, 'storeAiSuggestions']);
+    });
+});

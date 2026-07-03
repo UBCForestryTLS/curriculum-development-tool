@@ -64,7 +64,7 @@
 
         <!-- Course Info -->
         <div style="margin-bottom:16px">
-            <p class="text-right">{{date("Y-m-d")}}</p>
+            <p class="text-end">{{date("Y-m-d")}}</p>
             <h2>{{$course->course_code}}{{$course->course_num}}: Course Summary</h2>
             <p><b>Course:</b> {{$course->course_code}}{{$course->course_num}} {{$course->section}} {{$course->course_title}}</p>
             <p><b>Term:</b> {{$course->year}} {{$course->semester}}</p>
@@ -357,7 +357,7 @@
                                 </tr>
                                 <tr class="info" style="font-size:12px">
                                     <th style="width:5%">CLOs</th>
-                                    <th class="text-left" colspan="{{ $courseProgram->programLearningOutcomes->count() }}">Program Learning Outcomes</th>
+                                    <th class="text-start" colspan="{{ $courseProgram->programLearningOutcomes->count() }}">Program Learning Outcomes</th>
                                 </tr> 
                                 <tr style="font-size:10px" style="vertical-align:middle;text-align:center">
                                     <td></td>
@@ -450,7 +450,7 @@
                                 <tr class="info" style="font-size:12px">
                                     <th style="width:5%">CLOs</th>
                                     <!-- Note: Again, not sure why + 1 works here for the colspan. count of plos seems correct to me. Alas -->
-                                    <th class="text-left" colspan="{{ $courseProgram->programLearningOutcomes->count()}}">Program Learning Outcomes</th>
+                                    <th class="text-start" colspan="{{ $courseProgram->programLearningOutcomes->count()}}">Program Learning Outcomes</th>
                                 </tr> 
                                 <tr style="font-size:10px">
                                     <td></td>

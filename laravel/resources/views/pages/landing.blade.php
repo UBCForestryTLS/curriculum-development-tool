@@ -77,7 +77,7 @@
     
     <div class="row p-md-2 justify-content-center text-light bg-primary">
         <div class="container">
-                <div class="col-md font-weight-bold">
+                <div class="col-md fw-bold">
 
                 &nbsp;&nbsp;
                 
@@ -155,7 +155,7 @@
 
     <div class="row p-md-5 justify-content-center text-light bg-primary">
         <div class="container">
-                <div class="col-md font-weight-bold">
+                <div class="col-md fw-bold">
 
                     <h1><strong>How to Use Curriculum MAP and Syllabus Generator?</strong></h1>
                     

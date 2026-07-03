@@ -873,7 +873,7 @@ class ProgramWizardController extends Controller
                 // loop through the optional priorities and add them to the output
                 foreach ($opFrequencies as $op_id => $opFrequency) {
                     if ($subcat_id == $opFrequency['subcat_id']) {
-                        $output .= '<tr><td>'.$opFrequency['title'].'</td><td class="text-center" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="';
+                        $output .= '<tr><td>'.$opFrequency['title'].'</td><td class="text-center" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="';
                         foreach ($opFrequency['courses'] as $course) {
                             $output .= '<li>'.$course.'</li>';
                         }
@@ -2034,7 +2034,7 @@ class ProgramWizardController extends Controller
                         if (isset($store[$plo->pl_outcome_id][$course->course_id])) {
                             // Check if a Tie is present
                             if (isset($store[$plo->pl_outcome_id][$course->course_id]['map_scale_id_tie'])) {
-                                $output .= '<td class="text-center align-middle" style="background:repeating-linear-gradient(45deg, transparent, transparent 8px, #ccc 8px, #ccc 16px), linear-gradient( to bottom, #fff, #999);" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="';
+                                $output .= '<td class="text-center align-middle" style="background:repeating-linear-gradient(45deg, transparent, transparent 8px, #ccc 8px, #ccc 16px), linear-gradient( to bottom, #fff, #999);" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="';
                                 // this loop is for the tool tip
                                 foreach ($store[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {
                                     $output .= ''.$index.': '.$freq.'<br>';
@@ -2046,7 +2046,7 @@ class ProgramWizardController extends Controller
                                                                                                 </span>
                                                                                             </td>';
                             } else {
-                                $output .= '<td class="text-center align-middle" style="background-color: '.$store[$plo->pl_outcome_id][$course->course_id]['colour'].';" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="';
+                                $output .= '<td class="text-center align-middle" style="background-color: '.$store[$plo->pl_outcome_id][$course->course_id]['colour'].';" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="';
                                 foreach ($store[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {
                                     $output .= ''.$index.': '.$freq.'<br>';
                                 }
@@ -2059,7 +2059,7 @@ class ProgramWizardController extends Controller
                             }
                         } else {
                             $output .= '<td class="text-center align-middle" style="background-color: white;">
-                                                            <i class="bi bi-exclamation-circle-fill" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="Incomplete"></i>
+                                                            <i class="bi bi-exclamation-circle-fill" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="Incomplete"></i>
                                                         </td>';
                         }
                     }
@@ -2071,7 +2071,7 @@ class ProgramWizardController extends Controller
                         if (isset($store[$plo->pl_outcome_id][$course->course_id])) {
                             // Check if a Tie is present
                             if (isset($store[$plo->pl_outcome_id][$course->course_id]['map_scale_id_tie'])) {
-                                $output .= '<td class="text-center align-middle" style="background:repeating-linear-gradient( 45deg, transparent, transparent 8px, #ccc 8px, #ccc 16px), linear-gradient( to bottom, #eee, #999);" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="';
+                                $output .= '<td class="text-center align-middle" style="background:repeating-linear-gradient( 45deg, transparent, transparent 8px, #ccc 8px, #ccc 16px), linear-gradient( to bottom, #eee, #999);" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="';
                                 // this loop is for the tool tip
                                 foreach ($store[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {
                                     $output .= ''.$index.': '.$freq.'<br>';
@@ -2083,7 +2083,7 @@ class ProgramWizardController extends Controller
                                                                                                 </span>
                                                                                             </td>';
                             } else {
-                                $output .= '<td class="text-center align-middle" style="background-color: '.$store[$plo->pl_outcome_id][$course->course_id]['colour'].';" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="';
+                                $output .= '<td class="text-center align-middle" style="background-color: '.$store[$plo->pl_outcome_id][$course->course_id]['colour'].';" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="';
                                 foreach ($store[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {
                                     $output .= ''.$index.': '.$freq.'<br>';
                                 }
@@ -2096,7 +2096,7 @@ class ProgramWizardController extends Controller
                             }
                         } else {
                             $output .= '<td class="text-center align-middle" style="background-color: white;">
-                                                            <i class="bi bi-exclamation-circle-fill" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="Incomplete"></i>
+                                                            <i class="bi bi-exclamation-circle-fill" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="Incomplete"></i>
                                                         </td>';
                         }
                     }
@@ -2190,13 +2190,13 @@ class ProgramWizardController extends Controller
     //                                         @if(isset($testArr[$plo->pl_outcome_id][$course->course_id]))
     //                                             <!-- Check if a Tie is present -->
     //                                             @if(isset($testArr[$plo->pl_outcome_id][$course->course_id]['map_scale_id_tie']))
-    //                                                 <td class="text-center align-middle" style="background:repeating-linear-gradient(45deg, transparent, transparent 8px, #ccc 8px, #ccc 16px), linear-gradient( to bottom, #fff, #999);" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="@foreach($testArr[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {{$index}}: {{$freq}}<br> @endforeach">
+    //                                                 <td class="text-center align-middle" style="background:repeating-linear-gradient(45deg, transparent, transparent 8px, #ccc 8px, #ccc 16px), linear-gradient( to bottom, #fff, #999);" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($testArr[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {{$index}}: {{$freq}}<br> @endforeach">
     //                                                     <span style="color: black;">
     //                                                         {{$testArr[$plo->pl_outcome_id][$course->course_id]['map_scale_abv']}}
     //                                                     </span>
     //                                                 </td>
     //                                             @else
-    //                                                 <td class="text-center align-middle" style="background-color: {{ $testArr[$plo->pl_outcome_id][$course->course_id]['colour'] }};" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="@foreach($testArr[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {{$index}}: {{$freq}}<br> @endforeach">
+    //                                                 <td class="text-center align-middle" style="background-color: {{ $testArr[$plo->pl_outcome_id][$course->course_id]['colour'] }};" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($testArr[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {{$index}}: {{$freq}}<br> @endforeach">
     //                                                     <span style="color: black;">
     //                                                         {{$testArr[$plo->pl_outcome_id][$course->course_id]['map_scale_abv']}}
     //                                                     </span>
@@ -2205,7 +2205,7 @@ class ProgramWizardController extends Controller
 
     //                                         @else
     //                                             <td class="text-center align-middle" style="background-color: white;">
-    //                                                 <i class="bi bi-exclamation-circle-fill" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="Incomplete"></i>
+    //                                                 <i class="bi bi-exclamation-circle-fill" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="Incomplete"></i>
     //                                             </td>
     //                                         @endif
     //                                     @endif
@@ -2217,13 +2217,13 @@ class ProgramWizardController extends Controller
     //                                         @if(isset($testArr[$plo->pl_outcome_id][$course->course_id]))
     //                                             <!-- Check if a Tie is present -->
     //                                             @if(isset($testArr[$plo->pl_outcome_id][$course->course_id]['map_scale_id_tie']))
-    //                                                 <td class="text-center align-middle" style="background:repeating-linear-gradient( 45deg, transparent, transparent 10px, #ccc 10px, #ccc 20px), linear-gradient( to bottom, #eee, #999);" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="@foreach($testArr[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {{$index}}: {{$freq}}<br> @endforeach">
+    //                                                 <td class="text-center align-middle" style="background:repeating-linear-gradient( 45deg, transparent, transparent 10px, #ccc 10px, #ccc 20px), linear-gradient( to bottom, #eee, #999);" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($testArr[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {{$index}}: {{$freq}}<br> @endforeach">
     //                                                     <span style="color: black;">
     //                                                         {{$testArr[$plo->pl_outcome_id][$course->course_id]['map_scale_abv']}}
     //                                                     </span>
     //                                                 </td>
     //                                             @else
-    //                                                 <td class="text-center align-middle" style="background-color: {{ $testArr[$plo->pl_outcome_id][$course->course_id]['colour'] }};" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="@foreach($testArr[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {{$index}}: {{$freq}}<br> @endforeach">
+    //                                                 <td class="text-center align-middle" style="background-color: {{ $testArr[$plo->pl_outcome_id][$course->course_id]['colour'] }};" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($testArr[$plo->pl_outcome_id][$course->course_id]['frequencies'] as $index => $freq) {{$index}}: {{$freq}}<br> @endforeach">
     //                                                     <span style="color: black;">
     //                                                         {{$testArr[$plo->pl_outcome_id][$course->course_id]['map_scale_abv']}}
     //                                                     </span>
@@ -2232,7 +2232,7 @@ class ProgramWizardController extends Controller
 
     //                                         @else
     //                                             <td class="text-center align-middle" style="background-color: white;">
-    //                                                 <i class="bi bi-exclamation-circle-fill" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="Incomplete"></i>
+    //                                                 <i class="bi bi-exclamation-circle-fill" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="Incomplete"></i>
     //                                             </td>
     //                                         @endif
     //                                     @endif

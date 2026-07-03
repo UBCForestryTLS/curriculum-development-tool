@@ -14,7 +14,7 @@
                 @csrf
 
                 <div class="col-md-8">
-                <label for="email_recipients" class="col-md-3 col-form-label text-md-right"><span class="requiredField">*</span>Email Recipients</label>
+                <label for="email_recipients" class="col-md-3 col-form-label text-md-end"><span class="requiredField">*</span>Email Recipients</label>
                     <?php
                         use Illuminate\Support\Facades\DB;
                         echo '<select id="email_recipients" name="email_recipients">';  // create dropdown for recipient selection
@@ -29,16 +29,16 @@
                         echo '</select>';  // close dropdown
                     ?>
                     <br>
-                    <label for="email_subject" class="col-md-3 col-form-label text-md-right"><span class="requiredField">*</span>Email Subject</label>
+                    <label for="email_subject" class="col-md-3 col-form-label text-md-end"><span class="requiredField">*</span>Email Subject</label>
                     <textarea id="email_subject" name="email_subject" type="text" cols="60" rows="1" style="vertical-align: middle;" required spellcheck="true"></textarea>
                     <br>
-                    <label for="email_title" class="col-md-3 col-form-label text-md-right"><span class="requiredField">*</span>Email Title</label>
+                    <label for="email_title" class="col-md-3 col-form-label text-md-end"><span class="requiredField">*</span>Email Title</label>
                     <textarea id="email_title" name="email_title" type="text" cols="60" rows="1" style="vertical-align: middle;" required spellcheck="true"></textarea>
                     <br>
-                    <label for="email_body" class="col-md-3 col-form-label text-md-right"><span class="requiredField">*</span>Email Body</label>
+                    <label for="email_body" class="col-md-3 col-form-label text-md-end"><span class="requiredField">*</span>Email Body</label>
                     <textarea id="email_body" name="email_body" type="text" cols="60" rows="10" style="vertical-align: top;" required spellcheck="true"></textarea>
                     <br>
-                    <label for="email_signature" class="col-md-3 col-form-label text-md-right">Email Signature <br>(with comma)</label>
+                    <label for="email_signature" class="col-md-3 col-form-label text-md-end">Email Signature <br>(with comma)</label>
                     <textarea id="email_signature" name="email_signature" type="text" cols="60" rows="1" style="vertical-align: middle;" spellcheck="true"></textarea>
                     <br>
                     <button id="submit" type="submit" class="btn btn-primary col-2 btn-sm">Send</button>

@@ -24,7 +24,7 @@ return new class extends Migration
     {
         Schema::table('learning_activities', function (Blueprint $table) {
             //
-            $table->drop('l_activities_pos');
+            $table->dropColumn('l_activities_pos');
         });
     }
 };

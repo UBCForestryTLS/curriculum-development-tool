@@ -8,7 +8,7 @@
 
             <div class="modal-body" style="height: auto;">
                 <div class="alert alert-primary d-flex align-items-center" role="alert" style="text-align:justify">
-                    <i class="bi bi-info-circle-fill pr-2 fs-3"></i>                        
+                    <i class="bi bi-info-circle-fill pe-2 fs-3"></i>                        
                     <div>
                         Choose a course from your list of existing courses to import relevant course information.                    
                     </div>
@@ -72,7 +72,7 @@
             </div>
             <div class="modal-body">
                 <div class="alert alert-primary d-flex align-items-center col-12 " role="alert">
-                    <i class="bi bi-info-circle-fill pr-2 fs-3"></i>                        
+                    <i class="bi bi-info-circle-fill pe-2 fs-3"></i>                        
                     <div>
                         Select the course components to import.                    
                     </div>

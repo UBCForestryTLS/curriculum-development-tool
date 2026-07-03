@@ -174,7 +174,7 @@ This service depends on several external systems:
 ### Key Environment Variables
 
 - `ALLOWED_ORIGINS`
-- `LO_MAPPING_REQUESTS_TABLE`
+- `LO_MAPPING_DYNAMODB_REQUESTS_TABLE`
 - `AWS_REGION`
 - `ACCESS_KEY`
 - `SECRET_KEY`

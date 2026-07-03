@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('assessment_methods', function (Blueprint $table) {
-            $table->drop('pos_in_alignment');
+            $table->dropColumn('pos_in_alignment');
         });
     }
 };

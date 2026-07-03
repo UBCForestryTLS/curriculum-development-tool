@@ -29,9 +29,9 @@
                         <div id="assign-role-card-body">
                             <div class="form-text text-muted mb-4">
                                     <p>Enter the email address and the role you would like to assign to a person.</p>
-                                        <li class="mb-1 mr-4 ml-4"><strong>Admin</strong> can view, edit and manage collaborators and content for all courses and programs.</li>
-                                        <li class="mb-1 mr-4 ml-4"><b>Department Head</b> can view, edit and manage collaborators and content for all courses and program within assigned department.</li>
-                                        <li class="mb-3 mr-4 ml-4"><b>Program Director</b> can view, edit and manage collaborators and content for assigned program and its associated courses.</li>
+                                        <li class="mb-1 me-4 ms-4"><strong>Admin</strong> can view, edit and manage collaborators and content for all courses and programs.</li>
+                                        <li class="mb-1 me-4 ms-4"><b>Department Head</b> can view, edit and manage collaborators and content for all courses and program within assigned department.</li>
+                                        <li class="mb-3 me-4 ms-4"><b>Program Director</b> can view, edit and manage collaborators and content for assigned program and its associated courses.</li>
                             </div>
                             <form action="{{ route('admin.assignRole') }}" method="POST">
                                 @csrf
@@ -52,7 +52,7 @@
                                 </div>
                                 <div id="campus-div" class="row m-2 position-relative" hidden>
                                     <div class="col-12">
-                                        <select id="campus" class="custom-select" name="campus">
+                                        <select id="campus" class="form-select" name="campus">
                                             <option disabled selected hidden>Open list of campuses</option>
                                             @foreach ($campuses as $campus)
                                                 <option value="{{$campus->campus}}">{{$campus->campus}}</option>
@@ -69,7 +69,7 @@
                                 </div>
                                 <div id="faculty-div" class="row m-2 position-relative" hidden>
                                     <div class="col-12">
-                                        <select id="faculty" class="custom-select" name="faculty" disabled>
+                                        <select id="faculty" class="form-select" name="faculty" disabled>
                                             <option disabled selected hidden>Open list of faculties/schools</option>
                                         </select>
                                         <input id='faculty-text' class="form-control faculty_text" name="faculty" type="text" placeholder="Enter the faculty/school" disabled hidden></input>
@@ -82,7 +82,7 @@
                                 </div>
                                 <div id="department-div" class="row m-2 position-relative" hidden>
                                     <div class="col-12">
-                                        <select id="department" class="custom-select department_select" name="department" disabled>
+                                        <select id="department" class="form-select department_select" name="department" disabled>
                                             <option disabled selected hidden>Open list of departments</option>
                                         </select>
                                         <input id='department-text' class="form-control" name="department" type="text" placeholder="Enter the department" disabled hidden></input>
@@ -95,7 +95,7 @@
                                 </div>
                                 <div id="program-div" class="row m-2 position-relative" hidden>
                                     <div class="col-12">
-                                        <select id="program" class="custom-select department_select" name="program">
+                                        <select id="program" class="form-select department_select" name="program">
                                             <option disabled selected hidden>Open list of programs</option>
                                             @foreach ($programs as $program)
                                                 <option value="{{$program->program}}">{{$program->program}}</option>
@@ -130,7 +130,7 @@
                             <form class="form-inline my-2 my-lg-0 w-100" method="GET" action="{{ route('admin.getUserRoles') }}">
                                 @csrf
                                 <div class="d-flex w-100">
-                                    <input name='userEmail' class="form-control flex-grow-1 mr-2" placeholder="john.doe@ubc.ca" aria-label="email" required>
+                                    <input name='userEmail' class="form-control flex-grow-1 me-2" placeholder="john.doe@ubc.ca" aria-label="email" required>
                                     <div class="invalid-tooltip">
                                         Please provide a valid email.
                                     </div>
@@ -284,7 +284,7 @@
                                             <div class="modal-header">
                                                 <h5 class="modal-title" id="exampleModalLabel">Remove Role
                                                     Confirmation</h5>
-{{--                                                <button type="button" class="close" data-dismiss="modal"--}}
+{{--                                                <button type="button" class="btn-close" data-bs-dismiss="modal"--}}
 {{--                                                        aria-label="Close">--}}
 {{--                                                    <span aria-hidden="true">&times;</span>--}}
 {{--                                                </button>--}}

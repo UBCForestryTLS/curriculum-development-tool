@@ -15,7 +15,7 @@
                                 <i class="bi bi-question-circle" style="color:#002145;"></i>
                             </button>
                         </div>
-                        <div class="text-left">
+                        <div class="text-start">
                             @include('layouts.guide')
                         </div>
                     </h3>
@@ -26,7 +26,7 @@
                     <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered" role="document">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="addLearningActivitiesModalLabel"><i class="bi bi-pencil-fill btn-icon mr-2"></i> Teaching and Learning Activities</h5>
+                                <h5 class="modal-title" id="addLearningActivitiesModalLabel"><i class="bi bi-pencil-fill btn-icon me-2"></i> Teaching and Learning Activities</h5>
                             </div>
 
                             <div class="modal-body">
@@ -37,7 +37,7 @@
                                             <input id="learningActivity" class="form-control" list="learningActivitiesOptions" oninput="validateMaxlength(event)" onpaste="validateMaxlength(event)" maxlength="191" placeholder="Type to search or add your own..." required>
                                             <div class="invalid-tooltip">
                                                 Please provide a learning activity.
-                                            </div>                                            
+                                            </div>
                                             <datalist id="learningActivitiesOptions">
                                                 <option value="Discussion">
                                                 <option value="Gallery walk">
@@ -67,7 +67,7 @@
                                                     @foreach($custom_activities as $activity)
                                                     <option value={{$activity->custom_activities}}>
                                                     @endforeach
-                                                @endif                                            
+                                                @endif
                                             </datalist>
                                         </div>
                                         <div class="col-2">
@@ -79,7 +79,7 @@
                                     <div class="col-8">
                                         <hr>
                                     </div>
-                                </div> 
+                                </div>
                                 <div class="row m-1">
                                     <table id="addLearningActivitiesTbl" class="table table-light table-borderless">
                                         <thead>
@@ -99,9 +99,9 @@
                                                     <i class="bi bi-x-circle-fill text-danger fs-4 btn" onclick="deleteLearningActivity(this)"></i>
                                                 </td>
                                             </tr>
-                                            @endforeach                                               
+                                            @endforeach
                                         </tbody>
-                                    </table>                                    
+                                    </table>
                                 </div>
                             </div>
                             <form method="POST" id="saveLearningActivityChanges" action="{{ action([\App\Http\Controllers\LearningActivityController::class, 'store']) }}">
@@ -111,7 +111,7 @@
                                     <button id="cancel" type="button" class="btn btn-secondary col-3" data-bs-dismiss="modal">Cancel</button>
                                     <button type="submit" class="btn btn-success btn col-3">Save Changes</button>
                                 </div>
-                            </form>    
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -119,7 +119,7 @@
 
                 <div class="card-body">
                     <div class="alert alert-primary d-flex align-items-center" role="alert" style="text-align:justify">
-                        <i class="bi bi-info-circle-fill pr-2 fs-3"></i>                        
+                        <i class="bi bi-info-circle-fill pe-2 fs-3"></i>
                         <div class="col mb-6">
                             Input all teaching and learning activities or <a class="alert-link" target="_blank" rel="noopener noreferrer" href="https://teaching.cornell.edu/teaching-resources/teaching-cornell-guide/instructional-strategies"><i class="bi bi-box-arrow-up-right"></i> instructional strategies</a> of the course individually. Consider approaches to enhance inclusion in your classroom:
                             <ul>
@@ -128,18 +128,18 @@
                             (Offered by CAST) to design your course. You may also use <a class="alert-link" target="_blank" rel="noopener noreferrer" href="https://udlguidelines.cast.org/binaries/content/assets/common/publications/articles/cast-udl-planningq-a11y.pdf"><i class="bi bi-box-arrow-up-right"></i> these key questions to guide</a> you. </li>
                             <li>For concrete ways to decolonize your curriculum and pedagogy, explore <a class="alert-link" target="_blank" rel="noopener noreferrer" href="https://www.concordia.ca/ctl/decolonization/strategies.html"><i class="bi bi-box-arrow-up-right"></i> these strategies</a>.</li>
                             <li>
-                            Not sure how to teach/embed career-related outcomes? Request a workshop from The Career Development Team for your classroom <a class="alert-link" target="_blank" rel="noopener noreferrer" href="https://students.ok.ubc.ca/career-experience/faculty-workshops/"><i class="bi bi-box-arrow-up-right"></i> here</a>.              
+                            Not sure how to teach/embed career-related outcomes? Request a workshop from The Career Development Team for your classroom <a class="alert-link" target="_blank" rel="noopener noreferrer" href="https://students.ok.ubc.ca/career-experience/faculty-workshops/"><i class="bi bi-box-arrow-up-right"></i> here</a>.
                             </li>
                             <li>
-                            Embed <a class="alert-link" target="_blank" rel="noopener noreferrer" href="https://blogs.ubc.ca/teachingandwellbeing/files/2018/11/TLEF_Handout_October-2018.pdf"><i class="bi bi-box-arrow-up-right"></i>teaching practices</a>  that promote student wellbeing.</li> 
+                            Embed <a class="alert-link" target="_blank" rel="noopener noreferrer" href="https://blogs.ubc.ca/teachingandwellbeing/files/2018/11/TLEF_Handout_October-2018.pdf"><i class="bi bi-box-arrow-up-right"></i>teaching practices</a>  that promote student wellbeing.</li>
                             </ul>
                             </div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col mb-1">
-                            <button type="button" class="btn btn-primary col-3 float-right bg-primary text-white fs-5"  data-bs-toggle="modal" data-bs-target="#addLearningActivitiesModal">
-                                <i class="bi bi-plus mr-2"></i>Learning Activities
+                            <button type="button" class="btn btn-primary col-3 float-end bg-primary text-white fs-5"  data-bs-toggle="modal" data-bs-target="#addLearningActivitiesModal">
+                                <i class="bi bi-plus me-2"></i>Learning Activities
                             </button>
                         </div>
                     </div>
@@ -158,14 +158,14 @@
                                     <tr>
                                         <td colspan="3">
                                             <div class="alert alert-warning wizard">
-                                                <i class="bi bi-exclamation-circle-fill"></i>There are no teaching and learning activities set for this course.                    
+                                                <i class="bi bi-exclamation-circle-fill"></i>There are no teaching and learning activities set for this course.
                                             </div>
                                         </td>
                                     </tr>
                                 @else
                                     @foreach($l_activities as $index => $l_activity)
                                         <tr>
-                                            <td class="text-center fw-bold" style="width:5%">↕</td>                                                
+                                            <td class="text-center fw-bold" style="width:5%">↕</td>
                                             <td>
                                                 {{$l_activity->l_activity}}
                                             </td>
@@ -180,7 +180,7 @@
                                 @endif
                             </table>
                             <div class="mt-4">
-                                <button type="submit" class="btn btn-success float-right col-2">Save Order</button>
+                                <button type="submit" class="btn btn-success float-end col-2">Save Order</button>
                             </div>
                         </form>
                     </div>
@@ -190,13 +190,13 @@
                 <div class="card-footer">
                     <div class="card-body mb-4">
                         <a href="{{route('courseWizard.step2', $course->course_id)}}">
-                            <button class="btn btn-sm btn-primary col-3 float-left"><i class="bi bi-arrow-left mr-2"></i> Student Assessment Methods</button>
+                            <button class="btn btn-sm btn-primary col-3 float-start"><i class="bi bi-arrow-left me-2"></i> Student Assessment Methods</button>
                         </a>
                         <a href="{{route('courseWizard.step4', $course->course_id)}}">
-                            <button class="btn btn-sm btn-primary col-3 float-right">Course Alignment <i class="bi bi-arrow-right ml-2"></i></button>
+                            <button class="btn btn-sm btn-primary col-3 float-end">Course Alignment <i class="bi bi-arrow-right ms-2"></i></button>
                         </a>
                     </div>
-                </div>            
+                </div>
             </div>
         </div>
    </div>
@@ -220,15 +220,15 @@
             // check if input fields contain data
             if ($('#learningActivity').val().length != 0) {
                 addLearningActivity();
-                // reset form 
+                // reset form
                 $(this).trigger('reset');
                 $(this).removeClass('was-validated');
             } else {
                 // mark form as validated
                 $(this).addClass('was-validated');
             }
-            // readjust modal's position 
-            document.querySelector('#addLearningActivitiesModal').handleUpdate();
+            // readjust modal's position
+            $('#addLearningActivitiesModal').modal("handleUpdate");
 
         });
 
@@ -243,7 +243,7 @@
                             <i class="bi bi-x-circle-fill text-danger fs-4 btn" onclick="deleteLearningActivity(this)"></i>
                         </td>
                     </tr>
-                @endforeach                                               
+                @endforeach
             `);
         });
     });

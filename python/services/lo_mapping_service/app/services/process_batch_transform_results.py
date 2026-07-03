@@ -1,24 +1,21 @@
 import boto3
 import httpx
 import json
-import os
 import re
+from decimal import Decimal
+
+from app.core.config import settings
 from app.core.logging_config import logger
 from app.services.lo_mapping_request_dynamo_db_request import LOMappingRequestDynamoDBRecord
 
-AWS_REGION = os.getenv("AWS_REGION", "ca-central-1")
-AWS_ACCESS_KEY = os.getenv("ACCESS_KEY")
-AWS_SECRET_KEY = os.getenv("SECRET_KEY")
-
 boto_session = boto3.Session(
-    aws_access_key_id=AWS_ACCESS_KEY,
-    aws_secret_access_key=AWS_SECRET_KEY,
-    region_name=AWS_REGION
+    aws_access_key_id=settings.ACCESS_KEY,
+    aws_secret_access_key=settings.SECRET_KEY,
+    region_name=settings.AWS_REGION,
 )
 
-s3       = boto_session.client("s3")
+s3 = boto_session.client("s3")
 
-LARAVEL_API_URL = os.getenv("LARAVEL_API_URL")
 lo_mapping_request_store = LOMappingRequestDynamoDBRecord()
 
 
@@ -196,16 +193,19 @@ def delete_dynamodb_record(record_id: str) -> None:
 
 async def send_results_to_external_api(record_id: str, results: list[dict], record: dict) -> None:
     """POST all extracted results for a single record to the external API"""
+    # DynamoDB returns numeric attributes as Decimal, which json doesn't handle.
+    course_id  = record.get("course_id")
+    program_id = record.get("program_id")
     payload = {
-        "request_id":      record_id,
-        "course_id":  record.get("course_id"),
-        "program_id": record.get("program_id"),
-        "status": record.get("status"),
-        "results":       results,   # list of {clo_id, plo_id, clo, accreditation_standard, explanation, map_labels, is_mapped}
+        "request_id": record_id,
+        "course_id":  int(course_id)  if isinstance(course_id, Decimal)  else course_id,
+        "program_id": int(program_id) if isinstance(program_id, Decimal) else program_id,
+        "status":     record.get("status"),
+        "results":    results,   # list of {clo_id, plo_id, clo, accreditation_standard, explanation, map_labels, is_mapped}
     }
 
     async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.post(LARAVEL_API_URL, json=payload)
+        response = await client.post(settings.LARAVEL_API_URL, json=payload)
         response.raise_for_status()
         logger.info(
             "Sent %d result(s) for record '%s' to external API — HTTP %s.",
@@ -213,7 +213,7 @@ async def send_results_to_external_api(record_id: str, results: list[dict], reco
         )
 
 
-async def process_records(records: list) -> None:
+async def process_records(records: list) -> dict:
     """
     For each record:
       - get the S3 output path from the DynamoDB record
@@ -222,9 +222,15 @@ async def process_records(records: list) -> None:
       - Send all results for this record to the external API
       - Delete the DynamoDB record
 
-    A failure in one record is logged but record is not deleted
+    A failure in one record is logged but record is not deleted.
+
+    Returns {"succeeded": [...], "failed": [...]} of request_ids so callers can
+    distinguish a successful delivery from a transient failure.
     """
     logger.info("Starting processing for %d record(s).", len(records))
+
+    succeeded: list[str] = []
+    failed:    list[str] = []
 
     for record in records:
         record_id = record.get("request_id")
@@ -239,15 +245,20 @@ async def process_records(records: list) -> None:
                 )
                 await send_results_to_external_api(record_id, [], record)
                 delete_dynamodb_record(record_id)
+                succeeded.append(record_id)
                 continue
 
             output_s3_uri = record.get("output_s3_path")
             if not output_s3_uri:
+                # Mirror what create_request now does: <OUTPUT_S3_URI>/<input_filename>.out
                 input_s3_path = record.get("input_s3_path", "")
-                output_s3_uri = input_s3_path.replace("batch_inputs", "batch_outputs") + ".out"
-                if not output_s3_uri:
-                    logger.warning("Record '%s' is missing output_s3_path — using '%s'.", record_id, output_s3_uri)
+                output_prefix = (settings.OUTPUT_S3_URI or "").rstrip("/")
+                input_filename = input_s3_path.rsplit("/", 1)[-1] if input_s3_path else ""
+                if not output_prefix or not input_filename:
+                    logger.warning("Record '%s' is missing output_s3_path and OUTPUT_S3_URI/input_s3_path can't fill it — skipping.", record_id)
+                    failed.append(record_id)
                     continue
+                output_s3_uri = f"{output_prefix}/{input_filename}.out"
 
             lines = read_s3_jsonl(output_s3_uri)
 
@@ -260,12 +271,15 @@ async def process_records(records: list) -> None:
             await send_results_to_external_api(record_id, results, record)
 
             delete_dynamodb_record(record_id)
+            succeeded.append(record_id)
 
         except Exception as e:
             logger.error(
                 "Failed to process record '%s': %s — skipping.",
                 record_id, e,
             )
+            failed.append(record_id)
             continue
 
-    logger.info("Finished processing %d record(s).", len(records))
+    logger.info("Finished processing %d record(s). Succeeded=%d Failed=%d", len(records), len(succeeded), len(failed))
+    

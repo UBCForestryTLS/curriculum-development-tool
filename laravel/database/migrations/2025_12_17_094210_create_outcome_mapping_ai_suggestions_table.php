@@ -28,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('outcome_mapping_ai_suggestions');
+        Schema::dropIfExists('outcome_map_ai_suggestions');
     }
 };

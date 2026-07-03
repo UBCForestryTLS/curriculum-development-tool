@@ -1,0 +1,6 @@
+[{"generated_text": "{\"id\": \"clo-99001__plo-99001\", \"CLO\": \"Test CLO 1\", \"Accreditation_Standard\": \"Test PLO 1\", \"is_mapped\": true, \"mapLabels\": [\"I\"], \"explanation\": \"valid line.\"}"}]
+this is not valid json at all
+[{"generated_text": "}{ not parseable json inside generated_text {{"}]
+[{"generated_text": "{\"id\": \"clo-99002__plo-99001\", \"CLO\": \"Test CLO 2\", \"Accreditation_Standard\": \"Test PLO 1\", \"is_mapped\": true, \"mapLabels\": [\"D\"], \"explanation\": \"valid line.\"}"}]
+[{"missing_generated_text_field": "should be skipped"}]
+[{"generated_text": "{\"id\": \"malformed-composite-id-no-clo-plo-split\", \"CLO\": \"x\", \"Accreditation_Standard\": \"y\", \"is_mapped\": true, \"mapLabels\": [\"I\"]}"}]

@@ -16,7 +16,7 @@
                             </button>
                         </div>
                         
-                        <div class="text-left">
+                        <div class="text-start">
                             @include('layouts.guide')
                         </div>
                     </h3>
@@ -24,7 +24,7 @@
 
                     <div class="card-body">
                         <div class="alert alert-primary d-flex align-items-center" role="alert" style="text-align:justify">
-                            <i class="bi bi-info-circle-fill pr-2 fs-3"></i>                        
+                            <i class="bi bi-info-circle-fill pe-2 fs-3"></i>                        
                             <div>
                                 This step, requires instructors to intentionally evaluate all course elements to achieve <a class="alert-link"target="_blank" rel="noopener noreferrer" href="https://www.youtube.com/watch?v=uPP9U-crnfQ"><i class="bi bi-box-arrow-up-right"></i> course alignment.</a> This means, ensuring that the targeted learning outcomes are in alignment with the assessment methods and teaching/instructional practices. This can be an iterative process and may take a long time. Intentional evaluation and re-thinking of some course elements is encouraged to achieve better alignment. <b>Review CLOs/competencies you have identified, and map assessment methods to teaching and learning activities to initiate curriculum alignment.</b>      
                             </div>
@@ -42,7 +42,7 @@
                             @else
                                 <div>
                                     <div class="container mb-3">
-                                        <h6 class="card-subtitle wizard mb-4 text-primary fw-bold ml-0 mt-2">
+                                        <h6 class="card-subtitle wizard mb-4 text-primary fw-bold ms-0 mt-2">
                                             Note: Remember to click save once you are done.
                                         </h6>
                                     </div>
@@ -93,7 +93,7 @@
                                         </table>
 
                                         <div class="mt-4">
-                                            <button type="submit" class="btn btn-success float-right col-2">Save</button>
+                                            <button type="submit" class="btn btn-success float-end col-2">Save</button>
                                         </div>
                                     </form>
                                 </div>
@@ -105,10 +105,10 @@
                     <div class="card-footer justify-content-center">
                         <div class="card-body mb-4">
                             <a href="{{route('courseWizard.step3', $course->course_id)}}">
-                                <button class="btn btn-primary btn-sm col-3 float-left"><i class="bi bi-arrow-left mr-2"></i> Teaching and Learning Activities</button>
+                                <button class="btn btn-primary btn-sm col-3 float-start"><i class="bi bi-arrow-left me-2"></i> Teaching and Learning Activities</button>
                             </a>
                             <a href="{{route('courseWizard.step5', $course->course_id)}}">
-                                <button class="btn btn-primary btn-sm col-3 float-right">Program Outcome Mapping <i class="bi bi-arrow-right ml-2"></i></button>
+                                <button class="btn btn-primary btn-sm col-3 float-end">Program Outcome Mapping <i class="bi bi-arrow-right ms-2"></i></button>
                             </a>
                         </div>
                     </div>    

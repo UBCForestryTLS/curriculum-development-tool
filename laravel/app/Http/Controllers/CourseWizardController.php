@@ -105,7 +105,7 @@ class CourseWizardController extends Controller
         } else {
             $description = "";
         }
-        
+
 
         return view('courses.wizard.step1')->with('l_outcomes', $l_outcomes)->with('course', $course)->with('courseDescription', $description)->with('faculties', $faculties)
             ->with('departments', $departments)->with('campuses', $campuses)->with('courseUsers', $courseUsers)->with('user', $user)->with('oAct', $oAct)->with('oAss', $oAss)->with('outcomeMapsCount', $outcomeMapsCount)
@@ -344,7 +344,7 @@ class CourseWizardController extends Controller
     }
 
     // Program Outcome Mapping
-    public function step5($course_id, Request $request)
+    public function step5(int $course_id, Request $request)
     {
         $isEditor = false;
         if ($request->isEditor) {
@@ -432,11 +432,21 @@ class CourseWizardController extends Controller
             $description = "";
         }
 
+        // Query lo_mapping_service for in-flight AI suggestion requests so we can
+        // render each program in the correct state (Checking... vs AI Suggestion button)
+        // even when the request was triggered by a different user or session.
+        $programIds = $coursePrograms->pluck('program_id')->map(fn($id) => $id)->all();
+        $aiSuggestionInFlight = \App\Http\Controllers\CourseProgramController::getInFlightStatuses(
+            $course_id,
+            $programIds
+        );
+
         return view('courses.wizard.step5')->with('course', $course)->with('courseDescription', $description)->with('faculties', $faculties)->with('departments', $departments)->with('campuses', $campuses)
             ->with('user', $user)->with('oAct', $oAct)->with('oAss', $oAss)->with('outcomeMapsCount', $outcomeMapsCount)
             ->with('isEditor', $isEditor)->with('isViewer', $isViewer)->with('courseUsers', $courseUsers)->with('standardsOutcomeMapCount', $standardsOutcomeMapCount)
             ->with('outcomeMapsCountPerProgram', $outcomeMapsCountPerProgram)->with('outcomeMapsCountPerProgramCLO', $outcomeMapsCountPerProgramCLO)->with('standard_categories', $standard_categories)
-            ->with('expectedStandardOutcomeMapCount', $expectedStandardOutcomeMapCount)->with('expectedProgramOutcomeMapCount', $expectedProgramOutcomeMapCount)->with('hasNonAlignedCLO', $hasNonAlignedCLO)->with('l_outcomes', $l_outcomes);
+            ->with('expectedStandardOutcomeMapCount', $expectedStandardOutcomeMapCount)->with('expectedProgramOutcomeMapCount', $expectedProgramOutcomeMapCount)->with('hasNonAlignedCLO', $hasNonAlignedCLO)->with('l_outcomes', $l_outcomes)
+            ->with('aiSuggestionInFlight', $aiSuggestionInFlight);
     }
 
     public function step6($course_id, Request $request)

@@ -6,6 +6,7 @@ use App\Models\Course;
 use App\Models\Program;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -84,19 +85,38 @@ class ProgramTest extends TestCase
 
     }
 
-    /*
-        public function test_program_outcome_import()
-        {
-            $user = User::where('email', 'test-program@ubc.ca')->first();
-            $program = Program::where('program', 'Bachelor of Testing')->orderBy('program_id', 'DESC')->first();
+    public function test_program_outcome_import(): void
+    {
+        $user = User::where('email', 'test-program@ubc.ca')->first();
+        $program = Program::where('program', 'Bachelor of Testing')->orderBy('program_id', 'DESC')->first();
 
-            $response=$this->actingAs($user)->post(route('program.outcomes.import'), [
-                "program_id" => $program->program_id
-                  ]);
+        // The import controller expects a CSV or Excel file in the `upload`
+        // field. It treats each worksheet as a PLO category, skips row 1
+        // as a header, then reads column A into pl_outcome and column B
+        // into plo_shortphrase. PhpSpreadsheet parses CSVs into a single
+        // worksheet, so a CSV here exercises the simplest happy path.
+        $csv = "Outcome,Short Phrase\n"
+             . "Critical thinking,Think\n"
+             . "Effective communication,Speak\n";
 
+        $file = UploadedFile::fake()->createWithContent('plos.csv', $csv);
 
-        }
-        */
+        $this->actingAs($user)->post(route('program.outcomes.import'), [
+            'program_id' => $program->program_id,
+            'upload' => $file,
+        ]);
+
+        $this->assertDatabaseHas('program_learning_outcomes', [
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'Critical thinking',
+        ]);
+
+        $this->assertDatabaseHas('program_learning_outcomes', [
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'Effective communication',
+        ]);
+    }
+
     public function test_addDefaultMappingScale(): void
     {
         $user = User::where('email', 'test-program@ubc.ca')->first();

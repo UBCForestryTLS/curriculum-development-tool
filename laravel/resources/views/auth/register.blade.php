@@ -10,8 +10,8 @@
 
                 <div class="card-body">
                     <div id="prompt" style="display: none;">
-                        <div class="alert alert-primary d-flex align-items-center ml-3 mr-3" role="alert" style="text-align:justify">
-                            <i class="bi bi-info-circle-fill pr-2 fs-3"></i>                        
+                        <div class="alert alert-primary d-flex align-items-center ms-3 me-3" role="alert" style="text-align:justify">
+                            <i class="bi bi-info-circle-fill pe-2 fs-3"></i>                        
                             <div>
                                 While this tool was created to serve the UBC community, anyone can register and use the site. However, since information such as Ministry-related standards and UBC strategic plans are presented, not all users may benefit from every feature.
                             </div>
@@ -21,9 +21,9 @@
                     <form method="POST" action="{{ route('register') }}">
                         @csrf
 
-                        <div class="form-group row">
+                        <div class="mb-3 row">
 
-                            <label for="name" class="col-md-4 col-form-label text-md-right">{{ __('Name') }}</label>
+                            <label for="name" class="col-md-4 col-form-label text-md-end">{{ __('Name') }}</label>
 
                             <div class="col-md-6">
                                 <input id="name" type="text" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name') }}" required autocomplete="name" autofocus>
@@ -36,8 +36,8 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
-                            <label for="email" class="col-md-4 col-form-label text-md-right">{{ __('E-Mail Address') }}</label>
+                        <div class="mb-3 row">
+                            <label for="email" class="col-md-4 col-form-label text-md-end">{{ __('E-Mail Address') }}</label>
 
                             <div class="col-md-6">
                                 <input id="email" type="email" onchange="notifyNonUBCUser()" class="form-control @error('email') is-invalid @enderror" name="email" value="{{ old('email') }}" required autocomplete="email">
@@ -50,8 +50,8 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
-                            <label for="password" class="col-md-4 col-form-label text-md-right">{{ __('Password') }}</label>
+                        <div class="mb-3 row">
+                            <label for="password" class="col-md-4 col-form-label text-md-end">{{ __('Password') }}</label>
 
                             <div class="col-md-6">
                                 <input id="password" type="password" class="form-control @error('password') is-invalid @enderror" name="password" required autocomplete="new-password">
@@ -64,26 +64,26 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
-                            <label for="password-confirm" class="col-md-4 col-form-label text-md-right">{{ __('Confirm Password') }}</label>
+                        <div class="mb-3 row">
+                            <label for="password-confirm" class="col-md-4 col-form-label text-md-end">{{ __('Confirm Password') }}</label>
 
                             <div class="col-md-6">
                                 <input id="password-confirm" type="password" class="form-control" name="password_confirmation" required autocomplete="new-password">
                             </div>
                         </div>
-                        <div class="form-group row">
+                        <div class="mb-3 row">
                             <div class="col-md-10 offset-md-4">
-                                <label for="terms-of-use" class="col-md-14 col-form-label text-md-right">By registering for the website, you agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Use</a>.</label>
+                                <label for="terms-of-use" class="col-md-14 col-form-label text-md-end">By registering for the website, you agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Use</a>.</label>
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="mb-3 row">
                             <div class="col-md-6 offset-md-4">
                                 <div class="g-recaptcha" data-sitekey="{{ env('GOOGLE_CAPTCHA_PUBLIC_KEY') }}"></div>
                             </div>
                         </div>
 
-                        <div class="form-group row mb-0">
+                        <div class="mb-3 row mb-0">
                             <div class="col-md-6 offset-md-4">
                                 <button type="submit" class="btn btn-primary">
                                     {{ __('Register') }}

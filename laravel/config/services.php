@@ -35,4 +35,8 @@ return [
         'base_url' => env('PYTHON_API_URL'),
     ],
 
+    'lo_mapping' => [
+        'base_url' => env('LO_MAPPING_SERVICE_URL', 'http://127.0.0.1:8002'),
+    ],
+
 ];
