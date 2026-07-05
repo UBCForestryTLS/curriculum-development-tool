@@ -98,6 +98,7 @@
 
         <form method="GET" action="{{ route('search.index') }}" id="courseSearchForm">
             <input type="hidden" name="property_filters_applied" value="1">
+            <input type="hidden" name="course_filters_applied" value="1">
 
             <div class="input-group">
                 <input
@@ -176,6 +177,21 @@
                             </label>
                         </div>
                     @endforeach
+
+                    <div class="search-filter-heading mt-3">Course Filters</div>
+
+                    <label class="form-label small mb-1" for="courseCodeFilter">Course Code</label>
+                    <select class="form-select form-select-sm" name="course_codes[]" id="courseCodeFilter">
+                        <option value="" @selected(empty($selectedCourseCodes))>All</option>
+                        @foreach($availableCourseCodes as $courseCode)
+                            <option
+                                value="{{ $courseCode }}"
+                                @selected(in_array($courseCode, $selectedCourseCodes))
+                            >
+                                {{ $courseCode }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <button type="submit" class="btn btn-primary search-action-button">Search</button>

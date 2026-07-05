@@ -1286,6 +1286,8 @@ public function test_course_code_filter_excludes_other_course_codes()
     $response->assertDontSee('Excluded Code Course');
 }
 
+
+
 public function test_course_level_filter_excludes_other_levels()
 {
     $this->createCourseScaleCategory();
