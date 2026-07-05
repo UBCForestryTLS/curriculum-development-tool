@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\Builder; //Builder is for a DB query that is still being constructed
 
 class SearchController extends Controller
 
@@ -94,7 +94,12 @@ class SearchController extends Controller
         ];
 
         if($searchTerm !== ''){
-            $resultsAndStats = $this->searchCourses($searchTerm, $selectedProperties);
+            $resultsAndStats = $this->searchCourses(
+                $searchTerm,
+                $selectedProperties,
+                $selectedCourseCodes,
+                $selectedCourseLevels
+            );
             $results = $resultsAndStats['results'];
             $stats = $resultsAndStats['stats'];
             $programMatches = $this->searchProgramNames($searchTerm);
@@ -134,46 +139,53 @@ class SearchController extends Controller
      *
      * @param string $searchTerm The normalized text to search for.
      * @param array $selectedProperties The course properties included in the search.
+     * @param array $selectedCourseCodes The course codes included in the search.
+     * @param array $selectedCourseLevels The course number levels included in the search.
      *
      * @return array The combined course results and overall search statistics.
      */
-    public function searchCourses(string $searchTerm, array $selectedProperties){
+    public function searchCourses(
+        string $searchTerm,
+        array $selectedProperties,
+        array $selectedCourseCodes,
+        array $selectedCourseLevels
+    ){
         $searchResults = collect();
 
         //if the property is selected in filters, only then call search and merge
         if (in_array('course', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchCourseNames($searchTerm)
+                $this->searchCourseNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels)
             );
         }
 
         if (in_array('topics', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchTopics($searchTerm)
+                $this->searchTopics($searchTerm, $selectedCourseCodes, $selectedCourseLevels)
             );
         }
 
         if (in_array('learning_outcomes', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchLearningObjectives($searchTerm)
+                $this->searchLearningObjectives($searchTerm, $selectedCourseCodes, $selectedCourseLevels)
             );
         }
 
         if (in_array('assessments', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchAssessments($searchTerm)
+                $this->searchAssessments($searchTerm, $selectedCourseCodes, $selectedCourseLevels)
             );
         }
 
         if (in_array('descriptions', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchDescriptions($searchTerm)
+                $this->searchDescriptions($searchTerm, $selectedCourseCodes, $selectedCourseLevels)
             );
         }
 
         if (in_array('materials', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchMaterials($searchTerm)
+                $this->searchMaterials($searchTerm, $selectedCourseCodes, $selectedCourseLevels)
             );
         }
 
@@ -203,6 +215,7 @@ class SearchController extends Controller
     ): Builder {
         if (!empty($courseCodes)) {
             $query->whereIn('courses.course_code', $courseCodes);
+            //this is the same things as adding "courses.course code IN ('...')"
         }
 
         if (!empty($courseLevels)) {
@@ -211,11 +224,11 @@ class SearchController extends Controller
                     $minimum = (int) $level;
 
                     if ($minimum === 600) {
-                        $levelQuery->orWhere('courses.course_num', '>=', $minimum);
+                        $levelQuery->orWhere('courses.course_num', '>=', $minimum); //final level is open ended
                     } else {
                         $levelQuery->orWhereBetween(
                             'courses.course_num',
-                            [$minimum, $minimum + 99]
+                            [$minimum, $minimum + 99] //in the query, normal levels become ranges (300 -> 300-399)
                         );
                     }
                 }
@@ -285,13 +298,18 @@ class SearchController extends Controller
      * Finds course topics matching the search term and creates highlighted result snippets.
      *
      * @param string $searchTerm The normalized text to search for.
+     * @param array $courseCodes The selected course codes.
+     * @param array $courseLevels The selected course number levels.
      *
      * @return Collection The matching topic records with their course details and snippets.
      */
-    public function searchTopics(string $searchTerm){
-        $results = DB::table('course_topics')
-            ->join('courses', 'courses.course_id', '=', 'course_topics.course_id')
-            ->whereRaw( //need to use raw SQL to support SQL functions like to_tsvector and ts_headline
+    public function searchTopics(string $searchTerm, array $courseCodes, array $courseLevels){
+        $query = DB::table('course_topics')
+            ->join('courses', 'courses.course_id', '=', 'course_topics.course_id');
+
+        $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
+
+        $results = $query->whereRaw( //need to use raw SQL to support SQL functions like to_tsvector and ts_headline
                 "to_tsvector('english', course_topics.topic) @@ websearch_to_tsquery('english', ?)",
                 [$searchTerm])
             ->selectRaw("
@@ -316,13 +334,18 @@ class SearchController extends Controller
      * Finds learning outcomes matching the search term and creates highlighted result snippets.
      *
      * @param string $searchTerm The normalized text to search for.
+     * @param array $courseCodes The selected course codes.
+     * @param array $courseLevels The selected course number levels.
      *
      * @return Collection The matching learning outcomes with their course details and snippets.
      */
-    public function searchLearningObjectives(string $searchTerm){
-        $results = DB::table('learning_outcomes')
-        ->join('courses', 'courses.course_id', '=', 'learning_outcomes.course_id')
-        ->whereRaw(
+    public function searchLearningObjectives(string $searchTerm, array $courseCodes, array $courseLevels){
+        $query = DB::table('learning_outcomes')
+            ->join('courses', 'courses.course_id', '=', 'learning_outcomes.course_id');
+
+        $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
+
+        $results = $query->whereRaw(
             "to_tsvector('english', learning_outcomes.l_outcome) @@ websearch_to_tsquery('english', ?)",
             [$searchTerm])
         ->selectRaw("
@@ -347,13 +370,18 @@ class SearchController extends Controller
      * Finds course descriptions matching the search term and creates highlighted result snippets.
      *
      * @param string $searchTerm The normalized text to search for.
+     * @param array $courseCodes The selected course codes.
+     * @param array $courseLevels The selected course number levels.
      *
      * @return Collection The matching descriptions with their course details and snippets.
      */
-    public function searchDescriptions(string $searchTerm){
-        $results = DB::table('course_description')
-        ->join('courses', 'courses.course_id', '=', 'course_description.course_id')
-        ->whereRaw(
+    public function searchDescriptions(string $searchTerm, array $courseCodes, array $courseLevels){
+        $query = DB::table('course_description')
+            ->join('courses', 'courses.course_id', '=', 'course_description.course_id');
+
+        $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
+
+        $results = $query->whereRaw(
             "to_tsvector('english', course_description.description) @@ websearch_to_tsquery('english', ?)",
             [$searchTerm])
         ->selectRaw("
@@ -378,13 +406,18 @@ class SearchController extends Controller
      * Searches material names, types, and descriptions and creates highlighted result snippets.
      *
      * @param string $searchTerm The normalized text to search for.
+     * @param array $courseCodes The selected course codes.
+     * @param array $courseLevels The selected course number levels.
      *
      * @return Collection The matching materials with their course details and snippets.
      */
-    public function searchMaterials(string $searchTerm){
-        $results = DB::table('course_materials')
-        ->join('courses', 'courses.course_id', '=', 'course_materials.course_id')
-        ->whereRaw(
+    public function searchMaterials(string $searchTerm, array $courseCodes, array $courseLevels){
+        $query = DB::table('course_materials')
+            ->join('courses', 'courses.course_id', '=', 'course_materials.course_id');
+
+        $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
+
+        $results = $query->whereRaw(
             "to_tsvector('english', concat_ws(' ', course_materials.name, course_materials.type, course_materials.description)) @@ websearch_to_tsquery('english', ?)",
             [$searchTerm])
         ->selectRaw("
@@ -409,13 +442,18 @@ class SearchController extends Controller
      * Finds assessment methods matching the search term and creates highlighted result snippets.
      *
      * @param string $searchTerm The normalized text to search for.
+     * @param array $courseCodes The selected course codes.
+     * @param array $courseLevels The selected course number levels.
      *
      * @return Collection The matching assessments with their course details and snippets.
      */
-    public function searchAssessments(string $searchTerm){
-        $results = DB::table('assessment_methods')
-        ->join('courses', 'courses.course_id', '=', 'assessment_methods.course_id')
-        ->whereRaw(
+    public function searchAssessments(string $searchTerm, array $courseCodes, array $courseLevels){
+        $query = DB::table('assessment_methods')
+            ->join('courses', 'courses.course_id', '=', 'assessment_methods.course_id');
+
+        $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
+
+        $results = $query->whereRaw(
             "to_tsvector('english', assessment_methods.a_method) @@ websearch_to_tsquery('english', ?)",
             [$searchTerm])
         ->selectRaw("
@@ -440,15 +478,20 @@ class SearchController extends Controller
      * Searches course codes, numbers, and titles for direct course matches.
      *
      * @param string $searchTerm The normalized text to search for.
+     * @param array $courseCodes The selected course codes.
+     * @param array $courseLevels The selected course number levels.
      *
      * @return Collection The matching courses with highlighted course snippets.
      */
-    public function searchCourseNames(string $searchTerm){
+    public function searchCourseNames(string $searchTerm, array $courseCodes, array $courseLevels){
         $searchText = "concat_ws(' ', courses.course_code, courses.course_num, courses.course_title)";
         $normalizedSearchTerm = preg_replace('/^([A-Za-z]+)\s*(\d+)$/', '$1 $2', $searchTerm); //normalize course code/nums for better search
 
-        $results = DB::table('courses')
-            ->whereRaw(
+        $query = DB::table('courses');
+
+        $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
+
+        $results = $query->whereRaw(
                 "to_tsvector('english', {$searchText}) @@ websearch_to_tsquery('english', ?)",
                 [$normalizedSearchTerm]
             )
