@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 
 class SearchController extends Controller
 
@@ -55,6 +56,8 @@ class SearchController extends Controller
         $selectedProperties = $propertyFiltersApplied ? ($validated['properties'] ?? []) : $availableProperties;
 
         $availableCourseCodes = DB::table('courses')
+            //instead of having fixed course codes, we take avaialble courses from what is already in the DB,
+            //since only those need to be searchable
             ->whereNotNull('course_code')
             ->where('course_code', '!=', '')
             ->distinct()
@@ -72,7 +75,9 @@ class SearchController extends Controller
                 ->unique()
                 ->values()
                 ->all()
+
             : [];
+
         $selectedCourseLevels = $courseFiltersApplied ? ($validated['course_levels'] ?? []) : [];
 
         $results = collect();
@@ -180,6 +185,44 @@ class SearchController extends Controller
             'results' => $results,
             'stats' => $stats,
         ];
+    }
+
+    /**
+     * Restricts a course-backed search query to the selected course codes and number levels.
+     *
+     * @param Builder $query The search query containing a join to the courses table.
+     * @param array $courseCodes The selected course codes, such as CONS or FRST.
+     * @param array $courseLevels The selected hundred-level ranges, such as 100 or 300.
+     *
+     * @return Builder The query with the selected course restrictions applied.
+     */
+    private function applyCourseFilters(
+        Builder $query,
+        array $courseCodes,
+        array $courseLevels
+    ): Builder {
+        if (!empty($courseCodes)) {
+            $query->whereIn('courses.course_code', $courseCodes);
+        }
+
+        if (!empty($courseLevels)) {
+            $query->where(function (Builder $levelQuery) use ($courseLevels) {
+                foreach ($courseLevels as $level) {
+                    $minimum = (int) $level;
+
+                    if ($minimum === 600) {
+                        $levelQuery->orWhere('courses.course_num', '>=', $minimum);
+                    } else {
+                        $levelQuery->orWhereBetween(
+                            'courses.course_num',
+                            [$minimum, $minimum + 99]
+                        );
+                    }
+                }
+            });
+        }
+
+        return $query;
     }
 
     /**
