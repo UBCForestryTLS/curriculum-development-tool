@@ -28,6 +28,11 @@ class SearchController extends Controller
             'properties.*' => [
                 'in:course,topics,learning_outcomes,assessments,descriptions,materials',
             ],
+            'course_filters_applied' => ['nullable', 'boolean'],
+            'course_codes' => ['nullable', 'array'],
+            'course_codes.*' => ['string', 'max:10'],
+            'course_levels' => ['nullable', 'array'],
+            'course_levels.*' => ['in:100,200,300,400,500,600'],
         ]);
         // The query is optional, and the result view must be one of the supported options
         // we also validate property filters applied
@@ -48,6 +53,27 @@ class SearchController extends Controller
 
         $propertyFiltersApplied = (bool) ($validated['property_filters_applied'] ?? false);
         $selectedProperties = $propertyFiltersApplied ? ($validated['properties'] ?? []) : $availableProperties;
+
+        $availableCourseCodes = DB::table('courses')
+            ->whereNotNull('course_code')
+            ->where('course_code', '!=', '')
+            ->distinct()
+            ->orderBy('course_code')
+            ->pluck('course_code')
+            ->map(fn ($code) => strtoupper(trim($code)))
+            ->unique()
+            ->values()
+            ->all();
+
+        $courseFiltersApplied = (bool) ($validated['course_filters_applied'] ?? false);
+        $selectedCourseCodes = $courseFiltersApplied
+            ? collect($validated['course_codes'] ?? [])
+                ->map(fn ($code) => strtoupper(trim($code)))
+                ->unique()
+                ->values()
+                ->all()
+            : [];
+        $selectedCourseLevels = $courseFiltersApplied ? ($validated['course_levels'] ?? []) : [];
 
         $results = collect();
         $programMatches = collect();
@@ -92,6 +118,9 @@ class SearchController extends Controller
             'programMatches' => $programMatches,
             'programResults' => $programResults,
             'selectedProperties' => $selectedProperties,
+            'availableCourseCodes' => $availableCourseCodes,
+            'selectedCourseCodes' => $selectedCourseCodes,
+            'selectedCourseLevels' => $selectedCourseLevels,
         ]);
 }
 

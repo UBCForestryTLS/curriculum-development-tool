@@ -55,6 +55,17 @@ class SearchTest extends TestCase
         $response->assertSessionHasErrors('view');
     }
 
+    public function test_invalid_course_level_filter_is_rejected()
+    {
+        $response = $this->from(route('search.index'))->get(route('search.index', [
+            'course_filters_applied' => 1,
+            'course_levels' => ['700'],
+        ]));
+
+        $response->assertRedirect(route('search.index'));
+        $response->assertSessionHasErrors('course_levels.0');
+    }
+
     public function test_search_page_displays_query(){
         $response = $this->get(route('search.index', [
             'query' => 'climate change'
