@@ -31,7 +31,7 @@ class SearchController extends Controller
             ],
             'course_filters_applied' => ['nullable', 'boolean'],
             'course_codes' => ['nullable', 'array'],
-            'course_codes.*' => ['string', 'max:10'],
+            'course_codes.*' => ['nullable', 'string', 'max:10'],
             'course_levels' => ['nullable', 'array'],
             'course_levels.*' => ['in:100,200,300,400,500,600'],
         ]);
@@ -71,6 +71,7 @@ class SearchController extends Controller
         $courseFiltersApplied = (bool) ($validated['course_filters_applied'] ?? false);
         $selectedCourseCodes = $courseFiltersApplied
             ? collect($validated['course_codes'] ?? [])
+                ->filter(fn ($code) => is_string($code) && trim($code) !== '')
                 ->map(fn ($code) => strtoupper(trim($code)))
                 ->unique()
                 ->values()
