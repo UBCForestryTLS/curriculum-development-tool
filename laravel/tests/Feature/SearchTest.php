@@ -1249,4 +1249,78 @@ public function test_multiple_property_filters_work_together()
     $response->assertViewHas('selectedProperties', ['topics', 'descriptions']);
 }
 
+public function test_course_code_filter_excludes_other_course_codes()
+{
+    $this->createCourseScaleCategory();
+
+    $consCourse = Course::factory()->create([
+        'course_code' => 'CONS',
+        'course_num' => 221,
+        'course_title' => 'Selected Code Course',
+    ]);
+
+    $frstCourse = Course::factory()->create([
+        'course_code' => 'FRST',
+        'course_num' => 222,
+        'course_title' => 'Excluded Code Course',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $consCourse->course_id,
+        'topic' => 'Codefilterium conservation methods',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $frstCourse->course_id,
+        'topic' => 'Codefilterium forestry methods',
+    ]);
+
+    $response = $this->get(route('search.index', [
+        'query' => 'codefilterium',
+        'course_filters_applied' => 1,
+        'course_codes' => ['CONS'],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('Selected Code Course');
+    $response->assertDontSee('Excluded Code Course');
+}
+
+public function test_course_level_filter_excludes_other_levels()
+{
+    $this->createCourseScaleCategory();
+
+    $lowerLevelCourse = Course::factory()->create([
+        'course_code' => 'FRST',
+        'course_num' => 150,
+        'course_title' => 'Excluded Lower Level Course',
+    ]);
+
+    $selectedLevelCourse = Course::factory()->create([
+        'course_code' => 'FRST',
+        'course_num' => 350,
+        'course_title' => 'Selected Upper Level Course',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $lowerLevelCourse->course_id,
+        'topic' => 'Levelfilterium introductory methods',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $selectedLevelCourse->course_id,
+        'topic' => 'Levelfilterium advanced methods',
+    ]);
+
+    $response = $this->get(route('search.index', [
+        'query' => 'levelfilterium',
+        'course_filters_applied' => 1,
+        'course_levels' => ['300'],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('Selected Upper Level Course');
+    $response->assertDontSee('Excluded Lower Level Course');
+}
+
 }
