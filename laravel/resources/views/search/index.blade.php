@@ -96,7 +96,7 @@
     <div class="search-page-header text-center">
         <h1 class="mb-3">Course Search</h1>
 
-        <form method="GET" action="{{ route('search.index') }}">
+        <form method="GET" action="{{ route('search.index') }}" id="courseSearchForm">
             <input type="hidden" name="property_filters_applied" value="1">
 
             <div class="input-group">
@@ -149,10 +149,22 @@
                         ];
                     @endphp
 
+                    <div class="form-check mb-1">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="allProperties"
+                            @checked(count($selectedProperties) === count($propertyOptions))
+                        >
+                        <label class="form-check-label fw-semibold" for="allProperties">
+                            All Properties
+                        </label>
+                    </div>
+
                     @foreach($propertyOptions as $value => $label)
                         <div class="form-check">
                             <input
-                                class="form-check-input"
+                                class="form-check-input property-filter-option"
                                 type="checkbox"
                                 name="properties[]"
                                 value="{{ $value }}"
@@ -346,4 +358,46 @@
             </div>
         @endif
     @endif
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchForm = document.getElementById('courseSearchForm');
+            const allProperties = document.getElementById('allProperties');
+            const propertyOptions = Array.from(document.querySelectorAll('.property-filter-option'));
+
+            function updatePropertyControls() {
+                if (allProperties.checked) {
+                    propertyOptions.forEach(function (option) {
+                        option.checked = true;
+                        option.disabled = true;
+                    });
+                    return;
+                }
+
+                propertyOptions.forEach(function (option) {
+                    option.disabled = false;
+                });
+            }
+
+            allProperties.addEventListener('change', updatePropertyControls);
+
+            propertyOptions.forEach(function (option) {
+                option.addEventListener('change', function () {
+                    allProperties.checked = propertyOptions.every(function (propertyOption) {
+                        return propertyOption.checked;
+                    });
+
+                    updatePropertyControls();
+                });
+            });
+
+            searchForm.addEventListener('submit', function () {
+                propertyOptions.forEach(function (option) {
+                    option.disabled = false;
+                });
+            });
+
+            updatePropertyControls();
+        });
+    </script>
 @endsection
