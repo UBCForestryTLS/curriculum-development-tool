@@ -27,35 +27,37 @@ def extract(
     """Extract text per page and annotate with font properties per line
 
     Returns (pages, page_count),
-    where each page is a dict with {page_number, text, lines}, 
+    where each page is a dict with {page_number, lines}, 
     and lines is a list of {text, size, bold}:
       - for readable pages: real font size extracted with bold flag (True/False)
       - for scanned pages (Tesseract OCR): word-box height estimates size; bold is unknown (None)
-      - for scanned pages (Textract OCR): no font data, so lines is empty
+      - for scanned pages (Textract OCR): size and bold are unknown (None)
     """
-    if ocr_enabled and extraction_engine == "textract" and settings.TEXTRACT_ENABLED:
-        return _from_textract(file_bytes)
-
-    doc = pymupdf.open(stream=file_bytes, filetype="pdf")
+    doc : pymupdf.Document = pymupdf.open(stream=file_bytes, filetype="pdf")
     page_count = doc.page_count
+
+    if ocr_enabled and extraction_engine == "textract":
+        doc.close()
+        return _from_textract(file_bytes, page_count)
+
     logger.info(f"Extracting {page_count}-page document (ocr_enabled={ocr_enabled})")
 
     pages: list[dict] = []
     try:
-        for index, page in enumerate(doc, start=1):
-            text_layer = page.get_text("text")
-            if ocr_enabled and extraction_engine == "tesseract" and len(text_layer.strip()) <= ocr_threshold:
-                text, lines = _from_ocr(page)
+        for i in range(page_count):
+            page: pymupdf.Page = doc[i]
+            if ocr_enabled and extraction_engine == "tesseract" and len(page.get_text("text").strip()) <= ocr_threshold:
+                lines = _from_ocr(page)
             else:
-                text, lines = _from_text_layer(page, text_layer)
-            pages.append({"page_number": index, "text": text.strip(), "lines": lines})
+                lines = _from_text_layer(page)
+            pages.append({"page_number": i + 1, "lines": lines})
     finally:
         doc.close()
 
     return pages, page_count
 
 
-def _from_text_layer(page, text_layer: str) -> tuple[str, list[dict]]:
+def _from_text_layer(page) -> list[dict]:
     lines: list[dict] = []
     for block in page.get_text("dict").get("blocks", []):
         for line in block.get("lines", []):
@@ -63,10 +65,10 @@ def _from_text_layer(page, text_layer: str) -> tuple[str, list[dict]]:
             text = "".join(span.get("text", "") for span in spans).strip()
             if not text:
                 continue
-            size = max((span.get("size", 0.0) for span in spans), default=0.0)
+            size = max((span.get("size", 0.0) for span in spans), default=0.0) # Largest font size in line treated as line font size
             bold = any(_is_bold(span) for span in spans)
             lines.append({"text": text, "size": round(size, 1), "bold": bold})
-    return text_layer, lines
+    return lines
 
 
 def _is_bold(span) -> bool:
@@ -75,7 +77,7 @@ def _is_bold(span) -> bool:
     return "bold" in span.get("font", "").lower()
 
 
-def _from_ocr(page) -> tuple[str, list[dict]]:
+def _from_ocr(page) -> list[dict]:
     pixmap = page.get_pixmap(dpi=OCR_RENDER_DPI)
     image = Image.open(io.BytesIO(pixmap.tobytes("png")))
     data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
@@ -108,8 +110,7 @@ def _from_ocr(page) -> tuple[str, list[dict]]:
         # Cannot determine if bold with Tesseract
         lines.append({"text": text, "size": round(float(size_pt), 1), "bold": None})
 
-    full_text = "\n".join(line["text"] for line in lines)
-    return full_text, lines
+    return lines
 
 
 # --- AWS Textract ---
@@ -117,12 +118,10 @@ def _from_ocr(page) -> tuple[str, list[dict]]:
 
 POLLING_INTERVAL_SECONDS = 2
 
-def _from_textract(file_bytes: bytes) -> tuple[list[dict], int]:
+def _from_textract(file_bytes: bytes, page_count: int) -> tuple[list[dict], int]:
     """Extract per-page text with AWS Textract. Pages carry no font lines."""
     import boto3  # lazy: only needed when the Textract engine is used
 
-    with pymupdf.open(stream=file_bytes, filetype="pdf") as doc:
-        page_count = doc.page_count
     logger.info(f"Textract extracting {page_count}-page document")
 
     session = boto3.Session(
@@ -161,7 +160,16 @@ def _accumulate_textract(response, grouped: dict) -> None:
 
 
 def _textract_pages(grouped: dict) -> list[dict]:
-    return [{"page_number": num, "text": grouped[num], "lines": []} for num in sorted(grouped)]
+    pages: list[dict] = []
+    for num in sorted(grouped):
+        text = grouped[num].strip()
+        lines = [
+            {"text": line.strip(), "size": None, "bold": None}
+            for line in text.split("\n")
+            if line.strip()
+        ]
+        pages.append({"page_number": num, "lines": lines})
+    return pages
 
 
 def _wait_for_textract(textract, job_id, max_wait_seconds: int = 600) -> list[dict]:
