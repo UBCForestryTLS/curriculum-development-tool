@@ -1404,4 +1404,20 @@ public function test_course_code_and_level_filters_work_together()
     $response->assertDontSee('Excluded FRST Upper Course');
 }
 
+public function test_selected_course_level_is_preserved_and_displayed()
+{
+    $response = $this->get(route('search.index', [
+        'course_filters_applied' => 1,
+        'course_levels' => ['300'],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertViewHas('selectedCourseLevels', ['300']);
+    $this->assertMatchesRegularExpression(
+        '/<option\s+value="300"\s+selected\s*>/s',
+        $response->getContent()
+    );
+    $response->assertSee('Course Level: 300');
+}
+
 }
