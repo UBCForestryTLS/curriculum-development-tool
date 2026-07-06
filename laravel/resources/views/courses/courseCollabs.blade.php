@@ -284,7 +284,7 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                 $(this).addClass('was-validated');
             }
             // readjust modal's position/height
-            document.querySelector('#addCourseCollaboratorsModal' + courseId).handleUpdate();
+            $('#addCourseCollaboratorsModal' + courseId).modal("handleUpdate");
 
         });
 

@@ -541,18 +541,16 @@
         location.reload();
     });
 
-    $(document).ready(function () {
-	    //This method is used to make sure that the proper amount of characters are entered so it doesn't exceed the max character limits
-        function validateMaxlength(e){
-            //Whitespaces are counted as 1 but character wise are 2 (\n).
-            var MAX_LENGTH = event.target.getAttribute("maxlength");
-            var currentLength = event.target.value.length;
-            var whiteSpace = event.target.value.split(/\n/).length;
-            if((currentLength+(whiteSpace))>MAX_LENGTH)
-            {
-                //Goes to MAX_LENGTH-(whiteSpace)+1 because it starts at 1
-                event.target.value = event.target.value.substr(0,MAX_LENGTH-(whiteSpace)+1);
-            }
+    // This method is used to make sure that the proper amount of characters are entered so it doesn't exceed the max character limits
+    function validateMaxlength(e){
+        // Whitespaces are counted as 1 but character wise are 2 (\n).
+        var MAX_LENGTH = e.target.getAttribute("maxlength");
+        var currentLength = e.target.value.length;
+        var whiteSpace = e.target.value.split(/\n/).length;
+        if((currentLength+(whiteSpace))>MAX_LENGTH)
+        {
+            // Goes to MAX_LENGTH-(whiteSpace)+1 because it starts at 1
+            e.target.value = e.target.value.substr(0,MAX_LENGTH-(whiteSpace)+1);
         }
-    });
+    }
 </script>

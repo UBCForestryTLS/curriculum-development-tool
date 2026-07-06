@@ -1,0 +1,60 @@
+<footer id="ubc7-footer" class="expand" role="contentinfo">
+    <div class="row-fluid expand" id="ubc7-unit-footer">
+        <div class="container">
+            <div class="span10" id="ubc7-unit-address">
+                <div id="ubc7-address-unit-name">Office of the Provost and Vice-President Academic</div>
+                <div id="ubc7-address-campus">Okanagan Campus</div>
+                <div id="ubc7-address-street">ADM119 - 1138 Alumni Ave</div>
+                <div id="ubc7-address-location">
+                    <span id="ubc7-address-city">Kelowna</span>,
+                    <span id="ubc7-address-province">BC</span>
+                    <span id="ubc7-address-country">Canada</span>
+                    <span id="ubc7-address-postal">V1V 1V7</span>
+                </div>
+                <div id="ubc7-address-website">Website <a href="http://provost.ok.ubc.ca" target="_blank" rel="noopener noreferrer">provost.ok.ubc.ca</a></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row-fluid expand" id="ubc7-global-footer">
+        <div class="container">
+            <div class="span5" id="ubc7-signature"><a href="http://www.ubc.ca/" target="_blank" rel="noopener noreferrer" title="The University of British Columbia (UBC)">The University of British Columbia</a></div>
+            <div class="span7" id="ubc7-footer-menu">
+                <div class="row-fluid">
+                    <div class="span6">
+                        <h3>About UBC</h3>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/contact" target="_blank" rel="noopener noreferrer">Contact UBC</a></div>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/about" target="_blank" rel="noopener noreferrer">About the University</a></div>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/news" target="_blank" rel="noopener noreferrer">News</a></div>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/events" target="_blank" rel="noopener noreferrer">Events</a></div>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/careers" target="_blank" rel="noopener noreferrer">Careers</a></div>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/gift" target="_blank" rel="noopener noreferrer">Make a Gift</a></div>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/search" target="_blank" rel="noopener noreferrer">Search UBC.ca</a></div>
+                    </div>
+                    <div class="span6">
+                        <h3>UBC Campuses</h3>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/vancouver" target="_blank" rel="noopener noreferrer">Vancouver Campus</a></div>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/okanagan" target="_blank" rel="noopener noreferrer">Okanagan Campus</a></div>
+                        <h4>UBC Sites</h4>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/robson" target="_blank" rel="noopener noreferrer">Robson Square</a></div>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/centre-for-digital-media" target="_blank" rel="noopener noreferrer">Centre for Digital Media</a></div>
+                        <div><a href="https://cdn.ubc.ca/clf/ref/medicine" target="_blank" rel="noopener noreferrer">Faculty of Medicine Across BC</a></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row-fluid expand" id="ubc7-minimal-footer">
+        <div class="container">
+            <div class="span12">
+                <ul>
+                    <li><a href="//cdn.ubc.ca/clf/ref/emergency" title="Emergency Procedures">Emergency Procedures</a> <span class="divider">|</span></li>
+                    <li><a href="//cdn.ubc.ca/clf/ref/terms" title="Terms of Use">Terms of Use</a> <span class="divider">|</span></li>
+                    <li><a href="//cdn.ubc.ca/clf/ref/copyright" title="UBC Copyright">Copyright</a> <span class="divider">|</span></li>
+                    <li><a href="//cdn.ubc.ca/clf/ref/accessibility" title="Accessibility">Accessibility</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</footer>

@@ -62,6 +62,9 @@ hub_env = {
 }
 MODEL_NAME_PREFIX = os.environ.get("MODEL_NAME_PREFIX", "hf-batch-transform-model")
 
+APP_NAME = os.getenv("APP_NAME") 
+SAGEMAKER_TAGS = [{"Key": "AppName", "Value": APP_NAME}] if APP_NAME else []
+
 
 def get_running_transform_job() -> dict | None:
     """Return the first InProgress/Stopping job matching our prefix, or None."""
@@ -95,6 +98,7 @@ def create_model(model_name: str):
             "Environment": {**hub_env},
         },
         ExecutionRoleArn=SAGEMAKER_ROLE_ARN,
+        Tags=SAGEMAKER_TAGS,
     )
     logger.info("Created SageMaker model: %s", model_name)
 
@@ -133,6 +137,7 @@ def start_transform_job(job_name, model_name, input_s3_uri):
             "InstanceType": INSTANCE_TYPE,
             "InstanceCount": INSTANCE_COUNT,
         },
+        Tags=SAGEMAKER_TAGS,
     )
     logger.info("Submitted transform job: %s", job_name)
 

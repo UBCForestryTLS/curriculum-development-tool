@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     SECRET_KEY: str | None = None
     DYNAMODB_STATUS_INDEX: str = "status-created_at-index"
     OUTPUT_S3_URI: str | None = None
+    BATCH_TRANSFORM_INPUT_S3_BUCKET: str | None = None
+    LARAVEL_API_URL: str | None = None
+    APP_NAME: str = "curriculum-development-tool"
 
     @field_validator("ALLOWED_ORIGINS")
     def parse_allowed_origins(cls, v: str) -> List[str]:

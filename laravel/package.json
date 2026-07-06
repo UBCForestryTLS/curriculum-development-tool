@@ -17,7 +17,8 @@
         "laravel-vite-plugin": "^2.0.1",
         "sass": "^1.20.1",
         "vite": "^7.1.12",
-        "vue": "^3.2.25"
+        "vue": "^3.2.25",
+        "playwright": "^1.60.0"
     },
     "dependencies": {
         "@popperjs/core": "^2.11.4"

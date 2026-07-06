@@ -40,11 +40,6 @@ class OutcomeMappingRequest(BaseModel):
         description="Allowed mapping scales for this request",
     )
     
-class ManualProcessRequest(BaseModel):
-    course_id: str
-    program_id: str
-
-
 class CourseProgramPair(BaseModel):
     course_id: int
     program_id: int

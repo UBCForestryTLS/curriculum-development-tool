@@ -11,7 +11,7 @@ import os
 
 from app.schemas import (
     OutcomeMappingRequest,
-    ManualProcessRequest,
+    CourseProgramPair,
     InFlightStatusRequest,
 )
 from app.services import BatchTransformInputBuilder, LOMappingRequestDynamoDBRecord, process_batch_transform_results
@@ -37,9 +37,9 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     logger.info("APScheduler started.")
     app.state.scheduler = scheduler
-    
+
     yield
-    
+
     scheduler.shutdown(wait=False)
     logger.info("APScheduler stopped.")
 
@@ -60,7 +60,6 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
@@ -68,10 +67,9 @@ async def health_check() -> dict[str, str]:
 
 @app.post("/map-program-outcomes")
 async def map_program_outcomes(request: OutcomeMappingRequest)-> dict:
+    logger.info("/map-program-outcomes called for course_id=%s program_id=%s", request.course_id, request.program_id)
     try:
-        # Dedupe: if there is already an in-flight record for this (course, program)
-        # pair, return its request_id and skip the S3 upload + DynamoDB insert + Lambda
-        # invoke. Best-effort (small race window between query and insert).
+        logger.info("Step 1/4: checking for existing in-flight record")
         existing = lo_mapping_request_store.find_in_flight_records_for_pairs(
             [(request.course_id, request.program_id)]
         ).get((request.course_id, request.program_id))
@@ -87,18 +85,25 @@ async def map_program_outcomes(request: OutcomeMappingRequest)-> dict:
                 "deduplicated": True,
             }
 
+        logger.info("Step 2/4: building batch prompt records (uploads to S3)")
         batchTranformInputBuilder = BatchTransformInputBuilder(request)
         s3_input_path = batchTranformInputBuilder.build_batch_prompt_records()
+        logger.info("Step 2/4 done: s3_input_path=%s", s3_input_path)
+
+        logger.info("Step 3/4: writing PENDING record to DynamoDB table=%s", lo_mapping_request_store.table_name)
         record = lo_mapping_request_store.create_request(
             course_id=request.course_id,
             program_id=request.program_id,
             input_s3_path=s3_input_path,
             status="PENDING",
         )
+        logger.info("Step 3/4 done: created record_id=%s", record["request_id"])
+
+        logger.info("Step 4/4: invoking start-batch-transform-job Lambda")
         try:
             response = lambda_client.invoke(
                 FunctionName="start-batch-transform-job",
-                InvocationType="RequestResponse",        
+                InvocationType="RequestResponse",
                 Payload=json.dumps({"record_id": record["request_id"]
                                     }).encode("utf-8")
             )
@@ -109,6 +114,7 @@ async def map_program_outcomes(request: OutcomeMappingRequest)-> dict:
             result = json.loads(response["Payload"].read())
             body = result.get("body", {}) if isinstance(result, dict) else {}
 
+            logger.info("Step 4/4 done: lambda returned %s", body)
             return {
                 "message": body.get("message", "Submitted"),
                 "jobName": body.get("jobName") or body.get("existingJob"),
@@ -116,9 +122,12 @@ async def map_program_outcomes(request: OutcomeMappingRequest)-> dict:
             }
 
         except Exception as e:
+            logger.exception("Step 4/4 failed: lambda invocation error (PENDING record %s is in DynamoDB)", record["request_id"])
             raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error in mapping LOs: {e}")
+        logger.exception("Error in mapping LOs (full traceback above)")
         raise HTTPException(status_code=500, detail="Something went wrong while processing mapping request")
     
 @app.post("/in-flight-status")
@@ -152,6 +161,7 @@ async def in_flight_status(request: InFlightStatusRequest) -> dict:
                 "request_id": record.get("request_id"),
                 "created_at": record.get("created_at"),
             })
+    logger.info("In-flight status check: pairs=%s statuses=%s", pairs, statuses)
     return {"statuses": statuses}
 
 
@@ -162,7 +172,7 @@ async def process_batch_transform_results_endpoint(request: dict, background_tas
     return {"message": "accepted"}
 
 @app.post("/poll-results-status")
-async def poll_results_status(body: ManualProcessRequest):
+async def poll_results_status(body: CourseProgramPair):
     """Read-only check: is there an AWAITING_COMPLETION record ready to process?"""
     record = lo_mapping_request_store.find_latest_awaiting_record_by_ids(
         body.course_id, body.program_id
@@ -177,13 +187,10 @@ async def poll_results_status(body: ManualProcessRequest):
 
 
 @app.post("/process-pending-results")
-async def process_pending_results(body: ManualProcessRequest, background_tasks: BackgroundTasks):
+async def process_pending_results(body: CourseProgramPair, background_tasks: BackgroundTasks):
     """
     Trigger S3 read + Laravel delivery + DynamoDB cleanup as a background task,
-    and return immediately. Returning fast prevents a circular-call deadlock when
-    Laravel is single-threaded (e.g. `php artisan serve` with one worker), since
-    this request has to finish before Laravel can serve the storeAiSuggestions
-    POST that the background task makes.
+    and return immediately.
     """
     logger.info(
         "Process pending results request — course_id=%s program_id=%s",
@@ -207,9 +214,3 @@ async def process_pending_results(body: ManualProcessRequest, background_tasks: 
     }
 
 
-# Backwards-compatible alias for older callers (and the 6-hour scheduler invocation
-# pattern). Same behaviour as /process-pending-results.
-@app.post("/get-processed-results")
-async def get_processed_results_alias(body: ManualProcessRequest, background_tasks: BackgroundTasks):
-    return await process_pending_results(body, background_tasks)
-    

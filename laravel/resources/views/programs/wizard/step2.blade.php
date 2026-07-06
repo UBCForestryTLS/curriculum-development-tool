@@ -25,7 +25,7 @@
 
                 <div class="card-body">
                     <div class="alert alert-primary d-flex align-items-center" role="alert" style="text-align:justify">
-                        <i class="bi bi-info-circle-fill pe-2 fs-3"></i>                        
+                        <i class="bi bi-info-circle-fill pe-2 fs-3"></i>
                         <div>
                             The mapping scale is the scale that will be used to indicate the degree to which a program-level learning outcome is addressed by a course outcome, or the degree of alignment between the course outcome and program-level learning outcome. Please note that when using custom mapping scales the Data Download will use creation order to indicate dominance, with the first created scale being the highest degree of alignment.
                         </div>
@@ -58,16 +58,16 @@
                                                     <p>{{$msCategory->description}}</p>
                                                     <table class="table table-bordered table-sm">
                                                         <tbody>
-                                                            @foreach ($mscScale as $ms)
-                                                                @if ($msCategory->mapping_scale_categories_id == $ms->mapping_scale_categories_id)
+                                                            @foreach ($mscScale as $mappingScale)
+                                                                @if ($msCategory->mapping_scale_categories_id == $mappingScale->mapping_scale_categories_id)
                                                                     <tr>
                                                                         <td style="width:20%">
-                                                                            <div style="background-color:{{$ms->colour}}; height: 10px; width: 10px;"></div>
-                                                                            {{$ms->title}}<br>
-                                                                            ({{$ms->abbreviation}})
+                                                                            <div style="background-color:{{$mappingScale->colour}}; height: 10px; width: 10px;"></div>
+                                                                            {{$mappingScale->title}}<br>
+                                                                            ({{$mappingScale->abbreviation}})
                                                                         </td>
                                                                         <td>
-                                                                            {{$ms->description}}
+                                                                            {{$mappingScale->description}}
                                                                         </td>
                                                                     </tr>
                                                                 @endif
@@ -80,7 +80,8 @@
                                                         <input type="hidden" class="form-check-input" name="program_id" value="{{$program->program_id}}">
                                                         <div class="row">
                                                             <div class="col-md-8 text-center">
-                                                                <p style="color: #e3342f; margin: auto;">If you have an existing mapping scale it will be deleted and replaced with the scale above.</p>
+                                                                <p style="color: #e3342f; margin: auto; font-weight: bold;">If you have an existing mapping scale it will be deleted and replaced with the scale above.</p>
+                                                                <p style="color: #e3342f; margin: auto; font-weight: bold;">Any existing mappings or AI mapping suggestions will be permanently lost.</p>
                                                             </div>
                                                             <div class="col-md-4 text-center" style="margin: auto;">
                                                                 <button type="submit" style="background-color:#002145;color:white;" class="btn btn-secondary btn-sm">+ Use this scale</button>
@@ -97,31 +98,31 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                         </div>
 
 
                         <div class="float-start">
 
                         </div>
-                        
+
                     </div>
 
 
-                    
+
 
 
                     <div id="plos">
                         <div class="row">
                             <div class="col">
-                            <!--Table for Imported Mapping Scales-->    
+                            <!--Table for Imported Mapping Scales-->
                             @if ($mappingScales->count() < 1)
                                 <div class="alert alert-warning wizard">
-                                    <i class="bi bi-exclamation-circle-fill pe-2 fs-5"></i>There are no mapping scale levels set for this program yet.                    
+                                    <i class="bi bi-exclamation-circle-fill pe-2 fs-5"></i>There are no mapping scale levels set for this program yet.
                                 </div>
                             @elseif (!$hasImportedMS)
                             <!--Display Nothing when there are no imported Mapping scales-->
-                            @else 
+                            @else
                                 <table class="table table-light table-bordered" >
                                     <tr class="table-primary">
                                         <th class="w-25">Mapping Scale Level</th>
@@ -129,25 +130,25 @@
                                         <th class="text-center">Actions</th>
                                     </tr>
 
-                                    @foreach($mappingScales as $ms)
-                                        @if($ms->mapping_scale_categories_id != NULL)
+                                    @foreach($mappingScales as $mappingScale)
+                                        @if($mappingScale->mapping_scale_categories_id != NULL)
                                             <tr>
                                                 <td>
-                                                    <div style="background-color:{{$ms->colour}}; height: 10px; width: 10px;"></div>
-                                                    {{$ms->title}}<br>
-                                                    ({{$ms->abbreviation}})
+                                                    <div style="background-color:{{$mappingScale->colour}}; height: 10px; width: 10px;"></div>
+                                                    {{$mappingScale->title}}<br>
+                                                    ({{$mappingScale->abbreviation}})
                                                 </td>
                                                 <td>
-                                                    {{$ms->description}}
+                                                    {{$mappingScale->description}}
                                                 </td>
 
                                                 <td class="text-center align-middle">
-                                                    <form action="{{route('mappingScale.destroy', $ms->map_scale_id)}}" method="POST">
+                                                    <form id="deleteMSForm-{{$mappingScale->map_scale_id}}" action="{{route('mappingScale.destroy', $mappingScale->map_scale_id)}}" method="POST">
                                                         @csrf
                                                         {{method_field('DELETE')}}
                                                         <input type="hidden" class="form-check-input" name="program_id" value="{{$program->program_id}}">
-                                                        <button type="submit" style="width:60px" class="btn btn-danger btn-sm m-1">Delete</button>
-                                                        
+                                                        <button type="button" style="width:60px" class="btn btn-danger btn-sm m-1" onclick="confirmDeleteMS({{$mappingScale->map_scale_id}})">Delete</button>
+
                                                     </form>
                                                 </td>
                                             </tr>
@@ -156,7 +157,7 @@
                                 </table>
                             @endif
                             <!--Table for Custom Mapping Scales-->
-                            @if ($hasCustomMS) 
+                            @if ($hasCustomMS)
                             <table class="table table-light table-bordered w-100">
                                 <tr class="table-primary">
                                     <th class="w-25"> Custom Mapping Scale Level</th>
@@ -164,45 +165,45 @@
                                     <th class="text-center w-25">Actions</th>
                                 </tr>
                             @endif
-                                @foreach($mappingScales as $ms)
-                                    @if($ms->mapping_scale_categories_id == NULL)
+                                @foreach($mappingScales as $mappingScale)
+                                    @if($mappingScale->mapping_scale_categories_id == NULL)
                                         <tr>
                                             <td>
-                                                <div style="background-color:{{$ms->colour}}; height: 10px; width: 10px;"></div>
-                                                {{$ms->title}}<br>
-                                                ({{$ms->abbreviation}})
+                                                <div style="background-color:{{$mappingScale->colour}}; height: 10px; width: 10px;"></div>
+                                                {{$mappingScale->title}}<br>
+                                                ({{$mappingScale->abbreviation}})
                                             </td>
                                             <td>
-                                                {{$ms->description}}
+                                                {{$mappingScale->description}}
                                             </td>
                                             <td class="text-center align-middle">
-                                                <form action="{{route('mappingScale.destroy', $ms->map_scale_id)}}" method="POST">
+                                                <form id="deleteMSForm-{{$mappingScale->map_scale_id}}" action="{{route('mappingScale.destroy', $mappingScale->map_scale_id)}}" method="POST">
                                                     @csrf
                                                     {{method_field('DELETE')}}
                                                     <input type="hidden" class="form-check-input" name="program_id" value="{{$program->program_id}}">
-                                                        <button type="button" class="btn btn-secondary btn-sm m-1" data-bs-toggle="modal" style="width:60px;" data-bs-target="#editMSModal{{$ms->map_scale_id}}">
+                                                        <button type="button" class="btn btn-secondary btn-sm m-1" data-bs-toggle="modal" style="width:60px;" data-bs-target="#editMSModal{{$mappingScale->map_scale_id}}">
                                                             Edit
                                                         </button>
-                                                    <button type="submit" style="width:60px" class="btn btn-danger btn-sm m-1">Delete</button>
+                                                    <button type="button" style="width:60px" class="btn btn-danger btn-sm m-1" onclick="confirmDeleteMS({{$mappingScale->map_scale_id}})">Delete</button>
                                                 </form>
                                                 <!-- Edit MS Modal -->
-                                                <div class="modal fade" id="editMSModal{{$ms->map_scale_id}}" tabindex="-1" role="dialog" aria-labelledby="editMSModalLabel" aria-hidden="true">
+                                                <div class="modal fade" id="editMSModal{{$mappingScale->map_scale_id}}" tabindex="-1" role="dialog" aria-labelledby="editMSModalLabel" aria-hidden="true">
                                                     <div class="modal-dialog modal-lg" role="document">
                                                         <div class="modal-content">
                                                             <div class="modal-header">
                                                                 <h5 class="modal-title" id="editMSModalLabel">Edit Mapping Scale Level</h5>
                                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                             </div>
-                                                            <form action="{{route('mappingScale.update', $ms->map_scale_id)}}" method="POST">
+                                                            <form action="{{route('mappingScale.update', $mappingScale->map_scale_id)}}" method="POST">
                                                                 @csrf
                                                                 {{method_field('POST')}}
                                                                 <div class="modal-body">
                                                                     <div class="mb-3 row">
                                                                         <label for="title" class="col-md-4 col-form-label text-md-end">Title</label>
-                            
+
                                                                         <div class="col-md-8">
-                                                                            <input id="title" type="text" class="form-control @error('title') is-invalid @enderror" name="title" value="{{$ms->title}}" required autofocus>
-                            
+                                                                            <input id="title" type="text" class="form-control @error('title') is-invalid @enderror" name="title" value="{{$mappingScale->title}}" required autofocus>
+
                                                                             @error('title')
                                                                             <span class="invalid-feedback" role="alert">
                                                                                 <strong>{{ $message }}</strong>
@@ -212,10 +213,10 @@
                                                                     </div>
                                                                     <div class="mb-3 row">
                                                                         <label for="abbreviation" class="col-md-4 col-form-label text-md-end">Abbreviation</label>
-                            
+
                                                                         <div class="col-md-8">
-                                                                            <input id="abbreviation" type="text" class="form-control @error('abbreviation') is-invalid @enderror" name="abbreviation" value="{{$ms->abbreviation}}" maxlength="5" required autofocus>
-                            
+                                                                            <input id="abbreviation" type="text" class="form-control @error('abbreviation') is-invalid @enderror" name="abbreviation" value="{{$mappingScale->abbreviation}}" maxlength="5" required autofocus>
+
                                                                             @error('abbreviation')
                                                                             <span class="invalid-feedback" role="alert">
                                                                                 <strong>{{ $message }}</strong>
@@ -225,9 +226,9 @@
                                                                     </div>
                                                                     <div class="mb-3 row">
                                                                         <label for="colour" class="col-md-4 col-form-label text-md-end">Colour</label>
-                            
+
                                                                         <div class="col-md-8">
-                                                                            <input id="colour" type="color" class="form-control @error('colour') is-invalid @enderror" name="colour" value="{{$ms->colour}}" required autofocus list="colours">
+                                                                            <input id="colour" type="color" class="form-control @error('colour') is-invalid @enderror" name="colour" value="{{$mappingScale->colour}}" required autofocus list="colours">
                                                                             <datalist id="colours">
                                                                                 <option value="#494444">
                                                                                 <option value="#726f6f">
@@ -264,10 +265,10 @@
                                                                     </div>
                                                                     <div class="mb-3 row">
                                                                         <label for="description" class="col-md-4 col-form-label text-md-end">Description</label>
-                            
+
                                                                         <div class="col-md-8">
-                                                                            <textarea id="description" class="form-control" @error('description') is-invalid @enderror rows="3" name="description" required autofocus>{{$ms->description}}</textarea>
-                            
+                                                                            <textarea id="description" class="form-control" @error('description') is-invalid @enderror rows="3" name="description" required autofocus>{{$mappingScale->description}}</textarea>
+
                                                                             @error('description')
                                                                             <span class="invalid-feedback" role="alert">
                                                                                 <strong>{{ $message }}</strong>
@@ -294,6 +295,26 @@
                         </div>
                     </div>
                 </div>
+                    <!-- Delete Mapping Scale level confirmation modal -->
+                    <div class="modal fade" id="deleteMSConfirmModal" tabindex="-1" role="dialog" aria-labelledby="deleteMSConfirmLabel" aria-hidden="true">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="deleteMSConfirmLabel">Delete Mapping Scale Level</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Are you sure you want to delete this mapping scale level?</p>
+                                    <p class="fw-bold text-danger mb-0">Any existing mappings and AI mapping suggestions that use this scale level will also be permanently deleted.</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" id="deleteMSConfirmBtn" class="btn btn-danger btn-sm">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Modal -->
                     <div class="modal fade" id="addMSModal" tabindex="-1" role="dialog"
                         aria-labelledby="addMSModalLabel" aria-hidden="true">
@@ -304,7 +325,7 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
                                 <form action="{{route('program.mappingScale.store')}}" method="POST">
-                                
+
                                     @csrf
 
                                     <div class="modal-body">
@@ -386,7 +407,7 @@
                                             <label for="description" class="col-md-4 col-form-label text-md-end">Description</label>
 
                                             <div class="col-md-8">
-                                                
+
                                                 <textarea id="description" oninput="validateMaxlength()" onpaste="validateMaxlength()" maxlength="30000" class="form-control" @error('description') is-invalid @enderror rows="3" name="description" required autofocus></textarea>
 
                                                 @error('description')
@@ -429,13 +450,26 @@
 
 <script type="text/javascript">
     $(document).ready(function () {
-  
+
       $("form").submit(function () {
         // prevent duplicate form submissions
         $(this).find(":submit").attr('disabled', 'disabled');
         $(this).find(":submit").html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
-  
+
       });
+    });
+
+    // Confirm before deleting a scale level. Deleting it also removes any manual
+    // mappings and AI suggestions that used it, so warn the user first.
+    let deleteMSFormId = null;
+    function confirmDeleteMS(mapScaleId) {
+        deleteMSFormId = 'deleteMSForm-' + mapScaleId;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteMSConfirmModal')).show();
+    }
+    document.getElementById('deleteMSConfirmBtn').addEventListener('click', function () {
+        if (deleteMSFormId) {
+            document.getElementById(deleteMSFormId).submit();
+        }
     });
   </script>
 

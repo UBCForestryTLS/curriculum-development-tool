@@ -23,13 +23,13 @@
                                 <input id="syllabus_collab_email{{$syllabus->id}}" type="email" name="email" class="form-control" placeholder="john.doe@ubc.ca" aria-label="email" required>
                                 <div class="invalid-tooltip">
                                     Please provide a valid email ending with ubc.ca.
-                                </div> 
+                                </div>
                             </div>
                             <div class="col-3">
                                 <select class="form-select" id="syllabus_collab_permission{{$syllabus->id}}" name="permission">
                                     <option value="edit" selected>Editor</option>
                                     <option value="view">Viewer</option>
-                                </select>                   
+                                </select>
                             </div>
                             <div class="col-3">
                                 <button id="addSyllabusCollabBtn{{$syllabus->id}}" type="submit" class="btn btn-primary col"><i class="bi bi-plus"></i> Collaborator</button>
@@ -42,11 +42,11 @@
                     <div class="col-8">
                         <hr>
                     </div>
-                </div> 
+                </div>
 
                 @if ($syllabus->users->count() < 1)
                     <div class="alert alert-warning wizard">
-                        <i class="bi bi-exclamation-circle-fill"></i>You have not added any collaborators to this syllabus yet.                    
+                        <i class="bi bi-exclamation-circle-fill"></i>You have not added any collaborators to this syllabus yet.
                     </div>
                 @else
                     <table id="addSyllabusCollabsTbl{{$syllabus->id}}" class="table table-light borderless" >
@@ -123,7 +123,7 @@
                                                 <button type="input" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#transferSyllabusConfirmation{{$syllabus->id}}">Transfer Ownership</button>
                                             </td>
 
-                                            
+
                                             <div class="modal fade" id="transferSyllabusConfirmation{{$syllabus->id}}" tabindex="-1" role="dialog" aria-labelledby="transferSyllabusConfirmation{{$syllabus->id}}" aria-hidden="true">
                                                 <div class="modal-dialog modal-dialog-centered" role="document">
                                                     <div class="modal-content">
@@ -174,7 +174,7 @@
 <script>
 
     $(document).ready(function () {
-        
+
         $('.addSyllabusCollabForm').submit(function (event) {
             // get the syllabus ID
             var syllabusId = event.currentTarget.dataset.syllabus_id;
@@ -187,7 +187,7 @@
                 // && email.val().endsWith('@ubc.ca')
             ) {
                 addSyllabusCollab(syllabusId);
-                // reset form 
+                // reset form
                 $(this).trigger('reset');
                 $(this).removeClass('was-validated');
             } else {
@@ -195,7 +195,7 @@
                 $(this).addClass('was-validated');
             }
             // readjust modal's position/height
-            document.querySelector('#addSyllabusCollaboratorsModal' + syllabusId).handleUpdate();
+            $('#addSyllabusCollaboratorsModal' + syllabusId).modal("handleUpdate");
 
         });
 
@@ -208,9 +208,9 @@
             //         <tr>
             //             <td>
             //                 <b>{{$syllabusCollaborator->name}} @if ($syllabusCollaborator->email == $user->email) (Me) @endif</b>
-            //                 <p>{{$syllabusCollaborator->email}}</p>                        
+            //                 <p>{{$syllabusCollaborator->email}}</p>
             //             </td>
-                        
+
             //             @if ($syllabusCollaborator->pivot->permission == 1)
             //                 <td class="text-center">
             //                     <input value="Owner" form="saveSyllabusCollabChanges{{$syllabus->id}}" class="form-control fw-bold" type="text" readonly>
@@ -232,10 +232,10 @@
             // `);
         });
 
-        
+
     });
 
-    function isEmailValid(email) 
+    function isEmailValid(email)
     {
         // return (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/).test(email) && email.endsWith('ubc.ca');
         return (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/).test(email);
@@ -257,8 +257,8 @@
                         <option value="edit" ${($('#syllabus_collab_permission' + syllabusId).val() == 'edit') ? 'selected' : ''}>Editor</option>
                         <option value="view" ${($('#syllabus_collab_permission' + syllabusId).val() == 'view') ? 'selected' : ''}>Viewer</option>
                     </select>
-                </td> 
-            
+                </td>
+
                 <td class="text-center">
                     <button type="input" class="btn btn-danger" onclick="deleteSyllabusCollab(this)">Remove</button>
                 </td>

@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from uuid import uuid4
 
@@ -59,6 +60,15 @@ class LOMappingRequestDynamoDBRecord:
             table.wait_until_exists()
             logger.info("DynamoDB table %s is ready", self.table_name)
 
+            try:
+                client.tag_resource(
+                    ResourceArn=table.table_arn,
+                    Tags=[{"Key": "AppName", "Value": self.settings.APP_NAME}],
+                )
+                logger.info("Tagged DynamoDB table %s with AppName=%s", self.table_name, self.settings.APP_NAME)
+            except Exception:
+                logger.warning("Could not tag DynamoDB table %s", self.table_name, exc_info=True)
+
     def create_request(self, course_id, program_id, input_s3_path, status: str = "PENDING",):
         if not self.table_name:
             raise ValueError("LO_MAPPING_DYNAMODB_REQUESTS_TABLE is not set")
@@ -84,15 +94,26 @@ class LOMappingRequestDynamoDBRecord:
         }
 
         try:
-            table = self._create_boto_session().resource("dynamodb").Table(self.table_name)
+            logger.info(
+                "create_request: writing to table=%s endpoint_url=%s region=%s item_keys=%s",
+                self.table_name,
+                os.environ.get("AWS_ENDPOINT_URL", "<unset>"),
+                self.aws_region,
+                list(item.keys()),
+            )
+            table = self._create_boto_session().resource(
+                "dynamodb", region_name=self.aws_region
+            ).Table(self.table_name)
             table.put_item(Item=item)
             logger.info(
-                "Created LO mapping request record in DynamoDB for course_id=%s program_id=%s",
+                "Created LO mapping request record in DynamoDB request_id=%s course_id=%s program_id=%s",
+                item["request_id"],
                 course_id,
                 program_id,
             )
             return item
         except Exception as e:
+            logger.exception("create_request failed for table=%s", self.table_name)
             raise RuntimeError(f"Failed to create LO mapping request record in DynamoDB: {str(e)}") from e
 
     def get_records_by_status(self, status: str) -> list[dict]:
@@ -114,7 +135,7 @@ class LOMappingRequestDynamoDBRecord:
 
         return items
 
-    def find_latest_awaiting_record_by_ids(self, course_id, program_id) -> dict | None:
+    def find_latest_awaiting_record_by_ids(self, course_id : int, program_id : int) -> dict | None:
         """Find the latest record for the given course/program awaiting post-processing"""
 
         latest_record = None
@@ -158,7 +179,7 @@ class LOMappingRequestDynamoDBRecord:
         "AWAITING_COMPLETION_FAILED",
     )
 
-    def find_in_flight_records_for_pairs(self, pairs: list[tuple]) -> dict:
+    def find_in_flight_records_for_pairs(self, pairs: list[tuple[int, int]]) -> dict:
         """
         Given a list of (course_id, program_id) tuples, return a dict mapping each
         tuple to the latest in-flight DynamoDB record (or None if none exists).
@@ -168,14 +189,15 @@ class LOMappingRequestDynamoDBRecord:
         AWAITING_COMPLETION_FAILED).
 
         Single GSI scan per status; in-memory filter for the requested pairs.
+        
+        Note: both course and program IDs must be of type int
         """
-        result = {pair: None for pair in pairs}
         if not pairs:
-            return result
+            return None
+        
+        result = {pair: None for pair in pairs}
 
-        # Normalize to str so callers can pass int/str/Decimal interchangeably.
-        pair_set = {(str(c), str(p)) for c, p in pairs}
-        normalized_to_original = {(str(c), str(p)): (c, p) for c, p in pairs}
+        pair_set = set(pairs)
         table = self._get_table()
 
         for status in self.IN_FLIGHT_STATUSES:
@@ -184,21 +206,22 @@ class LOMappingRequestDynamoDBRecord:
                 "KeyConditionExpression": Key("status").eq(status),
             }
             response = table.query(**args)
-            self._collect_matching(response.get("Items", []), pair_set, normalized_to_original, result)
+            self._collect_matching(response.get("Items", []), pair_set, result)
 
-            while "LastEvaluatedKey" in response:
+            while "LastEvaluatedKey" in response: # Paginate if there are more results to be read
                 response = table.query(**args, ExclusiveStartKey=response["LastEvaluatedKey"])
-                self._collect_matching(response.get("Items", []), pair_set, normalized_to_original, result)
+                self._collect_matching(response.get("Items", []), pair_set, result)
 
         return result
 
     @staticmethod
-    def _collect_matching(items: list[dict], pair_set: set, normalized_to_original: dict, result: dict) -> None:
+    def _collect_matching(items: list[dict], pair_set: set, result: dict) -> None:
         for item in items:
-            normalized = (str(item.get("course_id")), str(item.get("program_id")))
-            if normalized not in pair_set:
+            pair = (item.get("course_id"), item.get("program_id"))
+            if pair not in pair_set:
                 continue
-            pair = normalized_to_original[normalized]
+            # If multiple in-flight records exist for the same pair, return the latest one
+            # Note: This shouldn't happen due to the guards we have set up (in both the frontend and service), but just in case
             current = result.get(pair)
             if current is None or item.get("created_at", "") > current.get("created_at", ""):
                 result[pair] = item

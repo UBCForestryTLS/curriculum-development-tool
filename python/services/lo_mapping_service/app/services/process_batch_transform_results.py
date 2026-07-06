@@ -1,33 +1,21 @@
 import boto3
 import httpx
 import json
-import os
 import re
 from decimal import Decimal
-from pathlib import Path
-from dotenv import load_dotenv
 
-_SERVICE_ROOT = Path(__file__).resolve().parents[2]
-load_dotenv(_SERVICE_ROOT / ".env", override=False)
-
+from app.core.config import settings
 from app.core.logging_config import logger
 from app.services.lo_mapping_request_dynamo_db_request import LOMappingRequestDynamoDBRecord
 
-AWS_REGION = os.getenv("AWS_REGION", "ca-central-1")
-AWS_ACCESS_KEY = os.getenv("ACCESS_KEY")
-AWS_SECRET_KEY = os.getenv("SECRET_KEY")
-
 boto_session = boto3.Session(
-    aws_access_key_id=AWS_ACCESS_KEY,
-    aws_secret_access_key=AWS_SECRET_KEY,
-    region_name=AWS_REGION
+    aws_access_key_id=settings.ACCESS_KEY,
+    aws_secret_access_key=settings.SECRET_KEY,
+    region_name=settings.AWS_REGION,
 )
 
-s3       = boto_session.client("s3")
+s3 = boto_session.client("s3")
 
-LARAVEL_API_URL = os.getenv("LARAVEL_API_URL")
-print(f"[lo_mapping_service] LARAVEL_API_URL loaded as: {LARAVEL_API_URL!r} (from {_SERVICE_ROOT / '.env'})", flush=True)
-logger.info("LARAVEL_API_URL loaded as: %r (from %s)", LARAVEL_API_URL, _SERVICE_ROOT / ".env")
 lo_mapping_request_store = LOMappingRequestDynamoDBRecord()
 
 
@@ -217,7 +205,7 @@ async def send_results_to_external_api(record_id: str, results: list[dict], reco
     }
 
     async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.post(LARAVEL_API_URL, json=payload)
+        response = await client.post(settings.LARAVEL_API_URL, json=payload)
         response.raise_for_status()
         logger.info(
             "Sent %d result(s) for record '%s' to external API — HTTP %s.",
@@ -264,7 +252,7 @@ async def process_records(records: list) -> dict:
             if not output_s3_uri:
                 # Mirror what create_request now does: <OUTPUT_S3_URI>/<input_filename>.out
                 input_s3_path = record.get("input_s3_path", "")
-                output_prefix = (os.getenv("OUTPUT_S3_URI") or "").rstrip("/")
+                output_prefix = (settings.OUTPUT_S3_URI or "").rstrip("/")
                 input_filename = input_s3_path.rsplit("/", 1)[-1] if input_s3_path else ""
                 if not output_prefix or not input_filename:
                     logger.warning("Record '%s' is missing output_s3_path and OUTPUT_S3_URI/input_s3_path can't fill it — skipping.", record_id)
@@ -294,4 +282,4 @@ async def process_records(records: list) -> dict:
             continue
 
     logger.info("Finished processing %d record(s). Succeeded=%d Failed=%d", len(records), len(succeeded), len(failed))
-    return {"succeeded": succeeded, "failed": failed}
+    

@@ -34,7 +34,7 @@ define('INPUT_TIPS', [
     'otherCourseStaff' => 'At the discretion of the course instructor, the names of any other student-facing members of teaching staff such as teaching assistants involved in the offering of the course (if not available on the Student Service Centre or on Workday), and details of when and by what means students may contact them.',
     'learningOutcomes' => 'i.e., what is to be achieved and assessed in the course.',
     'learningAssessments' => 'The methods used to assess achievement of stated learning outcomes or objectives, including the weighting of each component in the final grade.',
-    'learningActivities' => 'Do you expect students to participate in class? In what ways? (e.g., case studies, using “clickers” to answer questions, working in small groups, etc.) Is participation in on-line discussions required? Are readings required in advance with answers to be submitted to discussion questions or problem sets? 
+    'learningActivities' => 'Do you expect students to participate in class? In what ways? (e.g., case studies, using “clickers” to answer questions, working in small groups, etc.) Is participation in on-line discussions required? Are readings required in advance with answers to be submitted to discussion questions or problem sets?
     Is an oral presentation required? Is there a field excursion?',
     'learningMaterials' => 'List of required learning materials for your course (including textbooks, reading packages, on-line assessment tools, lab and field trip manuals) and where they might be obtained (e.g. the Bookstore if you ordered a text or a reading package, your department office if an in-house resource is available, the Library through their <a href="https://library.ok.ubc.ca/services/course-reserves/" target="_blank" rel="noopener noreferrer">course-reserve system</a>). Providing students with at least an estimate of the costs of materials is expected. Explanation of any on-line learning management system used (e.g.Canvas).',
     'latePolicy' => 'State your policies on re-grading of marked work and on late submissions. What are the penalties for late assignments?',
@@ -987,7 +987,7 @@ class SyllabusController extends Controller
         switch ($syllabus->campus) {
             case 'O':
                 // create a new template for this syllabus
-                $templateProcessor = new TemplateProcessor('word-template/UBC-O_default.docx');
+                $templateProcessor = new TemplateProcessor(resource_path('word-template/UBC-O_default.docx'));
                 // get data specific to the okanagan campus
                 $okanaganSyllabus = OkanaganSyllabus::where('syllabus_id', $syllabus->id)->first();
 
@@ -1126,7 +1126,7 @@ class SyllabusController extends Controller
                     $templateProcessor->cloneBlock('NoLearningActivities', 0);
                 }
 
-                
+
                 // tell template processor to include prerequisites if user completed the field(s)
                 if ($syllabus->prerequisites) {
                     $prerequisitesArr = explode("\n", $syllabus->prerequisites);
@@ -1404,7 +1404,7 @@ class SyllabusController extends Controller
                 // get data specific to the okanagan campus
                 $vancouverSyllabus = VancouverSyllabus::where('syllabus_id', $syllabus->id)->first();
                 // generate word syllabus for Vancouver campus course
-                $templateProcessor = new TemplateProcessor('word-template/UBC-V_default.docx');
+                $templateProcessor = new TemplateProcessor(resource_path('word-template/UBC-V_default.docx'));
                 // add data to the vancouver syllabus template
                 $courseCredit = $vancouverSyllabus->course_credit;
                 // add required form fields specific to Vancouver campus to template

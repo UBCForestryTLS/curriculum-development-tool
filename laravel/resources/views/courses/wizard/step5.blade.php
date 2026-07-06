@@ -98,11 +98,11 @@
                                                             $_manualMapStarted = (bool) $courseProgram->pivot->manual_map_status;
                                                             $_aiBtnClass     = ($_manualMapStarted && !$_inFlight) ? 'd-flex' : 'd-none';
                                                             $_aiStatusClass  = ($_manualMapStarted && $_inFlight)  ? 'd-flex' : 'd-none';
-                                                            $_pollAttrs      = ($_manualMapStarted && $_inFlight)  ? sprintf('data-poll-on-load="true" data-course-id="%d" data-program-id="%d"', $course->course_id, $courseProgram->program_id) : '';
                                                         @endphp
                                                         <span id="buttonAISuggestionHeader-{{$course->course_id}}-{{$courseProgram->program_id}}"
-                                                              class="btn btn-sm btn-primary {{ $_aiBtnClass }} me-3 col-2 justify-content-center"
+                                                              class="btn btn-sm {{ $_aiBtnClass }} me-3 col-2 justify-content-center"
                                                               role="button"
+                                                              style="background-color: #40B4E5; color:white;"
                                                               data-bs-toggle="modal" data-bs-target="#AiSuggestionConfirmation{{$course->course_id}}{{$courseProgram->program_id}}">
                                                             <img src="{{ asset('img/AISuggestionWhite.png') }}" alt="icon" style="height: 1em; width: auto;" class="me-1">
                                                             AI Suggestion
@@ -110,7 +110,9 @@
                                                         <!-- AI status container (shown while polling for results) -->
                                                         <div id="aiStatusHeader-{{$course->course_id}}-{{$courseProgram->program_id}}"
                                                              class="{{ $_aiStatusClass }} align-items-center me-3"
-                                                             {!! $_pollAttrs !!}>
+                                                             data-course-id="{{ $course->course_id }}"
+                                                             data-program-id="{{ $courseProgram->program_id }}"
+                                                             @if($_manualMapStarted && $_inFlight) data-poll-on-load="true" @endif>
                                                             <button id="aiCheckingHeader-{{$course->course_id}}-{{$courseProgram->program_id}}" type="button" class="btn btn-secondary py-1 px-2" style="font-size: 0.75rem;" disabled>
                                                                 <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" style="width: 0.75rem; height: 0.75rem;"></span>
                                                                 Waiting for AI suggestions...
@@ -162,20 +164,19 @@
                                                             @if ($courseProgram->programLearningOutcomes->count() > 0)
 
                                                                 @php
-                                                                    $_inFlightCenter      = isset($aiSuggestionInFlight) && !empty($aiSuggestionInFlight[$courseProgram->program_id]);
-                                                                    $_mappingOptionsClass = $courseProgram->pivot->manual_map_status ? 'd-none' : 'd-flex';
-                                                                    // All four buttons live in one flex row; toggle visibility per-button so
-                                                                    // they sit side-by-side instead of stacking vertically.
-                                                                    $_aiSuggestionsBtnHidden = $_inFlightCenter;
-                                                                    $_checkingBtnHidden      = !$_inFlightCenter;
-                                                                    $_refreshBtnHidden       = true; // JS shows this only after a polling timeout
-                                                                    $_pollAttrs              = $_inFlightCenter ? sprintf('data-poll-on-load="true" data-course-id="%d" data-program-id="%d"', $course->course_id, $courseProgram->program_id) : '';
-                                                                    $_msgClass               = $_inFlightCenter ? 'small text-muted text-center mt-2 mb-0' : 'd-none small text-muted text-center mt-2 mb-0';
-                                                                    $_msgText                = $_inFlightCenter ? 'An AI suggestion request is already in progress for this course/program. You can leave this page - results will appear automatically when ready.' : '';
+                                                                    $_inFlight = isset($aiSuggestionInFlight) && !empty($aiSuggestionInFlight[$courseProgram->program_id]);
+                                                                    $_mappingOptionsClass = ($courseProgram->pivot->manual_map_status || $courseProgram->pivot->ai_suggestion_status) ? 'd-none' : 'd-flex';
+                                                                    $_aiSuggestionsBtnHidden = $_inFlight;
+                                                                    $_checkingBtnHidden      = !$_inFlight;
+                                                                    $_refreshBtnHidden       = true; // To be shown only after a polling timeout
+                                                                    $_msgClass               = 'text-center fw-bold mt-2 mb-0' . ($_inFlight ? '' : ' d-none');
+                                                                    $_msgText                = $_inFlight ? 'An AI suggestion request is already in progress for this course/program. You can leave this page - results will appear automatically when ready.' : '';
                                                                 @endphp
                                                                 <div id="mappingOptions-{{$course->course_id}}-{{$courseProgram->program_id}}"
                                                                      class="{{ $_mappingOptionsClass }} justify-content-center gap-2"
-                                                                     {!! $_pollAttrs !!}>
+                                                                     data-course-id="{{ $course->course_id }}"
+                                                                     data-program-id="{{ $courseProgram->program_id }}"
+                                                                     @if($_inFlight) data-poll-on-load="true" @endif>
                                                                     <button id="buttonManualMap[{{$course->course_id}}][{{$courseProgram->program_id}}]" type="button" class="btn btn-sm btn-primary col-3 py-2" onclick="showManualMapDiv({{$course->course_id}}, {{$courseProgram->program_id}})">Create Manually</button>
                                                                     <button id="buttonAISuggestionCenter-{{$course->course_id}}-{{$courseProgram->program_id}}" type="button" class="btn btn-sm btn-primary col-3 py-2 {{ $_aiSuggestionsBtnHidden ? 'd-none' : '' }}"
                                                                             data-bs-toggle="modal" data-bs-target="#AiSuggestionConfirmation{{$course->course_id}}{{$courseProgram->program_id}}">
@@ -192,7 +193,7 @@
                                                                 </div>
                                                                 <p id="aiStatusMessage-{{$course->course_id}}-{{$courseProgram->program_id}}" class="{{ $_msgClass }}">{{ $_msgText }}</p>
                                                                 <!-- list of course learning outcome accordions with mapping form -->
-                                                                <div id= "ManualMapBody-{{$course->course_id}}-{{$courseProgram->program_id}}" class="cloAccordions mb-4" @if(!$courseProgram->pivot->manual_map_status) style="display: none;" @endif>
+                                                                <div id= "ManualMapBody-{{$course->course_id}}-{{$courseProgram->program_id}}" class="cloAccordions mb-4" @if(!$courseProgram->pivot->manual_map_status && !$courseProgram->pivot->ai_suggestion_status) style="display: none;" @endif>
                                                                     @foreach($l_outcomes as $index => $courseLearningOutcome)
                                                                         <div class="accordion" id="accordionGroup{{$courseProgram->program_id}}-{{$courseLearningOutcome->l_outcome_id}}">
                                                                             <div class="accordion-item mb-2">
@@ -358,8 +359,6 @@
                                                                                                                 </tbody>
                                                                                                             </table>
 
-                                                                                                            <!-- <button type="submit" class="btn btn-success my-3 btn-sm float-end col-2" >Save</button> -->
-
                                                                                                 </div>
                                                                                             </div>
                                                                                         <!-- </form> -->
@@ -418,6 +417,7 @@
         // prevent duplicate form submissions
         $(this).find(":submit").attr('disabled', 'disabled');
         $(this).find(":submit").html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+        hasUnsavedChanges = false;
         });
 
         // Hide and show the optional
@@ -502,6 +502,7 @@
 
     document.addEventListener('change', function (e) {
         if (!e.target.matches('.form-check-input.position-static')) return;
+        hasUnsavedChanges = true;
 
         const name = e.target.name;
 
@@ -585,6 +586,16 @@
         "This is taking longer than usual. Click Refresh to check again, " +
         "or come back later - your suggestions will appear automatically when ready.";
 
+    const AI_MSG_READY_UNSAVED =
+        "AI suggestions are ready - reload to see. Save your unsaved changes if you wish to keep them.";
+
+    let hasUnsavedChanges = false;
+
+    window.addEventListener('beforeunload', function (e) {
+        if (!hasUnsavedChanges) return;
+        e.preventDefault();
+    });
+
     function hideAiModal(courseId, programId) {
         const modalEl = document.getElementById(`AiSuggestionConfirmation${courseId}${programId}`);
         if (!modalEl) return;
@@ -624,7 +635,7 @@
         }
     }
 
-    function enterTimedOutState(courseId, programId) {
+    function enterManualRefreshState(courseId, programId, message = AI_MSG_TIMED_OUT) {
         ['Header', 'Center'].forEach(loc => {
             const checking = document.getElementById(`aiChecking${loc}-${courseId}-${programId}`);
             const refresh  = document.getElementById(`aiRefresh${loc}-${courseId}-${programId}`);
@@ -634,7 +645,7 @@
 
         const msgEl = document.getElementById(`aiStatusMessage-${courseId}-${programId}`);
         if (msgEl) {
-            msgEl.textContent = AI_MSG_TIMED_OUT;
+            msgEl.textContent = message;
             msgEl.classList.remove('d-none');
         }
     }
@@ -650,7 +661,7 @@
         const originalText = yesButton.innerHTML;
         yesButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
 
-        // Pre-click in-flight check: catches the race where another user (or this user
+        // Pre-submit in-flight check: catches the race where another user (or this user
         // in another tab) already submitted in the seconds between page render and click.
         try {
             const checkRes = await fetch(`/courseWizard/${courseId}/${programId}/check-in-flight`, {
@@ -700,7 +711,7 @@
         .then(data => {
             console.log('AI suggestion response:', data);
 
-            if (data.status === 'mock' || data.status === 'success') {
+            if (data.status === 'success') {
                 hideAiModal(courseId, programId);
                 enterCheckingState(courseId, programId, AI_MSG_CHECKING);
                 pollForResults(courseId, programId);
@@ -742,16 +753,20 @@
 
                 if (data.status === 'complete') {
                     clearInterval(interval);
-                    window.location.reload();
+                    if (hasUnsavedChanges) {
+                        enterManualRefreshState(courseId, programId, AI_MSG_READY_UNSAVED);
+                    } else {
+                        window.location.reload();
+                    }
                 } else if (attempts >= AI_POLL_MAX_ATTEMPTS) {
                     clearInterval(interval);
-                    enterTimedOutState(courseId, programId);
+                    enterManualRefreshState(courseId, programId);
                 }
             } catch (err) {
                 console.error('Polling error:', err);
                 if (attempts >= AI_POLL_MAX_ATTEMPTS) {
                     clearInterval(interval);
-                    enterTimedOutState(courseId, programId);
+                    enterManualRefreshState(courseId, programId);
                 }
             }
         }, AI_POLL_INTERVAL_MS);

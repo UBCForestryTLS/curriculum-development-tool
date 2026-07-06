@@ -2,49 +2,55 @@
 
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <!-- CSRF Token -->
-        <meta name="csrf-token" content="{{ csrf_token() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+    <!-- CSRF Token -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <script src="{{ asset('vendor/jquery.min.js') }}"></script>
-        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-        <script src="https://code.iconify.design/2/2.0.3/iconify.min.js"></script>
+    <title>{{ config('app.name', 'Laravel') }}</title>
 
-        <!-- Fonts -->
-        <link rel="dns-prefetch" href="//fonts.gstatic.com">
-        <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
+    <script src="{{ asset('vendor/jquery.min.js') }}"></script>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <script src="https://code.iconify.design/2/2.0.3/iconify.min.js"></script>
 
-        <!-- Styles -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.3/font/bootstrap-icons.css">
-        @vite('resources/js/bootstrap.js')
-        @vite('resources/sass/app.scss')
-    </head>
-    <!-- Google Analytics -->
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GLBX8NCRRE"></script>
-    <script>
+    <!-- Fonts -->
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.3/font/bootstrap-icons.css">
+    @vite('resources/js/bootstrap.js')
+    @vite('resources/sass/app.scss')
+</head>
+<!-- Google Analytics -->
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-GLBX8NCRRE"></script>
+<script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-GLBX8NCRRE');
-    </script>
+</script>
 
 <body>
     <div id="app">
         <div class="container mb-5">
-            <nav class="navbar fixed-top navbar-expand-md navbar-dark bg-primary mb-4 border-bottom border-white border-5">
+            <nav
+                class="navbar fixed-top navbar-expand-md navbar-dark bg-primary mb-4 border-bottom border-white border-5">
                 <div class="container">
                     <a class="navbar-brand" href="{{ url('/') }}">
-                        <img width="29" height="40" src="{{ asset('img/ubc-logo-2018-crest-white-rgb72.png') }}" alt="UBC crest logo" style="margin-right: 25px">
-                        <strong class="text-white" style="font-family: Arial, Helvetica, sans-serif">Curriculum MAP</strong>
+                        <img width="29" height="40" src="{{ asset('img/ubc-logo-2018-crest-white-rgb72.png') }}"
+                            alt="UBC crest logo" style="margin-right: 25px">
+                        <strong class="text-white" style="font-family: Arial, Helvetica, sans-serif">Curriculum
+                            MAP</strong>
                     </a>
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="{{ __('Toggle navigation') }}">
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="{{ __('Toggle navigation') }}">
                         <span class="navbar-toggler-icon"></span>
                     </button>
 
@@ -74,22 +80,25 @@
                                 @endif
                             @else
 
-                            <li class="nav-item">
-                                <a class="nav-link text-white" href="{{ route('home')}}">My Dashboard</a>
-                            </li>
+                                <li class="nav-item">
+                                    <a class="nav-link text-white" href="{{ route('home')}}">My Dashboard</a>
+                                </li>
 
 
 
-                            <li class="nav-item">
-                                <form name="SyllabusSubmit" action="{{route('syllabus')}}" method="GET">
-                                <input type="hidden" name="syllabus_id" value="">
-                                <a class="nav-link text-white" href="#" onclick="document.SyllabusSubmit.submit();">Syllabus Generator</a>
-                                </form>
+                                <li class="nav-item">
+                                    <form name="SyllabusSubmit" action="{{route('syllabus')}}" method="GET">
+                                        <input type="hidden" name="syllabus_id" value="">
+                                        <a class="nav-link text-white" href="#"
+                                            onclick="document.SyllabusSubmit.submit();">Syllabus Generator</a>
+                                    </form>
 
-                            </li>
+                                </li>
 
                                 <li class="nav-item dropdown">
-                                    <a id="navbarDropdown" class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                                    <a id="navbarDropdown" class="nav-link dropdown-toggle text-white" href="#"
+                                        role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                        v-pre>
                                         {{ Auth::user()->email }}
                                     </a>
 
@@ -122,9 +131,8 @@
                                             Registration invite
                                         </a>
 
-                                        <a class="dropdown-item" href="{{ route('logout') }}"
-                                            onclick="event.preventDefault();
-                                                        document.getElementById('logout-form').submit();">
+                                        <a class="dropdown-item" href="{{ route('logout') }}" onclick="event.preventDefault();
+                                                                document.getElementById('logout-form').submit();">
                                             {{ __('Logout') }}
                                         </a>
 
@@ -148,9 +156,13 @@
 
         </div>
     </div>
-        <div style="width:100%;">
-            <iframe src="{{ asset('footer.html') }}" width="100%" scrolling="no" style="border:none; margin-bottom:-30px; min-height:426px; max-height: 821px;"></iframe>
-        </div>
+    <div>
+        <template shadowrootmode="open">
+            <link href="//cdn.ubc.ca/clf/7.0.4/css/ubc-clf-full-bw.min.css" rel="stylesheet">
+            @include('partials.footer')
+        </template>
+    </div>
     {{--@vite(['resources/js/app.js'])--}}
 </body>
+
 </html>

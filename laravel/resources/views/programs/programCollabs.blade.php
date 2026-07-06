@@ -284,7 +284,7 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
                 $(this).addClass('was-validated');
             }
             // readjust modal's position/height
-            document.querySelector('#addProgramCollaboratorsModal' + programId).handleUpdate();
+            $('#addProgramCollaboratorsModal' + programId).modal("handleUpdate");
 
         });
 
