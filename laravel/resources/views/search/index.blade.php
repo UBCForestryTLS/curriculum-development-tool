@@ -215,6 +215,21 @@
                     {{$message}}
                 </div>
             @enderror
+
+            @if(!empty($selectedCourseCodes) || !empty($selectedCourseLevels))
+                <div class="small text-muted mt-2">
+                    Filters:
+
+                    @if(!empty($selectedCourseCodes))
+                        Course Code: {{ implode(', ', $selectedCourseCodes) }}
+                    @endif
+
+                    @if(!empty($selectedCourseLevels))
+                        @if(!empty($selectedCourseCodes))<span class="mx-1">|</span>@endif
+                        Course Level: {{ implode(', ', $selectedCourseLevels) }}
+                    @endif
+                </div>
+            @endif
         </form>
     </div>
     
