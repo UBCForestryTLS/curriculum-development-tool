@@ -99,6 +99,7 @@
         <form method="GET" action="{{ route('search.index') }}" id="courseSearchForm">
             <input type="hidden" name="property_filters_applied" value="1">
             <input type="hidden" name="course_filters_applied" value="1">
+            <input type="hidden" name="program_filters_applied" value="1">
 
             <div class="input-group">
                 <input
@@ -202,6 +203,19 @@
                                 @selected(in_array($courseLevel, $selectedCourseLevels))
                             >
                                 {{ $courseLevel }} Level
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <label class="form-label small mt-2 mb-1" for="programFilter">Program</label>
+                    <select class="form-select form-select-sm" name="program_ids[]" id="programFilter">
+                        <option value="" @selected(empty($selectedProgramIds))>All</option>
+                        @foreach($availablePrograms as $program)
+                            <option
+                                value="{{ $program->program_id }}"
+                                @selected(in_array($program->program_id, $selectedProgramIds))
+                            >
+                                {{ $program->program }}
                             </option>
                         @endforeach
                     </select>
