@@ -33,7 +33,7 @@ class SearchController extends Controller
             'course_codes' => ['nullable', 'array'],
             'course_codes.*' => ['nullable', 'string', 'max:10'],
             'course_levels' => ['nullable', 'array'],
-            'course_levels.*' => ['in:100,200,300,400,500,600'],
+            'course_levels.*' => ['nullable', 'in:100,200,300,400,500,600'],
         ]);
         // The query is optional, and the result view must be one of the supported options
         // we also validate property filters applied
@@ -79,7 +79,13 @@ class SearchController extends Controller
 
             : [];
 
-        $selectedCourseLevels = $courseFiltersApplied ? ($validated['course_levels'] ?? []) : [];
+        $selectedCourseLevels = $courseFiltersApplied
+            ? collect($validated['course_levels'] ?? [])
+                ->filter(fn ($level) => is_string($level) && trim($level) !== '')
+                ->unique()
+                ->values()
+                ->all()
+            : [];
 
         $results = collect();
         $programMatches = collect();
