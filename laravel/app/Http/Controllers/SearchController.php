@@ -34,6 +34,9 @@ class SearchController extends Controller
             'course_codes.*' => ['nullable', 'string', 'max:10'],
             'course_levels' => ['nullable', 'array'],
             'course_levels.*' => ['nullable', 'in:100,200,300,400,500,600'],
+            'program_filters_applied' => ['nullable', 'boolean'],
+            'program_ids' => ['nullable', 'array'],
+            'program_ids.*' => ['nullable', 'integer'],
         ]);
         // The query is optional, and the result view must be one of the supported options
         // we also validate property filters applied
@@ -82,6 +85,21 @@ class SearchController extends Controller
         $selectedCourseLevels = $courseFiltersApplied
             ? collect($validated['course_levels'] ?? [])
                 ->filter(fn ($level) => is_string($level) && trim($level) !== '')
+                ->unique()
+                ->values()
+                ->all()
+            : [];
+
+        $availablePrograms = DB::table('programs')
+            ->select('program_id', 'program')
+            ->orderBy('program')
+            ->get();
+
+        $programFiltersApplied = (bool) ($validated['program_filters_applied'] ?? false);
+        $selectedProgramIds = $programFiltersApplied
+            ? collect($validated['program_ids'] ?? [])
+                ->filter(fn ($programId) => is_numeric($programId))
+                ->map(fn ($programId) => (int) $programId)
                 ->unique()
                 ->values()
                 ->all()
@@ -138,6 +156,8 @@ class SearchController extends Controller
             'availableCourseCodes' => $availableCourseCodes,
             'selectedCourseCodes' => $selectedCourseCodes,
             'selectedCourseLevels' => $selectedCourseLevels,
+            'availablePrograms' => $availablePrograms,
+            'selectedProgramIds' => $selectedProgramIds,
         ]);
 }
 
