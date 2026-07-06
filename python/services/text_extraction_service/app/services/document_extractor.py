@@ -59,7 +59,7 @@ def extract(
 
 def _from_text_layer(page) -> list[dict]:
     lines: list[dict] = []
-    for block in page.get_text("dict").get("blocks", []):
+    for block in page.get_text("dict", flags=pymupdf.TEXT_COLLECT_STYLES).get("blocks", []):
         for line in block.get("lines", []):
             spans = line.get("spans", [])
             text = "".join(span.get("text", "") for span in spans).strip()
