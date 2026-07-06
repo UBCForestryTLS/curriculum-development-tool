@@ -1325,4 +1325,83 @@ public function test_course_level_filter_excludes_other_levels()
     $response->assertDontSee('Excluded Lower Level Course');
 }
 
+public function test_all_course_levels_does_not_restrict_results()
+{
+    $this->createCourseScaleCategory();
+
+    $lowerLevelCourse = Course::factory()->create([
+        'course_code' => 'CONS',
+        'course_num' => 151,
+        'course_title' => 'All Levels Lower Course',
+    ]);
+
+    $upperLevelCourse = Course::factory()->create([
+        'course_code' => 'CONS',
+        'course_num' => 351,
+        'course_title' => 'All Levels Upper Course',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $lowerLevelCourse->course_id,
+        'topic' => 'Alllevelium introductory methods',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $upperLevelCourse->course_id,
+        'topic' => 'Alllevelium advanced methods',
+    ]);
+
+    $response = $this->get(route('search.index', [
+        'query' => 'alllevelium',
+        'course_filters_applied' => 1,
+        'course_levels' => [''],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('All Levels Lower Course');
+    $response->assertSee('All Levels Upper Course');
+}
+
+public function test_course_code_and_level_filters_work_together()
+{
+    $this->createCourseScaleCategory();
+
+    $lowerConsCourse = Course::factory()->create([
+        'course_code' => 'CONS',
+        'course_num' => 152,
+        'course_title' => 'Excluded CONS Lower Course',
+    ]);
+
+    $upperConsCourse = Course::factory()->create([
+        'course_code' => 'CONS',
+        'course_num' => 352,
+        'course_title' => 'Selected CONS Upper Course',
+    ]);
+
+    $upperFrstCourse = Course::factory()->create([
+        'course_code' => 'FRST',
+        'course_num' => 352,
+        'course_title' => 'Excluded FRST Upper Course',
+    ]);
+
+    foreach ([$lowerConsCourse, $upperConsCourse, $upperFrstCourse] as $course) {
+        CourseTopic::factory()->create([
+            'course_id' => $course->course_id,
+            'topic' => 'Combinedfilterium course methods',
+        ]);
+    }
+
+    $response = $this->get(route('search.index', [
+        'query' => 'combinedfilterium',
+        'course_filters_applied' => 1,
+        'course_codes' => ['CONS'],
+        'course_levels' => ['300'],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('Selected CONS Upper Course');
+    $response->assertDontSee('Excluded CONS Lower Course');
+    $response->assertDontSee('Excluded FRST Upper Course');
+}
+
 }
