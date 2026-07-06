@@ -192,6 +192,19 @@
                             </option>
                         @endforeach
                     </select>
+
+                    <label class="form-label small mt-2 mb-1" for="courseLevelFilter">Course Level</label>
+                    <select class="form-select form-select-sm" name="course_levels[]" id="courseLevelFilter">
+                        <option value="" @selected(empty($selectedCourseLevels))>All</option>
+                        @foreach(['100', '200', '300', '400', '500', '600'] as $courseLevel)
+                            <option
+                                value="{{ $courseLevel }}"
+                                @selected(in_array($courseLevel, $selectedCourseLevels))
+                            >
+                                {{ $courseLevel }} Level
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <button type="submit" class="btn btn-primary search-action-button">Search</button>
