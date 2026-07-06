@@ -16,9 +16,11 @@ class MaterialTypeHandler:
         return text
 
     def extract_topics(self, pages: list[dict]) -> list[Topic]:
-        text = ". \f".join(page["text"] for page in pages if page["text"])
+        text = ". \f".join("\n".join(line["text"] for line in page["lines"]) for page in pages if page["lines"])
         preprocessed_text = self.preprocess(text)
-        return postprocessor.process(extractor.extract(preprocessed_text))
+        return extractor.extract(preprocessed_text)
+        # TODO
+        # return postprocessor.process(extractor.extract(preprocessed_text))
 
 
 def _to_topics(texts) -> list[Topic]:
@@ -46,7 +48,9 @@ class SlidesHandler(MaterialTypeHandler):
 
     def extract_topics(self, pages: list[dict]) -> list[Topic]:
         keyword_topics = super().extract_topics(pages)
-        return postprocessor.union(self._title_topics(pages), keyword_topics)
+        return postprocessor.process(self._title_topics(pages))
+        # TODO
+        # return postprocessor.union(self._title_topics(pages), keyword_topics)
 
     def _title_topics(self, pages: list[dict]) -> list[Topic]:
         # A slide's title is simply the largest-font line on the slide.
@@ -55,7 +59,7 @@ class SlidesHandler(MaterialTypeHandler):
             lines = [line for line in page.get("lines", []) if line.get("text", "").strip()]
             if not lines:
                 continue
-            biggest = max(lines, key=lambda line: line.get("size", 0.0))
+            biggest = max(valid_lines, key=lambda line: line.get("size", 0.0))
             title = biggest["text"].strip()
             if title and len(title.split()) <= self.MAX_TITLE_WORDS:
                 titles.append(title)
@@ -67,7 +71,9 @@ class ArticleHandler(MaterialTypeHandler):
 
     def extract_topics(self, pages: list[dict]) -> list[Topic]:
         keyword_topics = super().extract_topics(pages)
-        return postprocessor.union(self._heading_topics(pages), keyword_topics)
+        return self._heading_topics(pages)
+        # TODO
+        # return postprocessor.union(self._heading_topics(pages), keyword_topics)
 
     def _heading_topics(self, pages: list[dict]) -> list[Topic]:
         headings = [
@@ -82,12 +88,12 @@ class ArticleHandler(MaterialTypeHandler):
         if line.get("size", 0.0) < self.MIN_HEADING_SIZE:
             return False
         bold = line.get("bold")
-        # bold is None for OCR (weight unknown) -> size alone; otherwise require bold.
+        # bold is None for OCR (weight unknown), but require bold if non-OCR
         return bold is None or bool(bold)
 
 
 handlers: dict[str, MaterialTypeHandler] = {
-    "slide": SlidesHandler(),
+    "slides": SlidesHandler(),
     "article": ArticleHandler(),
 }
 
@@ -97,4 +103,9 @@ DEFAULT_HANDLER = MaterialTypeHandler()
 def get_handler(material_type: str | None) -> MaterialTypeHandler:
     # TODO: Make frontend dropdown to limit to known types 
     #       with an 'other' option for free text, for which we'll use the default handler
+    print("getting handler for material_type: ", (material_type or "").lower())
+    if (material_type or "").lower() not in handlers:
+        print("No specific handler found for material_type: ", (material_type or "").lower())
+    else:
+        print("Found handlers: ", handlers.get((material_type or "").lower(), DEFAULT_HANDLER))
     return handlers.get((material_type or "").lower(), DEFAULT_HANDLER)

@@ -31,7 +31,7 @@ async def health_check() -> dict[str, str]:
 
 
 @app.post("/extract", response_model=ExtractResponse)
-async def extract(request: ExtractRequest) -> ExtractResponse:
+def extract(request: ExtractRequest) -> ExtractResponse:
     """Extract per-page text and topics from a PDF in a single pass."""
     try:
         file_bytes = base64.b64decode(request.file)
@@ -47,9 +47,9 @@ async def extract(request: ExtractRequest) -> ExtractResponse:
 
         return ExtractResponse(
             pages=[
-                PageContent(page_number=page["page_number"], content=page["text"])
+                PageContent(page_number=page["page_number"], content="\n".join(line["text"] for line in page["lines"]))
                 for page in pages
-                if page["text"]
+                if page["lines"]
             ],
             page_count=page_count,
             topics=topics,

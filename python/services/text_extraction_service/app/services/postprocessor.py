@@ -1,7 +1,7 @@
 from app.schemas import Topic
 
 def process(topics: list[Topic]) -> list[Topic]:
-    """Postprocess topics extracted by YAKE, most relevant to least"""
+    """Postprocess extracted topics"""
 
     # Remove topics that are empty or too long
     trimmed_topics = [t for t in topics if 1 <= len(t.topic.split()) <= 8]
@@ -12,7 +12,6 @@ def process(topics: list[Topic]) -> list[Topic]:
         if len(words) == 1:
             word = words[0]
             if (word.istitle() or word.isupper()) and len(word) >= 5:
-                print("Adding...\n")
                 word_filtered_topics.append(t)
         else:
             word_filtered_topics.append(t)
@@ -32,10 +31,14 @@ def process(topics: list[Topic]) -> list[Topic]:
         if not any(t.topic.lower() in other.topic.lower() and t.topic.lower() != other.topic.lower() for other in deduped_topics):
             unique_topics.append(t)
     
-    return unique_topics
+    # Remove high score (less relevant) topics
+    relevant_topics = [t for t in unique_topics if t.score < 0.5]
+    
+    return relevant_topics
 
 
 def union(topics_1: list[Topic], topics_2: list[Topic]) -> list[Topic]:
+    # TODO: More efficient way of doing this
     seen: set[str] = set()
     merged: list[Topic] = []
     for t in [*topics_1, *topics_2]:
