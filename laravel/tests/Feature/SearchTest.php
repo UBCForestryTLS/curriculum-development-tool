@@ -1420,4 +1420,72 @@ public function test_selected_course_level_is_preserved_and_displayed()
     $response->assertSee('Course Level: 300');
 }
 
+public function test_program_filter_only_returns_courses_in_selected_program()
+{
+    $selectedProgramId = DB::table('programs')->insertGetId([
+        'program' => 'Forest Sciences',
+        'level' => 'Bachelors',
+        'status' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ], 'program_id');
+
+    $otherProgramId = DB::table('programs')->insertGetId([
+        'program' => 'Bioeconomy Sciences',
+        'level' => 'Bachelors',
+        'status' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ], 'program_id');
+
+    $matchingCourse = Course::factory()->create([
+        'course_code' => 'FRST',
+        'course_num' => 302,
+        'course_title' => 'Forest Genetics',
+    ]);
+
+    $excludedCourse = Course::factory()->create([
+        'course_code' => 'BEST',
+        'course_num' => 300,
+        'course_title' => 'Climate Adaptation',
+    ]);
+
+    DB::table('course_programs')->insert([
+        [
+            'course_id' => $matchingCourse->course_id,
+            'program_id' => $selectedProgramId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'course_id' => $excludedCourse->course_id,
+            'program_id' => $otherProgramId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $matchingCourse->course_id,
+        'topic' => 'climate adaptation in forest ecosystems',
+    ]);
+
+    CourseTopic::factory()->create([
+        'course_id' => $excludedCourse->course_id,
+        'topic' => 'climate adaptation in forest ecosystems',
+    ]);
+
+    $response = $this->get(route('search.index', [
+        'query' => 'climate adaptation',
+        'program_filters_applied' => 1,
+        'program_ids' => [$selectedProgramId],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('Forest Genetics');
+    $response->assertDontSee('Climate Adaptation');
+
+
+}
+
 }
