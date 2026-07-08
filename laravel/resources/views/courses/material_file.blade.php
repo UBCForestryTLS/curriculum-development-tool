@@ -22,7 +22,7 @@
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0">Extraction Details</h6>
-            <div>
+            <div class="d-flex align-items-center flex-wrap gap-2">
                 @if ($file->ocr_enabled)
                     @php
                         if ($file->extraction_engine === 'textract') {
@@ -55,6 +55,18 @@
                         <span class="material-status material-status--failed">Failed</span>
                         @break
                 @endswitch
+                <!-- TODO: Remove this form section, it's for testing only -->
+                <form method="POST"
+                      action="{{ route('course.material.files.refresh', [$course_id, $material_id, $file->course_material_file_id]) }}"
+                      class="d-inline">
+                    @csrf
+                    <button type="submit"
+                            class="btn btn-sm btn-outline-primary ms-2"
+                            @disabled($file->status === 'INDEXING')
+                            onclick="return confirm('Re-run text and topic extraction for this file using the saved settings?');">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh topics
+                    </button>
+                </form>
             </div>
         </div>
         <div class="card-body">

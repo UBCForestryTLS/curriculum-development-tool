@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Support\PdfPageRenderer;
@@ -75,6 +76,34 @@ class CourseMaterialFileController extends Controller
         return redirect()
             ->route('courseWizard.step10', ['course' => $course_id])
             ->with('success', 'File deleted.');
+    }
+
+    public function refresh(Request $request, $course_id, $material_id, $file_id): RedirectResponse
+    {
+        $this->assertIsEditor((int) $course_id);
+
+        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
+            ->where('course_material_id', $material_id)
+            ->where('course_id', $course_id)
+            ->firstOrFail();
+
+        DB::transaction(function () use ($file) {
+            $file->chunks()->delete();
+            $file->topics()->detach();
+
+            $file->update([
+                'status' => CourseMaterialFile::STATUS_PENDING,
+                'error_message' => null,
+                'page_count' => null,
+                'processing_time_seconds' => null,
+            ]);
+        });
+
+        IndexCourseMaterial::dispatch($file->course_material_file_id);
+
+        return redirect()
+            ->back()
+            ->with('success', 'Refreshing extracted text and topics.');
     }
 
     public function download($course_id, $material_id, $file_id): StreamedResponse
