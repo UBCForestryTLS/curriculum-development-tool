@@ -1,13 +1,54 @@
 // Body
 $body-bg: #f8fafc;
+$body-color: #002145;
+
+// Grid (BS4 default was 30px; BS5 reduced default to 1.5rem/24px which
+// makes columns narrower and row gutters tighter than the legacy build).
+$grid-gutter-width: 30px;
+
+// BS5 added an xxl breakpoint (>=1400px) with .container max-width 1320px.
+// BS4 capped .container at 1140px (xl). Match the legacy build by dropping
+// the xxl tier from breakpoints and container max-widths.
+$grid-breakpoints: (
+    xs: 0,
+    sm: 576px,
+    md: 768px,
+    lg: 992px,
+    xl: 1200px
+);
+
+$container-max-widths: (
+    sm: 540px,
+    md: 720px,
+    lg: 960px,
+    xl: 1140px
+);
 
 // Typography
 $font-family-sans-serif: 'Open Sans', sans-serif;
 $font-size-base: 0.9rem;
 $line-height-base: 1.6;
 
+// Heading sizes (extracted from the legacy public/css/app.css build;
+// the original Mix Sass source had these explicit overrides).
+$h1-font-size: 3.25rem;
+$h2-font-size: 1.8rem;
+$h3-font-size: 1.575rem;
+$h4-font-size: 1.35rem;
+$h5-font-size: 1.125rem;
+$h6-font-size: $font-size-base;
+$lead-font-size: 1.125rem;
+$lead-font-weight: 300;
+
+// Links (BS5 underlines links by default; the legacy build had no underline
+// at rest and underlined only on hover).
+$link-color: #0055b7;
+$link-hover-color: #2f5d7c;
+$link-decoration: none;
+$link-hover-decoration: underline;
+
 // Colors
-$blue: #3490dc;
+$blue: #40B4E5;
 $indigo: #6574cd;
 $purple: #9561e2;
 $pink: #f66d9b;
@@ -16,4 +57,19 @@ $orange: #f6993f;
 $yellow: #ffed4a;
 $green: #38c172;
 $teal: #4dc0b5;
-$cyan: #6cb2eb;
+$cyan: #6EC4E8;
+
+// Theme color overrides (UBC branding). Matches the colors that the old
+// Mix build baked into public/css/app.css before the Vite migration.
+// Note: $secondary is intentionally NOT overridden here even though the
+// legacy CSS had `:root { --secondary: #fff }`. In BS4 the runtime CSS
+// variable only affected `.bg-secondary` (which used `var(--secondary)`)
+// while `.btn-secondary` kept its compile-time gray. BS5 generates both
+// from the same Sass variable, so overriding at this layer would also
+// turn `.btn-secondary` white. The white `.bg-secondary` is recreated via
+// a targeted rule in app.scss instead.
+$primary: #002145;
+$success: $green;
+$info: $cyan;
+$warning: $yellow;
+$danger: $red;

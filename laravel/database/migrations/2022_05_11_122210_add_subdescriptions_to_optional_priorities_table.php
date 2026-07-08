@@ -25,7 +25,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('optional_priorities', function (Blueprint $table) {
-            //
+            $table->tinyInteger('isCheckable')->default(1);
+            $table->dropForeign(['op_subdesc']);
+            $table->dropColumn('op_subdesc');
         });
     }
 };

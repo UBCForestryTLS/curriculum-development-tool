@@ -6,6 +6,7 @@ use App\Models\CourseProgram;
 use App\Models\MappingScale;
 use App\Models\MappingScaleProgram;
 use App\Models\OutcomeMap;
+use App\Models\OutcomeMapAiSuggestion;
 use App\Models\Program;
 use App\Models\ProgramLearningOutcome;
 use App\Models\User;
@@ -164,6 +165,11 @@ class MappingScaleController extends Controller
             $msp = MappingScaleProgram::where('program_id', $request->input('program_id'))->where('map_scale_id', $map_scale_id);
 
             if ($msp->delete()) {
+                // Explicitly drop manual maps and AI suggestions that referenced this specific scale level for the program's PLOs.
+                $ploIds = ProgramLearningOutcome::where('program_id', $request->input('program_id'))->pluck('pl_outcome_id')->toArray();
+                OutcomeMap::whereIn('pl_outcome_id', $ploIds)->where('map_scale_id', $map_scale_id)->delete();
+                OutcomeMapAiSuggestion::whereIn('pl_outcome_id', $ploIds)->where('map_scale_id', $map_scale_id)->delete();
+
                 // update courses 'updated_at' field
                 $program = Program::find($request->input('program_id'));
                 $program->touch();
@@ -204,14 +210,12 @@ class MappingScaleController extends Controller
     {
         $mapping_scale_categories_id = $request->input('mapping_scale_categories_id');
 
-        // Delete outcome maps if they exist
+        // The scale set is being replaced, so replace any existing manual maps and AI
+        // suggestions for this program's PLOs' scales
         $programLearningOutcomes = ProgramLearningOutcome::where('program_id', $request->input('program_id'))->pluck('pl_outcome_id')->toArray();
         if (count($programLearningOutcomes) > 0) {
-            foreach ($programLearningOutcomes as $programLearningOutcome) {
-                if (OutcomeMap::where('pl_outcome_id', $programLearningOutcome)->exists()) {
-                    OutcomeMap::where('pl_outcome_id', $programLearningOutcome)->delete();
-                }
-            }
+            OutcomeMap::whereIn('pl_outcome_id', $programLearningOutcomes)->delete();
+            OutcomeMapAiSuggestion::whereIn('pl_outcome_id', $programLearningOutcomes)->delete();
         }
 
         // Return currently mapped scales for a program
@@ -246,7 +250,13 @@ class MappingScaleController extends Controller
                 $request->session()->flash('error', 'There was an error deleting the plo category');
             }
         }
-        CourseProgram::where('program_id', $request->input('program_id'))->update(['map_status' => 0]);
+        // Reset the mapping state for this program since the manual maps and AI suggestions
+        // were just cleared
+        CourseProgram::where('program_id', $request->input('program_id'))->update([
+            'map_status' => 0,
+            'manual_map_status' => false,
+            'ai_suggestion_status' => false,
+        ]);
 
         return redirect()->route('programWizard.step2', $request->input('program_id'));
     }

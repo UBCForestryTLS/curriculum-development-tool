@@ -8,15 +8,13 @@ use Illuminate\Support\Facades\DB;
 
 class Course extends Model
 {
-    use \Backpack\CRUD\app\Models\Traits\CrudTrait;
-    use \Backpack\CRUD\app\Models\Traits\HasIdentifiableAttribute;
     use HasFactory;
 
     protected $table = 'courses';
 
     protected $primaryKey = 'course_id';
 
-    protected $fillable = ['course_code', 'course_num', 'course_title', 'status', 'assigned', 'type', 'year', 'semester', 'section', 'delivery_modality', 'standard_category_id', 'scale_category_id', 'AMtable', 'CLOtable', 'LAtable', 'campus', 'faculty', 'department'];
+    protected $fillable = ['course_code', 'course_num', 'course_title', 'status', 'assigned', 'type', 'year', 'semester', 'section', 'delivery_modality', 'standard_category_id', 'scale_category_id', 'campus', 'faculty', 'department'];
 
     protected $guarded = ['course_id'];
 

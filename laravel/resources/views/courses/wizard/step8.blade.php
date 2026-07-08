@@ -14,23 +14,23 @@
                                 <i class="bi bi-question-circle" style="color:#002145;"></i>
                             </button>
                         </div>
-                        <div class="text-left">
+                        <div class="text-start">
                             @include('layouts.guide')
                         </div>
                     </h3>
                     </div>
 
                     <!-- Add Course Description Modal -->
-                    <div class="modal fade" data-backdrop="static" data-keyboard="false" id="addCourseDescription" tabindex="-1" role="dialog"
+                    <div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addCourseDescription" tabindex="-1" role="dialog"
                          aria-labelledby="addCourseDescription" aria-hidden="true">
                         <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered" role="document">
                             <div class="modal-content">
                                 <div class="modal-header">
-                                    <h5 class="modal-title" id="addCourseDescriptionModalLabel"><i class="bi bi-pencil-fill btn-icon mr-2"></i> Course Description
+                                    <h5 class="modal-title" id="addCourseDescriptionModalLabel"><i class="bi bi-pencil-fill btn-icon me-2"></i> Course Description
                                     </h5>
                                 </div>
 
-                                <div class="modal-body text-left">
+                                <div class="modal-body text-start">
                                     <textarea name="current_courseDescription" value="{{$courseDescription}}" id="courseDescriptionText"
                                               class="form-control @error('courseDescription') is-invalid @enderror" form="saveDescriptionChanges" required
                                     rows="10">{{$courseDescription}}</textarea>
@@ -52,7 +52,7 @@
 
                     <div class="card-body">
                         <div class="alert alert-primary d-flex align-items-center" role="alert" style="text-align:justify">
-                            <i class="bi bi-info-circle-fill pr-2 fs-3"></i>
+                            <i class="bi bi-info-circle-fill pe-2 fs-3"></i>
                             <div>
                                 This step, requires instructors to provide a <b>course description</b> that outlines the course content, objectives, and expectations. This description will help students understand what the course entails and what they can expect to learn.
                             </div>
@@ -61,8 +61,8 @@
                             @if(strlen($courseDescription)<1)
                                 <div class="row mb-4">
                                     <div class="col">
-                                        <button type="button" class="btn btn-primary col-4 float-right bg-primary text-white fs-5"  data-bs-toggle="modal" data-bs-target="#addCourseDescription">
-                                            <i class="bi bi-plus mr-2"></i> Course Description
+                                        <button type="button" class="btn btn-primary col-4 float-end bg-primary text-white fs-5"  data-bs-toggle="modal" data-bs-target="#addCourseDescription">
+                                            <i class="bi bi-plus me-2"></i> Course Description
                                         </button>
                                     </div>
                                 </div>
@@ -72,8 +72,8 @@
                             @else
                                 <div class="row mb-4">
                                     <div class="col">
-                                        <button type="button" class="btn btn-primary col-2 float-right bg-primary text-white fs-5"  data-bs-toggle="modal" data-bs-target="#addCourseDescription">
-                                            <i class="bi bi-pen mr-2"></i>Edit
+                                        <button type="button" class="btn btn-primary col-2 float-end bg-primary text-white fs-5"  data-bs-toggle="modal" data-bs-target="#addCourseDescription">
+                                            <i class="bi bi-pen me-2"></i>Edit
                                         </button>
                                     </div>
                                 </div>

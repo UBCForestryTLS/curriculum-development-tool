@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 // model for CourseLearningOutcomes
 class LearningOutcome extends Model
 {
-    use \Backpack\CRUD\app\Models\Traits\CrudTrait;
     use HasFactory;
 
     protected $table = 'learning_outcomes';

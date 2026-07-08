@@ -6,7 +6,7 @@
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:11">
         <div id="errorToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header " style="padding:1em;color:#842029;background-color:#f8d7da;border-color:#f5c2c7">
-                <i class="bi bi-exclamation-circle-fill pr-2 text-danger"></i>
+                <i class="bi bi-exclamation-circle-fill pe-2 text-danger"></i>
                 <strong class="me-auto">Error</strong>
                 <button type="button" class="btn-close" onclick="hideErrorToast()" aria-label="Close"></button>
             </div>
@@ -32,24 +32,24 @@
                 @include('modals.downloadProgressModal', ['course' => $course])
                 <h3 class="card-header wizard" >
                     <div class="row">
-                        <div class="col text-left">
+                        <div class="col text-start">
                             <button id="downloadPDFBtn" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#downloadProgressModal" data-route="{{route('courses.pdf', $course->course_id)}}">
-                                Download<i class="bi bi-download pl-2"></i>
+                                Download<i class="bi bi-download ps-2"></i>
                             </button>
                             <button id="downloadDataBtn" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#downloadProgressModal" data-route="{{route('courses.dataSpreadsheet', $course->course_id)}}">
-                                Download Data<i class="bi bi-download pl-2"></i>
+                                Download Data<i class="bi bi-download ps-2"></i>
                             </button>
                         </div>
                         <div class="col">
                             {{$course->course_code}} {{$course->course_num}}: Course Summary
                         </div>
 
-                        <div class="col text-right">
+                        <div class="col text-end">
                             <button id="courseOverviewHelp" style="border: none; background: none; outline: none;" data-bs-toggle="modal" href="#guideModal">
                                 <i class="bi bi-question-circle" style="color:#002145;"></i>
                             </button>
                         </div>
-                        <div class="text-left">
+                        <div class="text-start">
                             @include('layouts.guide')
                         </div>
                     </div>
@@ -57,7 +57,7 @@
 
                 <div class="card-body m-2">
                     <div class="alert alert-primary d-flex align-items-center" role="alert" style="text-align:justify">
-                        <i class="bi bi-info-circle-fill pr-2 fs-3"></i>
+                        <i class="bi bi-info-circle-fill pe-2 fs-3"></i>
                         <div>
                             You can review	and	download the mapped course here. To edit information, select from the numbered tabs above. Click finish only when you have completed the mapping process.
                         </div>
@@ -310,7 +310,7 @@
                         <div class="body m-4 mb-2">
                             @if ($course->programs->count() < 1)
                                 <div class="alert alert-warning wizard">
-                                    <i class="bi bi-exclamation-circle-fill pr-2 fs-5"></i>This course does not belong to any programs yet.
+                                    <i class="bi bi-exclamation-circle-fill pe-2 fs-5"></i>This course does not belong to any programs yet.
                                 </div>
                             @else
                                 @foreach ($course->programs as $index => $courseProgram)
@@ -322,7 +322,7 @@
 
                                             @if($courseProgram->programLearningOutcomes->count() <1)
                                                 <div class="alert alert-warning wizard">
-                                                    <i class="bi bi-exclamation-circle-fill pr-2 fs-5"></i>Program learning outcomes have not been set for this program.
+                                                    <i class="bi bi-exclamation-circle-fill pe-2 fs-5"></i>Program learning outcomes have not been set for this program.
                                                 </div>
 
                                             @else
@@ -573,7 +573,7 @@
 
                             @if($course->standardOutcomes->count() < 1)
                                 <div class="alert alert-warning wizard">
-                                    <i class="bi bi-exclamation-circle-fill pr-2 fs-5"></i>Standards have not been set for this course.
+                                    <i class="bi bi-exclamation-circle-fill pe-2 fs-5"></i>Standards have not been set for this course.
                                 </div>
                             @else
                                 <table class="table table-light table-bordered table mb-4" >
@@ -747,10 +747,10 @@
                     <div class="card-body mb-4">
                         @if (!$isViewer)
                         <a href="{{route('courseWizard.step6', $course->course_id)}}">
-                            <button class="btn btn-sm btn-primary col-3 float-left"><i class="bi bi-arrow-left mr-2"></i> BC Degree Standards Mapping</button>
+                            <button class="btn btn-sm btn-primary col-3 float-start"><i class="bi bi-arrow-left me-2"></i> BC Degree Standards Mapping</button>
                         </a>
                         <a href="{{route('courses.submit', $course->course_id)}}">
-                            <button class="btn btn-sm btn-success col-3 float-right">Finish <i class="bi bi-check2-circle ml-2 fs-6"></i></button>
+                            <button class="btn btn-sm btn-success col-3 float-end">Finish <i class="bi bi-check2-circle ms-2 fs-6"></i></button>
                         </a>
                         @endif
                     </div>

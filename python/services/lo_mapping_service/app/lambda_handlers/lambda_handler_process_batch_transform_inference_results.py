@@ -196,6 +196,17 @@ def lambda_handler(event, context) -> dict:
         logger.error("Missing TransformJobName or TransformJobStatus in event detail.")
         return {"statusCode": 400, "body": "Invalid EventBridge event."}
 
+    TERMINAL_STATES = {"Completed", "Failed", "Stopped"}
+    if job_status not in TERMINAL_STATES:
+        logger.info(
+            "Job '%s' is in non-terminal state '%s' - no action taken.",
+            job_name, job_status,
+        )
+        return {
+            "statusCode": 200,
+            "body": {"message": f"Non-terminal state '{job_status}' - no action taken."},
+        }
+
     logger.info("Job '%s' finished with status: %s", job_name, job_status)
 
     # course_id, program_id = parse_job_name(job_name)

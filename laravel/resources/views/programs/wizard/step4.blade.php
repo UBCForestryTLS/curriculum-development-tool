@@ -8,7 +8,7 @@
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:11">
         <div id="errorToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header " style="padding:1em;color:#842029;background-color:#f8d7da;border-color:#f5c2c7">
-                <i class="bi bi-exclamation-circle-fill pr-2 text-danger"></i>            
+                <i class="bi bi-exclamation-circle-fill pe-2 text-danger"></i>            
                 <strong class="me-auto">Error</strong>
                 <button type="button" class="btn-close" onclick="hideErrorToast()" aria-label="Close"></button>
             </div>
@@ -26,7 +26,7 @@
             <div id="notification" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
                 <div class="toast-header bg-warning">
                     <i class="bi bi-exclamation-triangle-fill"></i>
-                    <strong class="me-auto pl-2">Alert</strong>
+                    <strong class="me-auto ps-2">Alert</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
                 <div class="toast-body">
@@ -57,7 +57,7 @@
     
                 <h3 class="card-header wizard">
                     <div class="row">
-                        <div class="col text-left">
+                        <div class="col text-start">
                             <div class="btn-group">
                                 <table>
                                     <tr>
@@ -86,12 +86,12 @@
                             Program Overview
                         </div>
                         
-                        <div class="col text-right"> 
+                        <div class="col text-end"> 
                             <button id="programOverviewHelp" style="border: none; background: none; outline: none;" data-bs-toggle="modal" href="#guideModal">
                                 <i class="bi bi-question-circle" style="color:#002145;"></i>
                             </button>
                         </div>
-                        <div class="text-left">
+                        <div class="text-start">
                             @include('layouts.guide')
                         </div>
                     </div>
@@ -124,7 +124,7 @@
                                         <p>Program-level learning outcomes (PLOs) are the knowledge, skills and attributes that students are expected to attain by the end of a program of study.</p>
                                         <table class="table table-light table-bordered table" style="width: 95%; margin: auto; table-layout:auto;">
                                             <tr class="table-primary">
-                                                <th class="text-left" colspan="2">Program Learning Outcome</th>
+                                                <th class="text-start" colspan="2">Program Learning Outcome</th>
                                             </tr>
                                             <tbody>
                                                 <!--Categorized PLOs -->
@@ -132,7 +132,7 @@
                                                     @if ($plo->plo_category != NULL)
                                                         @if ($plo->plos->count() > 0)
                                                             <tr class="table-secondary">
-                                                                <th class="text-left" colspan="2">{{$plo->plo_category}} 
+                                                                <th class="text-start" colspan="2">{{$plo->plo_category}} 
                                                                 <!-- @if ($numCatUsed > 3)    
                                                                     : (C - {{$catIndex + 1}})</th>
                                                                 @endif -->
@@ -142,7 +142,7 @@
                                                     @foreach($ploProgramCategories as $index => $ploCat)
                                                         @if ($plo->plo_category_id == $ploCat->plo_category_id)
                                                             <tr>
-                                                                <td class="text-left align-middle" style="width: 10%;">{{$defaultShortFormsIndex[$ploCat->pl_outcome_id]}}</td>
+                                                                <td class="text-start align-middle" style="width: 10%;">{{$defaultShortFormsIndex[$ploCat->pl_outcome_id]}}</td>
                                                                 @if ($ploCat->plo_shortphrase == '' || $ploCat->plo_shortphrase == NULL)
                                                                     <td>
                                                                         <span style="font-weight: bold;">{{$defaultShortForms[$ploCat->pl_outcome_id]}}</span><br>
@@ -161,12 +161,12 @@
                                                 <!--UnCategorized PLOs -->
                                                 @if($hasUncategorized)
                                                     <tr class="table-secondary">
-                                                        <th class="text-left" colspan="2">Uncategorized</th>
+                                                        <th class="text-start" colspan="2">Uncategorized</th>
                                                     </tr>
                                                 @endif
                                                 @foreach($unCategorizedPLOS as $unCatIndex => $unCatplo)
                                                     <tr>
-                                                        <td class="text-left align-middle" style="width: 10%;">{{$defaultShortFormsIndex[$unCatplo->pl_outcome_id]}}</td>
+                                                        <td class="text-start align-middle" style="width: 10%;">{{$defaultShortFormsIndex[$unCatplo->pl_outcome_id]}}</td>
                                                         @if ($unCatplo->plo_shortphrase == '' || $unCatplo->plo_shortphrase == NULL)
                                                             <td>
                                                                 <span style="font-weight: bold;">{{$defaultShortForms[$unCatplo->pl_outcome_id]}}</span><br>
@@ -201,7 +201,7 @@
                                         <p>The mapping scale indicates the degree to which a program learning outcome is addressed by a course learning outcome.</p>
                                         <table class="table table-bordered table-sm" style="width: 95%; margin: auto; table-layout:auto;">
                                             <tr class="table-primary">
-                                                <th class="text-left" colspan="2">Mapping Scale</th>
+                                                <th class="text-start" colspan="2">Mapping Scale</th>
                                             </tr>
                                             <tbody>
                                                 @foreach($mappingScales as $ms)
@@ -495,7 +495,7 @@
                                     <table class="table table-bordered table-sm" style="width: 95%; margin: auto; table-layout:auto;">
                                         <!--Legend-->
                                         <tr class="table-primary">
-                                            <th class="text-left" colspan="2">Additional Denominations</th>
+                                            <th class="text-start" colspan="2">Additional Denominations</th>
                                         </tr>
                                         <tr>
                                             <td style="background:repeating-linear-gradient(45deg, transparent, transparent 4px, #ccc 4px, #ccc 8px), linear-gradient( to bottom, #fff, #999); height: 50px; width: 50px;">
@@ -506,7 +506,7 @@
                                         </tr>
                                         <tr>
                                             <td class="text-center align-middle">
-                                                <i class="bi bi-exclamation-circle-fill" data-toggle="tooltip" data-html="true" data-bs-placement="right" title="Incomplete"></i>
+                                                <i class="bi bi-exclamation-circle-fill" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="Incomplete"></i>
                                             </td>
                                             <td>
                                                 Occurs when a course has not yet been mapped to the set of PLOs.
@@ -661,7 +661,7 @@
                         <div class="card-body mb-4">
                             @if (! $isViewer)
                                 <a href="{{route('programWizard.step3', $program->program_id)}}">
-                                    <button class="btn btn-sm btn-primary col-3 float-left"><i class="bi bi-arrow-left mr-2"></i> Courses</button>
+                                    <button class="btn btn-sm btn-primary col-3 float-start"><i class="bi bi-arrow-left me-2"></i> Courses</button>
                                 </a>
                             @endif
                         </div>
@@ -689,7 +689,7 @@
                     $("#loading-div").fadeOut("fast");
                     $("#allCoursesInput").html(data);
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -702,7 +702,7 @@
                     $("#loading-div-required").fadeOut("fast");
                     $("#requiredCoursesInput").html(data);
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -715,7 +715,7 @@
                     $("#loading-div-non-required").fadeOut("fast");
                     $("#nonRequiredCoursesInput").html(data);
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -728,7 +728,7 @@
                     $("#loading-div-first").fadeOut("fast");
                     $("#firstCoursesInput").html(data);
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -741,7 +741,7 @@
                     $("#loading-div-second").fadeOut("fast");
                     $("#secondCoursesInput").html(data);
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -754,7 +754,7 @@
                     $("#loading-div-third").fadeOut("fast");
                     $("#thirdCoursesInput").html(data);
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -767,7 +767,7 @@
                     $("#loading-div-fourth").fadeOut("fast");
                     $("#fourthCoursesInput").html(data);
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -780,7 +780,7 @@
                     $("#loading-div-graduate").fadeOut("fast");
                     $("#graduateCoursesInput").html(data);
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -869,7 +869,7 @@
                     }
                     $("#high-chart-am").show();
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -959,7 +959,7 @@
                     // display chart
                     $("#high-chart-la").show();
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -1044,12 +1044,12 @@
                         // Append to table for all optional priority frequencies
                         $('#ms-table').append(tableHTML);
                         // Enables functionality of tool tips
-                        $('[data-toggle="tooltip"]').tooltip({html:true});
+                        $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                     }
                     // display chart
                     $("#high-chart-ms").show();
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -1137,7 +1137,7 @@
                     // display chart
                     $("#high-chart-ms").show();
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -1220,7 +1220,7 @@
                     // display chart
                     $("#high-chart-ms").show();
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -1241,7 +1241,7 @@
                     // Append to table for all optional priority frequencies
                     $('#op-table').append(opFreq);
                     // Enables functionality of tool tips
-                    $('[data-toggle="tooltip"]').tooltip({html:true});
+                    $('[data-bs-toggle="tooltip"]').tooltip({html:true});
                 }
             });
         });
@@ -1341,7 +1341,7 @@
                 // Append to table for all optional priority frequencies
                 $('#op-table').append(opFreq);
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1359,7 +1359,7 @@
                 // Append to table for all optional priority frequencies
                 $('#op-table').append(opFreq);
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1377,7 +1377,7 @@
                 // Append to table for all optional priority frequencies
                 $('#op-table').append(opFreq);
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1395,7 +1395,7 @@
                 // Append to table for all optional priority frequencies
                 $('#op-table').append(opFreq);
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1413,7 +1413,7 @@
                 // Append to table for all optional priority frequencies
                 $('#op-table').append(opFreq);
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1431,7 +1431,7 @@
                 // Append to table for all optional priority frequencies
                 $('#op-table').append(opFreq);
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1515,7 +1515,7 @@
                 }
                 $("#high-chart-am").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1598,7 +1598,7 @@
                 }
                 $("#high-chart-am").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1682,7 +1682,7 @@
                 }
                 $("#high-chart-am").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1766,7 +1766,7 @@
                 }
                 $("#high-chart-am").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1850,7 +1850,7 @@
                 }
                 $("#high-chart-am").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -1934,7 +1934,7 @@
                 }
                 $("#high-chart-am").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -2018,7 +2018,7 @@
                 // display chart
                 $("#high-chart-la").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -2102,7 +2102,7 @@
                 // display chart
                 $("#high-chart-la").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -2186,7 +2186,7 @@
                 // display chart
                 $("#high-chart-la").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -2270,7 +2270,7 @@
                 // display chart
                 $("#high-chart-la").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -2354,7 +2354,7 @@
                 // display chart
                 $("#high-chart-la").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -2438,7 +2438,7 @@
                 // display chart
                 $("#high-chart-la").show();
                 // Enables functionality of tool tips
-                $('[data-toggle="tooltip"]').tooltip({html:true});
+                $('[data-bs-toggle="tooltip"]').tooltip({html:true});
             }
         });
     }
@@ -2506,7 +2506,7 @@
         $("#notification").toast("show");
 
         // Enables functionality of tool tips
-        $('[data-toggle="tooltip"]').tooltip({html:true});
+        $('[data-bs-toggle="tooltip"]').tooltip({html:true});
 
         $("form").submit(function () {
             // prevent duplicate form submissions

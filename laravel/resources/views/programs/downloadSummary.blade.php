@@ -58,7 +58,7 @@
     </head>
     <body>
         <div style="margin-bottom:16px">
-            <p class="text-right">{{date("Y-m-d")}}</p>
+            <p class="text-end">{{date("Y-m-d")}}</p>
             <h2>Program Overview: {{$program->program}}</h2>
             <p><b>Faculty:</b> {{$program->faculty}}</p>
             <p><b>Department:</b> {{$program->department}}</p>
@@ -217,7 +217,7 @@
                             <table class="table table-bordered table-sm table-condensed" style="width:100%;">
                                 <tr class="info" style="font-size:14px">
                                     <th>Courses</th>
-                                    <th class="text-left" colspan="{{ $program->programLearningOutcomes->count() }}">Program Learning Outcomes</th>
+                                    <th class="text-start" colspan="{{ $program->programLearningOutcomes->count() }}">Program Learning Outcomes</th>
                                 </tr>
                                 @foreach ($program->ploCategories as $category) 
                                     <tr style="font-size:12px">

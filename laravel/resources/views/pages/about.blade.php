@@ -117,7 +117,7 @@
                 </div>
                 <div class="row mb-3">
                     <div class="col-sm"> 
-                        <img class="team-img" src=" {{ asset('img/team/Damyn-200x200.png') }}"/>
+                        <img class="team-img" src=" {{ asset('img/team/damyn-200x200.png') }}"/>
                         <figcaption style="text-align:center;">
                             <p class="lead" style="margin-bottom:0px;"><strong>Damyn Filipuzzi</strong></p>
                             <p class="lead"><i>Undergraduate Developer</i></p>
@@ -131,7 +131,7 @@
                         </figcaption>
                     </div>
                     <div class="col-sm"> 
-                        <img class="team-img" src=" {{ asset('img/team/Kieran-200x200.png') }}"/>
+                        <img class="team-img" src=" {{ asset('img/team/kieran-200x200.png') }}"/>
                         <figcaption style="text-align: center;">
                             <p class="lead" style="margin-bottom:0px;"><strong>Kieran Adams</strong></p>
                             <p class="lead"><i>Undergraduate Developer</i></p>

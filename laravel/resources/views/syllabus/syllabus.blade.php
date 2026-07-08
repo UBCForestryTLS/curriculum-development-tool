@@ -95,7 +95,7 @@
     
     
     <div class="alert alert-primary d-flex align-items-center" role="alert" style="text-align:justify">
-        <i class="bi bi-info-circle-fill pr-2 fs-3"></i>                        
+        <i class="bi bi-info-circle-fill pe-2 fs-3"></i>                        
         <div>
             To assist faculty and instructors in preparing their syllabi, this generator follows the policies and templates provided by the <a target="_blank" rel="noopener noreferrer" href="https://senate.ubc.ca/okanagan/policies/policy-o-130-content-and-distribution-of-course-syllabi-2/">UBC Okanagan</a> and <a target="_blank" rel="noopener noreferrer" href="https://senate.ubc.ca/policies-resources-support-student-success">UBC Vancouver</a> Senates. 
         </div>
@@ -103,8 +103,8 @@
 
     @if(empty($syllabus))
         <div class="alert alert-warning">
-            <!-- <i class="bi bi-info-circle-fill pr-2 fs-3"></i> -->
-            <button type="button" class="close" data-dismiss="alert">×</button>  
+            <!-- <i class="bi bi-info-circle-fill pe-2 fs-3"></i> -->
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>  
             <div>
                 {!! $inputFieldDescriptions['saveWarning']!!}
             </div>  
@@ -322,32 +322,32 @@
             <div class="classDate mt-1">
                 <div class="form-check form-check-inline">
                     <input id="monday" type="checkbox" name="schedule[]" value="Mon" class="form-check-input">
-                    <label for="monday" class="mr-2 form-check-label" >Monday</label>
+                    <label for="monday" class="me-2 form-check-label" >Monday</label>
                 </div>
                 
                 <div class="form-check form-check-inline">
                     <input id="tuesday" type="checkbox" name="schedule[]" value="Tue" class="form-check-input">
-                    <label for="tuesday" class="mr-2 form-check-label">Tuesday</label>
+                    <label for="tuesday" class="me-2 form-check-label">Tuesday</label>
                 </div>
 
                 <div class="form-check form-check-inline">
                     <input id="wednesday" type="checkbox" name="schedule[]" value="Wed" class="form-check-input">
-                    <label for="wednesday" class="mr-2 form-check-label">Wednesday</label>
+                    <label for="wednesday" class="me-2 form-check-label">Wednesday</label>
                 </div>
 
                 <div class="form-check form-check-inline">
                     <input id="thursday" type="checkbox" name="schedule[]" value= "Thu" class="form-check-input">
-                    <label for="thursday" class="mr-2 form-check-label">Thursday</label>
+                    <label for="thursday" class="me-2 form-check-label">Thursday</label>
                 </div>
 
                 <div class="form-check form-check-inline">
                     <input id="friday" type="checkbox" name="schedule[]" value="Fri" class="form-check-input">
-                    <label for="friday" class="mr-2 form-check-label">Friday</label>
+                    <label for="friday" class="me-2 form-check-label">Friday</label>
                 </div>
                 
                 <div class="form-check form-check-inline">
                     <input id="saturday" type="checkbox" name="schedule[]" value="Sat" class="form-check-input">
-                    <label for="saturday" class="mr-2 form-check-label">Saturday</label>
+                    <label for="saturday" class="me-2 form-check-label">Saturday</label>
                 </div>
             </div>
         </div>
@@ -437,7 +437,7 @@
             <i class="bi bi-info-circle-fill" data-bs-toggle="tooltip" data-bs-placement="right" title="{{$inputFieldDescriptions['otherCourseStaff']}}"></i>
             <div id="formatStaff" class="collapsibleNotes btn-primary rounded-3"
                 style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                     on a new line for the best formatting
                     results.</span>
             </div>
@@ -449,8 +449,8 @@
         </div>
 
         <div class="alert alert-info">
-        <i class="bi bi-info-circle-fill pr-2 fs-3"></i>  
-            <button type="button" class="close" data-dismiss="alert">×</button>
+        <i class="bi bi-info-circle-fill pe-2 fs-3"></i>  
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 <a target="_blank" rel="noopener noreferrer" href="https://ctlt-inclusiveteaching.sites.olt.ubc.ca/files/2019/08/inclusive-syllabus-digital.pdf">Guidelines to write an inclusive syllabus</a>.
         </div>
 
@@ -492,14 +492,14 @@
                     data-bs-placement="bottom" data-bs-content="You have reached the maximum number of rows allowed">
                     <button type="button" class="col-2 addRow btn m-0 p-0" style="background:none;border:none" data-side="top" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Add row on top">
                         <i class="btn btn-light rounded-pill m-2 text-secondary bi bi-plus">
-                            <span class="iconify-inline ml-1" data-icon="clarity:view-columns-line" data-rotate="270deg"></span>
+                            <span class="iconify-inline ms-1" data-icon="clarity:view-columns-line" data-rotate="270deg"></span>
                         </i>
                         <p style="font-size:12px" class="text-muted m-0">ADD ROW TOP</p>
                     </button>
 
                     <button type="button" class="col-2 addRow btn m-0 p-0" style="background:none;border:none" data-side="bottom" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Add row on bottom">
                         <i class="btn btn-light rounded-pill m-2 text-secondary bi bi-plus">
-                            <span class="iconify-inline ml-1" data-icon="clarity:view-columns-line" data-rotate="90deg"></span>
+                            <span class="iconify-inline ms-1" data-icon="clarity:view-columns-line" data-rotate="90deg"></span>
                         </i>
                         <p style="font-size:12px" class="text-muted m-0">ADD ROW BOTTOM</p>
                     </button>                    
@@ -509,14 +509,14 @@
                     data-bs-placement="bottom" data-bs-content="You have reached the maximum number of columns allowed">
                     <button type="button" class="col-2 addCol btn m-0 p-0" style="background:none;border:none" data-side="left" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Add column on left">
                         <i class="btn btn-light rounded-pill m-2 text-secondary bi bi-plus">
-                            <span class="iconify-inline ml-1" data-icon="clarity:view-columns-line" data-rotate="180deg"></span>
+                            <span class="iconify-inline ms-1" data-icon="clarity:view-columns-line" data-rotate="180deg"></span>
                         </i>
                         <p style="font-size:12px" class="text-muted m-0">ADD COLUMN LEFT</p>
                     </button>  
 
                     <button type="button" class="col-2 addCol btn m-0 p-0" style="background:none;border:none" data-side="right" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Add column on left">
                         <i class="btn btn-light rounded-pill m-2 text-secondary bi bi-plus">
-                            <span class="iconify-inline ml-1" data-icon="clarity:view-columns-line"></span>
+                            <span class="iconify-inline ms-1" data-icon="clarity:view-columns-line"></span>
                         </i>
                         <p style="font-size:12px" class="text-muted m-0">ADD COLUMN RIGHT</p>
                     </button>  
@@ -524,7 +524,7 @@
 
                 <button id="delCols" type="button" class="col-2 btn m-0 p-0" style="background:none;border:none" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Delete column(s)">
                     <i class="btn btn-light rounded-pill m-2 text-danger bi bi-trash-fill">
-                        <span class="iconify-inline ml-1" data-icon="fluent:column-triple-20-filled"></span>
+                        <span class="iconify-inline ms-1" data-icon="fluent:column-triple-20-filled"></span>
                     </i>
                     <p style="font-size:12px" class="text-muted m-0">DELETE COLUMN(S)</p>
                 </button>
@@ -590,7 +590,7 @@
             <i class="bi bi-info-circle-fill" data-bs-toggle="tooltip" data-bs-placement="right" title="{{$inputFieldDescriptions['learningOutcomes']}}"></i>
             <p class="inputFieldDescription"><i>Upon successful completion of this course, students will be able to ...</i></p>
             <div id="formatCLOs" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
             </div>                                            
             <textarea oninput="validateMaxlength()" onpaste="validateMaxlength()" maxlength="17500" id = "learningOutcome" data-formatnoteid="formatCLOs" placeholder="E.g. Define ... &#10;E.g. Classify ..." name = "learningOutcome" class ="form-control" type="date" style="height:125px;" form="sylabusGenerator" spellcheck="true">{{ !empty($syllabus) ? $syllabus->learning_outcomes : ''}}</textarea>
         </div>
@@ -600,7 +600,7 @@
             <span class="requiredBySenate"></span>
             <i class="bi bi-info-circle-fill" data-bs-toggle="tooltip" data-bs-placement="right" title="{{$inputFieldDescriptions['learningActivities']}}"></i>
             <div id="formatActivities" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
             </div>                                            
             <textarea oninput="validateMaxlength()" onpaste="validateMaxlength()" maxlength="52431" id = "learningActivities" data-formatnoteid="formatActivities" placeholder="E.g. Class participation consists of clicker questions, group discussions ... &#10;E.g. Students are expected to complete class pre-readings ..."name = "learningActivities" class ="form-control" type="date" style="height:125px;" form="sylabusGenerator" spellcheck="true">{{ !empty($syllabus) ? $syllabus->learning_activities : ''}}</textarea>
         </div>
@@ -610,7 +610,7 @@
             <span class="requiredBySenate"></span>
             <p class="inputFieldDescription">{!! $inputFieldDescriptions['learningMaterials'] !!}</p>
             <div id="formatLM" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                     on a new line for the best formatting
                     results.</span>
                 </div>
@@ -625,7 +625,7 @@
             <span class="requiredBySenate"></span>
             <i class="bi bi-info-circle-fill" data-bs-toggle="tooltip" data-bs-placement="right" title="{{$inputFieldDescriptions['learningAssessments']}}"></i>
             <div id="formatAssessments" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
             </div>                                            
             <textarea oninput="validateMaxlength()" onpaste="validateMaxlength()" maxlength="10000" id = "learningAssessments" data-formatnoteid="formatAssessments" placeholder="E.g. Presentation, 25%, Dec 1, ... &#10;E.g. Midterm Exam, 25%, Sept 31, ..." name = "learningAssessments" class ="form-control" type="date" style="height:125px;" form="sylabusGenerator" spellcheck="true">{{ !empty($syllabus) ? $syllabus->learning_assessments : ''}}</textarea>
         </div>
@@ -641,7 +641,7 @@
             <div class="p-0 m-0" id="courseAlignment"> 
                 <h5 class="fw-bold pt-4 mb-2 col-12 pt-4 mb-4 mt-2">
                     Course Alignment                                     
-                    <button id="removeCourseAlignment" type="button" class="btn btn-danger float-right" onclick="removeSection(this)">Remove Section</button>
+                    <button id="removeCourseAlignment" type="button" class="btn btn-danger float-end" onclick="removeSection(this)">Remove Section</button>
                     <input hidden name="import_course_settings[courseId]" value="{{$syllabus->course_id}}">
                     <input hidden name="import_course_settings[importCourseAlignment]" value="{{$syllabus->course_id}}">
                     
@@ -681,7 +681,7 @@
                     <div class="p-0 m-0" id="outcomeMapsDiv"> 
                         <h5 class="fw-bold pt-4 mb-2 col-12 pt-4 mb-4 mt-2">
                             {{$outcomeMap["program"]->program}}                 
-                            <button type="button" class="btn btn-danger float-right" onclick="removeSection(this)">Remove Section</button>
+                            <button type="button" class="btn btn-danger float-end" onclick="removeSection(this)">Remove Section</button>
                             <input hidden name="import_course_settings[programs][]" value="{{$programId}}">
                         </h5>  
 
@@ -830,7 +830,7 @@
             <span class="requiredBySenate"></span>
             <i class="bi bi-info-circle-fill" data-bs-toggle="tooltip" data-bs-placement="right" title="{{$inputFieldDescriptions['learningResources']}}"></i>
             <div id="formatLR" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                     on a new line for the best formatting
                     results.</span>
                 </div> 
@@ -850,7 +850,7 @@
                 <label for="latePolicy"><h7 class="fw-bold">Late Policy</h7></label>
                 <i class="bi bi-info-circle-fill" data-bs-toggle="tooltip" data-bs-placement="right" title="{{$inputFieldDescriptions['latePolicy']}}"></i>
                 <div id="formatLP" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                    <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                    <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                         on a new line for the best formatting
                         results.</span>
                     </div>
@@ -863,7 +863,7 @@
             <div class="col-12">
                 <label for="missingExam"><h7 class="fw-bold">Missed Exam Policy</h7></label>
                 <div id="formatME" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                    <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                    <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                         on a new line for the best formatting
                         results.</span>
                     </div> 
@@ -877,7 +877,7 @@
                 <label for="missingActivity"><h7 class="fw-bold">Missed Activity Policy</h7></label><span class="requiredBySenateOK"></span>
                 <p class="inputFieldDescription">{!! $inputFieldDescriptions['missedActivityPolicy'] !!}</p>
                 <div id="formatMAP" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                    <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                    <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                         on a new line for the best formatting
                         results.</span>
                     </div>
@@ -890,7 +890,7 @@
             <div class="col-12">
                 <label for="passingCriteria"><h7 class="fw-bold">Passing/Grading Criteria</h7></label>
                 <div id="formatPC" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                    <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                    <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                         on a new line for the best formatting
                         results.</span>
                     </div>
@@ -913,7 +913,7 @@
                         spellcheck="true" placeholder="Title of Custom Section">{{ !empty($syllabus) ? $syllabus->custom_resource_title : ''}}</textarea>
                     <br>
                     <div id="formatCS" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                    <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                    <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                         on a new line for the best formatting
                         results.</span>
                     </div>
@@ -1999,7 +1999,7 @@
         headerHTML = `
             <h5 class="fw-bold pt-4 mb-2 col-12 pt-4 mb-4 mt-2">
                 ${program['programTitle']}                                    
-                <button id="" type="button" class="btn btn-danger float-right" onclick="removeSection(this)">Remove Section</button>
+                <button id="" type="button" class="btn btn-danger float-end" onclick="removeSection(this)">Remove Section</button>
                 <input hidden name="import_course_settings[programs][]" value="${program['programId']}">
             </h5>
         `;
@@ -2267,7 +2267,7 @@
         return `
             <h5 class="fw-bold pt-4 mb-2 col-12 pt-4 mb-4 mt-2">
                 Course Alignment                                     
-                <button id="removeCourseAlignment" type="button" class="btn btn-danger float-right" onclick="removeSection(this)">Remove Section</button>
+                <button id="removeCourseAlignment" type="button" class="btn btn-danger float-end" onclick="removeSection(this)">Remove Section</button>
                 <input hidden name="import_course_settings[importCourseAlignment]" value="${courseId}">
 
             </h5>            
@@ -2354,7 +2354,7 @@
                 <label for="courseDescription"><h5 class="fw-bold">Course Description</h5></label><span class="requiredBySenateOK"></span>
                 <p class="inputFieldDescription">{!! $inputFieldDescriptions['okanaganCourseDescription'] !!}</p>
                 <div id="formatDesc" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each paragraph
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each paragraph
                     on a new line for the best formatting
                     results.</span>
                 </div>
@@ -2444,7 +2444,7 @@
             <span class="requiredBySenate"></span>
             <p class="inputFieldDescription">{{$inputFieldDescriptions['courseContacts']}}</p>
             <div id="formatContacts" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
             </div>                                            
             <textarea style="height:125px" maxlength="7500" oninput="validateMaxlength()" onpaste="validateMaxlength()"  id="courseContacts" data-formatnoteid="formatContacts" name = "courseContacts" placeholder="E.g. Professor, Jane Doe, jane.doe@ubc.ca, +1 234 567 8900, ... &#10;Teaching Assistant, John Doe, john.doe@ubc.ca, ..."class ="form-control" type="date" form="sylabusGenerator">{{isset($vancouverSyllabus) ? $vancouverSyllabus->course_contacts : ''}}</textarea>
             `;
@@ -2454,7 +2454,7 @@
                 <span class="requiredBySenate"></span>
                 <p class="inputFieldDescription">{{$inputFieldDescriptions['coursePrereqs']}}</p>
                 <div id="formatPrereqs" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                    <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
+                    <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
                 </div>                                            
                 <textarea style="height:125px" maxlength="7500" oninput="validateMaxlength()" onpaste="validateMaxlength()"  id="coursePrereqs" data-formatnoteid="formatPrereqs"name = "coursePrereqs" placeholder="E.g. CPSC 210 or EECE 210 or CPEN 221 &#10;E.g. CPSC 121 or MATH 220"class ="form-control" type="text" form="sylabusGenerator" >{{isset($vancouverSyllabus) ? $vancouverSyllabus->course_prereqs : ''}}</textarea>
             `;
@@ -2464,7 +2464,7 @@
                 <span class="requiredBySenate"></span>
                 <p class="inputFieldDescription">{{$inputFieldDescriptions['courseCoreqs']}}</p>
                 <div id="formatCoreqs"class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false" >
-                    <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
+                    <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry on a new line for the best formatting results.</span>                                        
                 </div>                                            
                 <textarea style="height:125px" maxlength="7500" oninput="validateMaxlength()" onpaste="validateMaxlength()"  id = "courseCoreqs" data-formatnoteid="formatCoreqs"placeholder="E.g. CPSC 107 or CPSC 110 &#10;E.g. CPSC 210" name = "courseCoreqs" class ="form-control" type="text" form="sylabusGenerator">{{isset($vancouverSyllabus) ? $vancouverSyllabus->course_coreqs : ''}}</textarea>
             `;
@@ -2472,7 +2472,7 @@
             <label for="courseInstructorBio"><h5 class="fw-bold">Course Instructor Biographical Statement</h5></label>
             <p class="inputFieldDescription">{{$inputFieldDescriptions['instructorBioStatement']}}</p>
             <div id="formatCIB" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each paragraph
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each paragraph
                     on a new line for the best formatting
                     results.</span>
                 </div> 
@@ -2485,7 +2485,7 @@
                 <span class="requiredBySenate"></span>
                 <p class="inputFieldDescription">{{$inputFieldDescriptions['courseStructure']}}</p>
                 <div id="formatCourseStructure" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                     on a new line for the best formatting
                     results.</span>
                 </div>
@@ -2496,7 +2496,7 @@
                 <label for="learningAnalytics"><h7 class="fw-bold">Learning Analytics</h7></label>
                 <p class="inputFieldDescription">{{$inputFieldDescriptions['learningAnalytics']}}</p>
                 <div id="formatLAnal" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                     on a new line for the best formatting
                     results.</span>
                 </div> 
@@ -2506,7 +2506,7 @@
                 <label for="courseFormat"><h5 class="fw-bold">Course Structure</h5></label><span class="requiredBySenateOK"></span>
                 <p class="inputFieldDescription">{!! $inputFieldDescriptions['courseStructureOK'] !!}</p>
                 <div id="formatFormat" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                     on a new line for the best formatting
                     results.</span>
                 </div>
@@ -2515,7 +2515,7 @@
         var courseOverview = `
                 <label for="courseOverview"><h5 class="fw-bold">Course Overview, Content and Objectives</h5></label>
                 <div id="formatOverview" class="collapsibleNotes btn-primary rounded-3" style="overflow:hidden;transition:height 0.3s ease-out;height:auto" data-collapsed="false">
-                <i class="bi bi-exclamation-triangle-fill fs-5 pl-2 pr-2 pb-1"></i> <span class="fs-6">Place each entry
+                <i class="bi bi-exclamation-triangle-fill fs-5 ps-2 pe-2 pb-1"></i> <span class="fs-6">Place each entry
                     on a new line for the best formatting
                     results.</span>
                 </div>
@@ -2523,13 +2523,13 @@
             `;
 
         var requiredBySenateLabel = `
-            <span class="d-inline-block has-tooltip ml-2 mr-2" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus under Vancouver Senate policy V-130">
+            <span class="d-inline-block has-tooltip ms-2 me-2" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus under Vancouver Senate policy V-130">
                 <button type="button" class="btn btn-danger btn-sm mb-2 disabled" style="font-size:10px;">Required by policy</button> 
             </span>
             `;
 
         var requiredBySenateLabelOK = `
-            <span class="d-inline-block has-tooltip ml-2 mr-2" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus under Okanagan Senate policy">
+            <span class="d-inline-block has-tooltip ms-2 me-2" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus under Okanagan Senate policy">
                 <button type="button" class="btn btn-danger btn-sm mb-2 disabled" style="font-size:10px;">Required by policy</button> 
             </span>
             `;

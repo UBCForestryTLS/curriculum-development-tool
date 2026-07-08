@@ -23,57 +23,59 @@ class SyllabiTest extends TestCase
 
         $user = User::where('email', 'test-syllabi@ubc.ca')->first();
 
-        $response = $this->actingAs($user)->post(route('syllabus.save'), [
+        $response = $this->actingAs($user)->post(
+            route('syllabus.save'),
+            [
 
-            'courseTitle' => 'Intro to Greatness',
-            'courseCode' => 'CPSC',
-            'courseNumber' => '111',
-            'campus' => 'O',
-            'faculty' => null,
-            'startTime' => null,
-            'endTime' => null,
-            'courseLocation' => null,
-            'courseYear' => '2023',
-            'courseSemester' => 'W1',
-            'deliveryModality' => 'B',
-            'officeHour' => null,
-            'courseInstructor' => [
-                0 => 'Dr. Sahil',
-            ],
-            'courseInstructorEmail' => [
-                0 => 'rockstar.chawla971@gmail.com',
-            ],
-            'otherCourseStaff' => null,
-            'courseDesc' => null,
-            'courseFormat' => null,
-            'courseOverview' => null,
-            'learningOutcome' => null,
-            'learningActivities' => null,
-            'learningMaterials' => null,
-            'learningResources' => null,
-            'learningAssessments' => null,
-            'latePolicy' => null,
-            'missingExam' => null,
-            'missingActivity' => null,
-            'passingCriteria' => null,
-            'customResourceTitle' => null,
-            'customResource' => null,
-            'okanaganSyllabusResources' => [
-                1 => 'land',
-                2 => 'academic',
-                3 => 'finals',
-                4 => 'grading',
-                5 => 'disability',
-                // 6 => 'equity',
-                // 7 => 'health',
-                // 8 => 'student',
-                // 9 => 'global',
-                // 10 => 'copyright',
-                // 11 => 'safewalk',
-                // 12 => 'ombud',
-            ],
-            'copyright' => '2',
-        ]
+                'courseTitle' => 'Intro to Greatness',
+                'courseCode' => 'CPSC',
+                'courseNumber' => '111',
+                'campus' => 'O',
+                'faculty' => null,
+                'startTime' => null,
+                'endTime' => null,
+                'courseLocation' => null,
+                'courseYear' => '2023',
+                'courseSemester' => 'W1',
+                'deliveryModality' => 'B',
+                'officeHour' => null,
+                'courseInstructor' => [
+                    0 => 'Dr. Sahil',
+                ],
+                'courseInstructorEmail' => [
+                    0 => 'rockstar.chawla971@gmail.com',
+                ],
+                'otherCourseStaff' => null,
+                'courseDesc' => null,
+                'courseFormat' => null,
+                'courseOverview' => null,
+                'learningOutcome' => null,
+                'learningActivities' => null,
+                'learningMaterials' => null,
+                'learningResources' => null,
+                'learningAssessments' => null,
+                'latePolicy' => null,
+                'missingExam' => null,
+                'missingActivity' => null,
+                'passingCriteria' => null,
+                'customResourceTitle' => null,
+                'customResource' => null,
+                'okanaganSyllabusResources' => [
+                    1 => 'land',
+                    2 => 'academic',
+                    3 => 'finals',
+                    4 => 'grading',
+                    5 => 'disability',
+                    // 6 => 'equity',
+                    // 7 => 'health',
+                    // 8 => 'student',
+                    // 9 => 'global',
+                    // 10 => 'copyright',
+                    // 11 => 'safewalk',
+                    // 12 => 'ombud',
+                ],
+                'copyright' => '2',
+            ]
         );
 
         $syllabus = Syllabus::where('course_title', 'Intro to Greatness')->orderBy('id', 'DESC')->first();
@@ -108,10 +110,12 @@ class SyllabiTest extends TestCase
 
         $response = $this->actingAs($user)->post(route('syllabus.assign', $syllabus->id), [
             'syllabus_new_collabs' => [
-                0 => 'test-syllabi-collab@ubc.ca', 1 => 'test-syllabi-collab-leave@ubc.ca',
+                0 => 'test-syllabi-collab@ubc.ca',
+                1 => 'test-syllabi-collab-leave@ubc.ca',
             ],
             'syllabus_new_permissions' => [
-                0 => 'edit', 1 => 'edit',
+                0 => 'edit',
+                1 => 'edit',
             ],
         ]);
 
@@ -164,35 +168,38 @@ class SyllabiTest extends TestCase
         ]);
     }
 
-    //commenting out unfinished tests
-    /*
-    public function test_syllabus_download()
+    public function test_syllabus_duplicate(): void
     {
-        $user = User::where('email', 'test-syllabi@ubc.ca')->first();
-        $syllabus = Syllabus::where('course_title', 'Intro to Greatness')->orderBy('id', 'DESC')->first();
-        $response = $this->actingAs($user)->get(route('syllabus.download', $syllabus->id, 'word'))->assertStatus(200);
-
-    }
-
-    public function test_syllabus_duplicate()
-    {
-        $user = User::where('email', 'test-syllabi@ubc.ca')->first();
+        $user2 = User::where('email', 'test-syllabi-collab@ubc.ca')->first();
         $syllabus = Syllabus::where('course_title', 'Intro to Greatness')->orderBy('id', 'DESC')->first();
 
-        $response = $this->actingAs($user)->post(route('syllabus.duplicate', $syllabus->id), [
-            '_method' => 'GET',
+        $response = $this->actingAs($user2)->get(route('syllabus.duplicate', [
+            'syllabusId' => $syllabus->id,
             'course_code' => 'CPSC',
             'course_num' => '111',
             'course_title' => 'Intro to Greatness - Copy',
-            // "program_id" => $program->program_id
-        ]);
+        ]));
 
         $this->assertDatabaseHas('syllabi', [
             'course_title' => 'Intro to Greatness - Copy',
         ]);
-
     }
-    */
+
+    public function test_syllabus_download(): void
+    {
+        // syllabus.download is POST /syllabi/{syllabusId}/{ext}. user2 is the
+        // current owner (test_syllabus_transfer) so the hasAccess middleware
+        // lets the request through.
+        $user2 = User::where('email', 'test-syllabi-collab@ubc.ca')->first();
+        $syllabus = Syllabus::where('course_title', 'Intro to Greatness')->orderBy('id', 'DESC')->first();
+
+        $response = $this->actingAs($user2)->post(route('syllabus.download', [
+            'syllabusId' => $syllabus->id,
+            'ext' => 'word',
+        ]));
+        $response->assertStatus(200);
+    }
+
 
     public function test_syllabus_leave(): void
     {

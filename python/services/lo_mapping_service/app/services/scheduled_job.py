@@ -8,7 +8,7 @@ from app.services.lo_mapping_request_dynamo_db_request import LOMappingRequestDy
 from app.services.process_batch_transform_results import process_records
 
 
-POLL_INTERVAL_HOURS = int(os.environ.get("POLL_INTERVAL_HOURS", 6))
+POLL_INTERVAL_HOURS = float(os.environ.get("POLL_INTERVAL_HOURS", 6))
 STATUSES_TO_PROCESS = ("AWAITING_COMPLETION", "AWAITING_COMPLETION_FAILED")
 
 request_store = LOMappingRequestDynamoDBRecord()

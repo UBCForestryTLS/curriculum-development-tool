@@ -1,0 +1,54 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Sid": "DynamoDB",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:ca-central-1:368677659554:table/lo-mapping-requests",
+        "arn:aws:dynamodb:ca-central-1:368677659554:table/lo-mapping-requests/index/*"
+      ]
+    },
+    {
+      "Sid": "SageMaker",
+      "Effect": "Allow",
+      "Action": [
+        "sagemaker:CreateModel",
+        "sagemaker:CreateTransformJob",
+        "sagemaker:ListTransformJobs",
+        "sagemaker:DescribeTransformJob"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassSageMakerRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::368677659554:role/AmazonSageMaker-ExecutionRole-20260120T160168"
+    },
+    {
+      "Sid": "InvokeNextLambda",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:ca-central-1:368677659554:function:process-batch-transform-results"
+    }
+  ]
+}

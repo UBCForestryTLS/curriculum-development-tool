@@ -2,28 +2,25 @@
 
 namespace Tests\Feature;
 
-use App\Models\Invite;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class UserTest extends TestCase
 {
-    /**
-     * A basic feature test example.
-     */
-
-    /*
-    public function test_example()
+    public function test_landing_page_renders(): void
     {
         $response = $this->get('/');
 
         $response->assertStatus(200);
+        $response->assertSee('Curriculum MAP');
     }
-    */
+
     public function test_register_user(): void
     {
-
         $response = $this->post(route('register'), [
             'name' => 'Test Register',
             'email' => 'test.register@ubc.ca',
@@ -35,70 +32,74 @@ class UserTest extends TestCase
             'name' => 'Test Register',
             'email' => 'test.register@ubc.ca',
         ]);
-
     }
-    /*
-        public function test_recover_password()
-        {
-            $response=$this->post(route('password.email'), [
-                "email" => "test.register@ubc.ca"
-            ]);
-        }
 
-        public function test_login_user(){
-            $response=$this->post(route('login'), [
-                "email" => "test.register@ubc.ca",
-                "password" => "password",
-            ]);
-
-            $user= User::where('email', 'test.register@ubc.ca')->first();
-
-            $response->assertStatus(302);
-            $response->assertRedirect('home');
-
-            if(Auth::id() == $user->id){
-                $this->assertTrue(true);
-            }else $this->assertTrue(false);
-
-          //  User::where('email', 'test.register@ubc.ca')->delete();
-            //$this->followRedirects($response)->assertSee('.success-message');
-        }
-        public function test_user_invite()
-        {
-            $response=$this->post(route('storeInvitation'), [
-                "email" => "test.register-invite@ubc.ca"
-            ]);
-
-            $user= User::where('email', 'test.register@ubc.ca')->first();
-
-            $this->assertDatabaseHas('invites', [
-                'email' => 'test.register-invite@ubc.ca'
-            ]);
-
-        }
-    */
-    /*
-    public function testVerifyEmailValidatesUser(): void
+    public function test_login_user(): void
     {
-        // VerifyEmail extends Illuminate\Auth\Notifications\VerifyEmail in this example
-        $notification = new Invite();
+        $response = $this->post(route('login'), [
+            'email' => 'test.register@ubc.ca',
+            'password' => 'password',
+        ]);
+
         $user = User::where('email', 'test.register@ubc.ca')->first();
 
-        // New user should not has verified their email yet
-        $this->assertFalse($user->hasVerifiedEmail());
-
-        $mail = $notification->toMail($user);
-        $uri = $mail->actionUrl;
-
-        // Simulate clicking on the validation link
-        $this->actingAs($user)
-            ->get($uri);
-
-        // User should have verified their email
-        $this->assertTrue(User::find($user->id)->hasVerifiedEmail());
-
-        User::where('email', 'test.register@ubc.ca')->delete();
+        $response->assertStatus(302);
+        $response->assertRedirect('home');
+        $this->assertAuthenticatedAs($user);
     }
-    */
 
+    public function test_user_invite(): void
+    {
+        // InviteController has middleware(['auth', 'verified']) and its store()
+        // method requires user_id in the request body. The user created via the
+        // public register route does not have email_verified_at set, so mark
+        // them verified here before invoking the protected endpoint.
+        $user = User::where('email', 'test.register@ubc.ca')->first();
+        $user->email_verified_at = Carbon::now();
+        $user->save();
+
+        $response = $this->actingAs($user)->post(route('storeInvitation'), [
+            'email' => 'test.register-invite@ubc.ca',
+            'user_id' => $user->id,
+        ]);
+
+        $this->assertDatabaseHas('invites', [
+            'email' => 'test.register-invite@ubc.ca',
+        ]);
+    }
+
+    public function test_recover_password(): void
+    {
+        // Replaced real outbound notifications with a fake collector so the
+        // test does not depend on the mail driver and can assert what the
+        // controller dispatched.
+        Notification::fake();
+
+        $user = User::where('email', 'test.register@ubc.ca')->first();
+
+        $this->post(route('password.email'), [
+            'email' => 'test.register@ubc.ca',
+        ]);
+
+        Notification::assertSentTo($user, ResetPassword::class);
+    }
+
+    public function test_verify_email_validates_user(): void
+    {
+        $user = User::where('email', 'test.register@ubc.ca')->first();
+        $user->email_verified_at = null;
+        $user->save();
+
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            Carbon::now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email)]
+        );
+
+        $this->actingAs($user)->get($verificationUrl);
+
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+    }
 }

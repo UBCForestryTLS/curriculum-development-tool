@@ -49,7 +49,7 @@
             <p><b>Class Hours:</b> {{$syllabus->class_start_time}} - {{$syllabus->class_end_time}}</p>
             <p><b>Office Hours                     
                 <span>
-                    <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['officeHours']}}"></i>
+                    <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['officeHours']}}"></i>
                 </span>
                 </b> 
                 {{$syllabus->office_hours}}
@@ -61,7 +61,7 @@
                 <h6 class="oSyllabusHeader">
                     Other Instructional Staff
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['otherCourseStaff']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['otherCourseStaff']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -90,7 +90,7 @@
                 <h6 class="oSyllabusHeader">
                     Course Description
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['okanaganCourseDescription']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['okanaganCourseDescription']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -106,7 +106,7 @@
                 <h6 class="oSyllabusHeader">
                     Course Format
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseStructure']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseStructure']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -135,7 +135,7 @@
                 <h6 class="oSyllabusHeader">
                     Learning Outcomes
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningOutcomes']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningOutcomes']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -163,7 +163,7 @@
                 <h6 class="oSyllabusHeader">
                     Learning Activities
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningActivities']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningActivities']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -190,7 +190,7 @@
                 <h6 class="oSyllabusHeader">
                     Learning Materials
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningMaterials']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningMaterials']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -205,7 +205,7 @@
                 <div>
                     <h6 class="oSyllabusHeader">Learning Resources
                         <span>
-                            <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningResources']}}"></i>
+                            <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningResources']}}"></i>
                         </span>
                     </h6>
                 </div>
@@ -221,7 +221,7 @@
                 <h6 class="oSyllabusHeader">
                     Assessments of Learning
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningAssessments']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningAssessments']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -428,7 +428,7 @@
                 <h6 class="oSyllabusHeader">
                     Course Schedule
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseSchedule']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseSchedule']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -471,7 +471,7 @@
                 <h6 class="oSyllabusHeader">
                     Learning Materials
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningMaterials']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningMaterials']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -491,7 +491,7 @@
             <div>
                 <h6 class="oSyllabusHeader">Late Policy
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['latePolicy']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['latePolicy']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -665,7 +665,7 @@
     </div>
     <!-- footer -->
     <div class="card-footer p-4">
-        <button class="btn btn-primary dropdown-toggle m-2 col-4 float-right" type="button" data-bs-toggle="dropdown" aria-expanded="false">Download</button>
+        <button class="btn btn-primary dropdown-toggle m-2 col-4 float-end" type="button" data-bs-toggle="dropdown" aria-expanded="false">Download</button>
         <ul class="dropdown-menu" aria-labelledby="dropdownMenu2">
                 <li>
                     <form method="POST" action="{{ action([\App\Http\Controllers\SyllabusController::class, 'download'], [$syllabus->id, 'pdf']) }}">
@@ -690,7 +690,7 @@
 <script type="application/javascript">
     $(document).ready(function () {
 
-        $('[data-toggle="tooltip"]').tooltip();
+        $('[data-bs-toggle="tooltip"]').tooltip();
     });
 
 </script>

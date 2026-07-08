@@ -17,12 +17,12 @@
             <div class="accordion" id="accordionGroup">
                 <div class="card">
                     <div class="card-header" id="headingOne">
-                        <input class="accordion-input" type="checkbox" id="title1" data-toggle="collapse" data-target="#collapseOne"/>
+                        <input class="accordion-input" type="checkbox" id="title1" data-bs-toggle="collapse" data-bs-target="#collapseOne"/>
                             <label for="title1">
                             <h3 class="accordion-title">What is Curriculum Mapping?</h3>
                             </label>									
                     </div>
-                    <div id="collapseOne" class="collapse" aria-labelledby="headingOne" data-parent="#accordionGroup">
+                    <div id="collapseOne" class="collapse" aria-labelledby="headingOne" data-bs-parent="#accordionGroup">
                         <div class="card-body">
                             <p class="lead">Curriculum mapping is an instrument to evaluate the alignment of learning objectives to academic strategies at educational institutions. The mapping process is an effective way to - </p>
                             <ul class="accordion-sublist">
@@ -39,12 +39,12 @@
                 </div>
                 <div class="card">
                     <div class="card-header" id="headingTwo">
-                    <input class="accordion-input" type="checkbox" id="title2" data-toggle="collapse" data-target="#collapseTwo"/>
+                    <input class="accordion-input" type="checkbox" id="title2" data-bs-toggle="collapse" data-bs-target="#collapseTwo"/>
                         <label for="title2">
                             <h3 class="accordion-title">Benefits of Curriculum Mapping</h3>
                         </label>
                     </div>
-                    <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionGroup">
+                    <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionGroup">
                         <div class="card-body">
                         <ul class="accordion-sublist">
                             <li class="lead"><strong>Improve student learning:</strong> Curriculum mapping helps faculty use evidence-based information, see relationships between course and overall program goals, and learning outcomes; </li>
@@ -57,12 +57,12 @@
                 </div>
                 <div class="card">
                     <div class="card-header" id="headingThree">
-                        <input class="accordion-input" type="checkbox" id="title3" data-toggle="collapse" data-target="#collapseThree"/>
+                        <input class="accordion-input" type="checkbox" id="title3" data-bs-toggle="collapse" data-bs-target="#collapseThree"/>
                             <label for="title3">
                                 <h3 class="accordion-title">How to get the best out of this tool?</h3>
                             </label>                
                     </div>
-                    <div id="collapseThree" class="collapse" aria-labelledby="headingThree" data-parent="#accordionGroup">
+                    <div id="collapseThree" class="collapse" aria-labelledby="headingThree" data-bs-parent="#accordionGroup">
                         <div class="card-body">
                             <p class="lead">This customizable online tool is a vehicle to curriculum mapping and alignment. The information presented after completing the tool’s wizard should allow instructors and departments make informed decisions to enhance the course/program as well as the overall student experience and learning.</p>
                             <p class="lead">To get the best results from using this tool, it is suggested that: </p>
@@ -126,12 +126,12 @@
             
                 <div class="card">
                     <div class="card-header" id="headingSix">
-                    <input class="accordion-input" type="checkbox" id="title4" data-toggle="collapse" data-target="#collapseFour"/>
+                    <input class="accordion-input" type="checkbox" id="title4" data-bs-toggle="collapse" data-bs-target="#collapseFour"/>
                         <label for="title4">
                             <h3 class="accordion-title">References and Literature</h3>                   
                         </label>
                     </div>
-                    <div id="collapseFour" class="collapse" aria-labelledby="headingFour" data-parent="#accordionGroup">
+                    <div id="collapseFour" class="collapse" aria-labelledby="headingFour" data-bs-parent="#accordionGroup">
                         <div class="card-body">
                             <ul class="accordion-sublist">
                                 <li class="lead">Al-Eyd, G., et al. (2018). Curriculum mapping as a tool to facilitate curriculum development: a new School of Medicine experience, BMC Med. Educ., vol. 18, no. 1, p. 185 </li>
@@ -149,12 +149,12 @@
                 </div>
                 <div class="card">
                     <div class="card-header" id="headingFive">
-                        <input class="accordion-input" type="checkbox" id="title5" data-toggle="collapse" data-target="#collapseFive"/>
+                        <input class="accordion-input" type="checkbox" id="title5" data-bs-toggle="collapse" data-bs-target="#collapseFive"/>
                                 <label for="title5">
                                     <h3 class="accordion-title">Contributors</h3>                  
                                 </label>
                     </div>
-                    <div id="collapseFive" class="collapse" aria-labelledby="headingFive" data-parent="#accordionGroup">
+                    <div id="collapseFive" class="collapse" aria-labelledby="headingFive" data-bs-parent="#accordionGroup">
                         <div class="card-body">
                             <p class="lead">Funded by the UBC Okanagan Office of the Provost and Vice President Academic and supported by:</p>
                             <ul class="accordion-sublist" style="list-style: none;">

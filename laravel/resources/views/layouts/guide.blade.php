@@ -136,7 +136,7 @@
             <p class="help-p my-3" style="font-size:18px;">Once you have created your program you can click on the name as shown in the picture below. This link will bring you to the next step in creating your program.</p>
             <img class="img center my-3" src="{{asset('/img/guide/CreatedProgramAnnotated.png')}}" onclick="onClick(this)">
             <br>
-            <button class="btn btn-primary float-right w-50" onclick="setPLO()" style="color: white;">Program Learning Outcomes (Step 1) <i class="bi bi-arrow-right mr-2"></i></button>
+            <button class="btn btn-primary float-end w-50" onclick="setPLO()" style="color: white;">Program Learning Outcomes (Step 1) <i class="bi bi-arrow-right me-2"></i></button>
         `);
     }
 
@@ -187,8 +187,8 @@
             <img class="img center my-3" src="{{asset('/img/guide/CategoryDropdown.png')}}" onclick="onClick(this)">
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-left w-100" onclick="setProgram()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Programs</button></div>
-                <div class="col"><button class="btn btn-primary float-right w-100" onclick="setMS()" style="color: white;">Mapping Scales (Step 2) <i class="bi bi-arrow-right mr-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setProgram()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Programs</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setMS()" style="color: white;">Mapping Scales (Step 2) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -238,8 +238,8 @@
             <img class="img center my-3" src="{{asset('/img/guide/CreateCustomMS.PNG')}}" onclick="onClick(this)">
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-left w-100" onclick="setPLO()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Program Learning Outcomes (Step 1)</button></div>
-                <div class="col"><button class="btn btn-primary float-right w-100" onclick="setProgramCourses()" style="color: white;">Courses (Step 3) <i class="bi bi-arrow-right mr-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setPLO()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Program Learning Outcomes (Step 1)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setProgramCourses()" style="color: white;">Courses (Step 3) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -293,8 +293,8 @@
             <p class="help-p my-3" style="font-size:18px;">After you finish inputting all the required information the course will then appear on your courses table for the program. You will also be able to access the course from the dashboard as well.</p>
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-left w-100" onclick="setMS()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Mapping Scales (Step 2)</button></div>
-                <div class="col"><button class="btn btn-primary float-right w-100" onclick="setProgramOverview()" style="color: white;">Program Overview (Step 4) <i class="bi bi-arrow-right mr-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setMS()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Mapping Scales (Step 2)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setProgramOverview()" style="color: white;">Program Overview (Step 4) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -331,7 +331,7 @@
             <p class="help-p my-3" style="font-size:18px;">The program overview can be downloaded as a PDF copy.</p>
             <img class="img center my-3" src="{{asset('/img/guide/ProgramsDownloadPDF.png')}}" onclick="onClick(this)">
             <br>
-            <button class="btn btn-primary float-left w-50" onclick="setProgramCourses()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Courses (Step 3)</button>
+            <button class="btn btn-primary float-start w-50" onclick="setProgramCourses()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Courses (Step 3)</button>
         `);
     }
     // Courses
@@ -373,7 +373,7 @@
             <p class="help-p my-3" style="font-size:18px;">Once you have created your course you can click on the name as shown in the picture below. This link will bring you to the next step in creating your course.</p>
             <img class="img center my-3" src="{{asset('/img/guide/CreatedCourseAnnotated.png')}}" onclick="onClick(this)">
             <br>
-            <button class="btn btn-primary float-right w-50" onclick="setCLO()" style="color: white;">Course Learning Outcomes (Step 1) <i class="bi bi-arrow-right mr-2"></i></button>
+            <button class="btn btn-primary float-end w-50" onclick="setCLO()" style="color: white;">Course Learning Outcomes (Step 1) <i class="bi bi-arrow-right me-2"></i></button>
         `);
     }
 
@@ -448,8 +448,8 @@
             <p class="help-p my-3 center" style="font-size:18px;">It is recommended that a course has a maximum of 5-7 Course Learning Outcomes.</p>
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-left w-100" onclick="setCourses()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Courses</button></div>
-                <div class="col"><button class="btn btn-primary float-right w-100" onclick="setSAM()" style="color: white;">Student Assessment Methods (Step 2) <i class="bi bi-arrow-right mr-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCourses()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Courses</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setSAM()" style="color: white;">Student Assessment Methods (Step 2) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -495,8 +495,8 @@
             <img class="img center my-3" src="{{asset('/img/guide/StudentAssessmentMethods.png')}}" onclick="onClick(this)">
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-left w-100" onclick="setCLO()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Course Learning Outcomes (Step 1)</button></div>
-                <div class="col"><button class="btn btn-primary float-right w-100" onclick="setTLA()" style="color: white;">Teaching and Learning Activities (Step 3) <i class="bi bi-arrow-right mr-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCLO()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Learning Outcomes (Step 1)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setTLA()" style="color: white;">Teaching and Learning Activities (Step 3) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -545,8 +545,8 @@
             <p class="help-p my-3 center" style="font-size:18px;">Not sure how to teach/embed career-related outcomes? Request a workshop from The Career Development Team for your classroom (<a href="https://students.ok.ubc.ca/career-experience/faculty-workshops/">click here</a>).</p>
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-left w-100" onclick="setSAM()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Student Assessment Methods (Step 2)</button></div>
-                <div class="col"><button class="btn btn-primary float-right w-100" onclick="setCourseAlignment()" style="color: white;">Course Alignment (Step 4) <i class="bi bi-arrow-right mr-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setSAM()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Student Assessment Methods (Step 2)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCourseAlignment()" style="color: white;">Course Alignment (Step 4) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -584,8 +584,8 @@
 
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-left w-100" onclick="setTLA()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Teaching and Learning Activities (Step 3)</button></div>
-                <div class="col"><button class="btn btn-primary float-right w-100" onclick="setProgramOutcomeMapping()" style="color: white;">Program Outcome Mapping (Step 5) <i class="bi bi-arrow-right mr-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setTLA()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Teaching and Learning Activities (Step 3)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setProgramOutcomeMapping()" style="color: white;">Program Outcome Mapping (Step 5) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -638,8 +638,8 @@
 
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-left w-100" onclick="setCourseAlignment()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Course Alignment (Step 4)</button></div>
-                <div class="col"><button class="btn btn-primary float-right w-100" onclick="setStandards()" style="color: white;">Standards and Strategic Priorities (Step 6) <i class="bi bi-arrow-right mr-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCourseAlignment()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Alignment (Step 4)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setStandards()" style="color: white;">Standards and Strategic Priorities (Step 6) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -700,8 +700,8 @@
 
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-left w-100" onclick="setProgramOutcomeMapping()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Program Outcome Mapping (Step 5)</button></div>
-                <div class="col"><button class="btn btn-primary float-right w-100" onclick="setCoursesSummary()" style="color: white;">Course Summary (Step 7) <i class="bi bi-arrow-right mr-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setProgramOutcomeMapping()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Program Outcome Mapping (Step 5)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCoursesSummary()" style="color: white;">Course Summary (Step 7) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -738,7 +738,7 @@
             <p class="help-p my-3" style="font-size:18px;">The course overview can be downloaded as a PDF copy.</p>
             <img class="img center my-3" src="{{asset('/img/guide/CourseOverview.png')}}" onclick="onClick(this)">
             <br>
-            <button class="btn btn-primary float-left w-50" onclick="setStandards()" style="color: white;"><i class="bi bi-arrow-left mr-2"></i> Standards and Strategic Priorities (Step 6)</button>
+            <button class="btn btn-primary float-start w-50" onclick="setStandards()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Standards and Strategic Priorities (Step 6)</button>
         `);
     }
 

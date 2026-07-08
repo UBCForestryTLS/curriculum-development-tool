@@ -41,7 +41,7 @@
             <p><b>Instructor(s):</b> {{$syllabusInstructors}}</p>
             <p><b>Office Location
                 <span>
-                    <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['officeLocation']}}"></i>
+                    <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['officeLocation']}}"></i>
                 </span>
                 </b> 
                 {{$vancouverSyllabus->office_location}}
@@ -65,7 +65,7 @@
             <p><b>Class Hours:</b> {{$syllabus->class_start_time}} - {{$syllabus->class_end_time}}</p>
             <p><b>Office Hours                     
                 <span>
-                    <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['officeHours']}}"></i>
+                    <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['officeHours']}}"></i>
                 </span>
                 </b> 
                 {{$syllabus->office_hours}}
@@ -90,7 +90,7 @@
             <div class="vSyllabusHeader">
                 <h6>COURSE DESCRIPTION
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseDescription']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseDescription']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -107,8 +107,8 @@
                 <h6>
                     PREREQUISITES
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['coursePrereqs']}}"></i>
-                        <span class="d-inline-block has-tooltip " tabindex="0" data-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['coursePrereqs']}}"></i>
+                        <span class="d-inline-block has-tooltip " tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
                             <button type="button" class="btn btn-danger btn-sm mb-1 disabled" style="font-size:10px;">Required by policy</button> 
                         </span>
                     </span>
@@ -137,8 +137,8 @@
                 <h6>
                     COREQUISITES
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseCoreqs']}}"></i>
-                        <span class="d-inline-block has-tooltip " tabindex="0" data-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseCoreqs']}}"></i>
+                        <span class="d-inline-block has-tooltip " tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
                             <button type="button" class="btn btn-danger btn-sm mb-1 disabled" style="font-size:10px;">Required by policy</button> 
                         </span>
                     </span>
@@ -167,8 +167,8 @@
                 <h6>
                     CONTACTS
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseContacts']}}"></i>
-                        <span class="d-inline-block has-tooltip " tabindex="0" data-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseContacts']}}"></i>
+                        <span class="d-inline-block has-tooltip " tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
                             <button type="button" class="btn btn-danger btn-sm mb-1 disabled" style="font-size:10px;">Required by policy</button> 
                         </span>
                     </span>
@@ -196,7 +196,7 @@
             <div class="vSyllabusHeader">
                 <h6>COURSE INSTRUCTOR BIOGRAPHICAL STATEMENT
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['instructorBioStatement']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['instructorBioStatement']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -212,8 +212,8 @@
                 <h6>
                     OTHER INSTRUCTIONAL STAFF
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['otherCourseStaff']}}"></i>
-                        <span class="d-inline-block has-tooltip " tabindex="0" data-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['otherCourseStaff']}}"></i>
+                        <span class="d-inline-block has-tooltip " tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
                             <button type="button" class="btn btn-danger btn-sm disabled mb-1" style="font-size:10px;">Required by policy</button> 
                         </span>
                     </span>
@@ -242,8 +242,8 @@
                 <h6>
                     COURSE STRUCTURE
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseStructure']}}"></i>
-                        <span class="d-inline-block has-tooltip " tabindex="0" data-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseStructure']}}"></i>
+                        <span class="d-inline-block has-tooltip " tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
                             <button type="button" class="btn btn-danger btn-sm mb-1 disabled" style="font-size:10px;">Required by policy</button> 
                         </span>
                     </span>
@@ -261,8 +261,8 @@
                 <h6>
                     SCHEDULE OF TOPICS
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseSchedule']}}"></i>
-                        <span class="d-inline-block has-tooltip " tabindex="0" data-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['courseSchedule']}}"></i>
+                        <span class="d-inline-block has-tooltip " tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
                             <button type="button" class="btn btn-danger btn-sm mb-1 disabled" style="font-size:10px;">Required by policy</button> 
                         </span>
                     </span>
@@ -312,8 +312,8 @@
                 <h6>
                     LEARNING OUTCOMES
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningOutcomes']}}"></i>
-                        <span class="d-inline-block has-tooltip " tabindex="0" data-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningOutcomes']}}"></i>
+                        <span class="d-inline-block has-tooltip " tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
                             <button type="button" class="btn btn-danger btn-sm disabled mb-1" style="font-size:10px;">Required by policy</button> 
                         </span>
                     </span>
@@ -334,8 +334,8 @@
                 <h6>
                     LEARNING ACTIVITIES
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningActivities']}}"></i>
-                        <span class="d-inline-block has-tooltip " tabindex="0" data-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningActivities']}}"></i>
+                        <span class="d-inline-block has-tooltip " tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
                             <button type="button" class="btn btn-danger btn-sm mb-1 disabled" style="font-size:10px;">Required by policy</button> 
                         </span>
                     </span>
@@ -355,8 +355,8 @@
                 <h6>
                     LEARNING MATERIALS
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningMaterials']}}"></i>
-                        <span class="d-inline-block has-tooltip " tabindex="0" data-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningMaterials']}}"></i>
+                        <span class="d-inline-block has-tooltip " tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
                             <button type="button" class="btn btn-danger btn-sm mb-1 disabled" style="font-size:10px;">Required by policy</button> 
                         </span>
                     </span>
@@ -378,8 +378,8 @@
                 <h6>
                     ASSESSMENTS OF LEARNING
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningAssessments']}}"></i>
-                        <span class="d-inline-block has-tooltip " tabindex="0" data-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningAssessments']}}"></i>
+                        <span class="d-inline-block has-tooltip " tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="This section is required in your syllabus by Vancouver Senate policy V-130">
                             <button type="button" class="btn btn-danger btn-sm mb-1 disabled" style="font-size:10px;">Required by policy</button> 
                         </span>
                     </span>
@@ -434,7 +434,7 @@
                     <div class="p-0 m-0" id="outcomeMapsDiv"> 
                         <h5 class="fw-bold pt-4 mb-2 col-12 pt-4 mb-4 mt-2">
                             {{$outcomeMap["program"]->program}}                 
-                            <button type="button" class="btn btn-danger float-right" onclick="removeSection(this)">Remove Section</button>
+                            <button type="button" class="btn btn-danger float-end" onclick="removeSection(this)">Remove Section</button>
                             <input hidden name="import_course_settings[programs][]" value="{{$programId}}">
                         </h5>  
 
@@ -581,7 +581,7 @@
                     <div class="vSyllabusHeader">
                         <h6>LEARNING RESOURCES
                             <span>
-                                <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningResources']}}"></i>
+                                <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningResources']}}"></i>
                             </span>
                         </h6>
                     </div>
@@ -710,7 +710,7 @@
             <div class="vSyllabusHeader2">
                 <h6>LATE POLICY
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['missedActivityPolicy']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['missedActivityPolicy']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -734,7 +734,7 @@
             <div class="vSyllabusHeader2">
                 <h6>MISSED ACTIVITY POLICY
                     <span>
-                        <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['missedActivityPolicy']}}"></i>
+                        <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['missedActivityPolicy']}}"></i>
                     </span>
                 </h6>
             </div>
@@ -750,7 +750,7 @@
                 <div class="vSyllabusHeader2">
                     <h6>LEARNING ANALYTICS
                         <span>
-                            <i class="bi bi-info-circle-fill text-dark" data-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningAnalytics']}}"></i>
+                            <i class="bi bi-info-circle-fill text-dark" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$inputFieldDescriptions['learningAnalytics']}}"></i>
                         </span>
                     </h6>
                 </div>
@@ -773,7 +773,7 @@
     </div>
     <!-- footer -->
     <div class="card-footer p-4">
-            <button class="btn btn-primary dropdown-toggle m-2 col-4 float-right" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <button class="btn btn-primary dropdown-toggle m-2 col-4 float-end" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Download
             </button>
             <ul class="dropdown-menu" aria-labelledby="dropdownMenu2">
@@ -801,7 +801,7 @@
 <script type="application/javascript">
     $(document).ready(function () {
 
-        $('[data-toggle="tooltip"]').tooltip();
+        $('[data-bs-toggle="tooltip"]').tooltip();
     });
 
 </script>

@@ -20,7 +20,7 @@
                                 <i class="bi bi-question-circle" style="color:#002145;"></i>
                             </button>
                         </div>
-                        <div class="text-left">
+                        <div class="text-start">
                             @include('layouts.guide')
                     </div>
                 </h3>
@@ -41,7 +41,7 @@
                             @else
 
                                 <div class="alert alert-primary d-flex align-items-center mt-3" role="alert" style="text-align:justify">
-                                    <i class="bi bi-info-circle-fill pr-2 fs-3"></i>                        
+                                    <i class="bi bi-info-circle-fill pe-2 fs-3"></i>                        
                                     <div>
                                         In lieu of specific PLOs, the below are the <a class="alert-link" href="https://www2.gov.bc.ca/assets/gov/education/post-secondary-education/institution-resources-administration/degree-authorization/degree-program-criteria.pdf#page=19" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right"></i> standards provided by the Ministry of Post-Secondary Education and Future Skills</a>. Using the mapping scale provided, identify the alignment between this course against the ministry standards.                        
                                     </div>
@@ -93,11 +93,11 @@
                                                                         <th>Standards</th>
                                                                         <!-- Mapping Table Levels -->
                                                                         @foreach($course->standardScalesCategory->standardScales as $mappingScaleLevel)
-                                                                            <th data-toggle="tooltip" title="{{$mappingScaleLevel->title}}: {{$mappingScaleLevel->description}}">
+                                                                            <th data-bs-toggle="tooltip" title="{{$mappingScaleLevel->title}}: {{$mappingScaleLevel->description}}">
                                                                                 {{$mappingScaleLevel->abbreviation}}
                                                                             </th>
                                                                         @endforeach
-                                                                        <th data-toggle="tooltip" title="Not Aligned">N/A</th>
+                                                                        <th data-bs-toggle="tooltip" title="Not Aligned">N/A</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -134,10 +134,10 @@
                                                             </table>
                                                         @else 
                                                             <div class="alert alert-warning text-center">
-                                                                <i class="bi bi-exclamation-circle-fill pr-2 fs-5"></i>Program learning outcomes have not been set for this program                    
+                                                                <i class="bi bi-exclamation-circle-fill pe-2 fs-5"></i>Program learning outcomes have not been set for this program                    
                                                             </div>
                                                         @endif
-                                                    <button type="submit" class="btn btn-success my-3 btn-sm float-right col-2" >Save</button>  
+                                                    <button type="submit" class="btn btn-success my-3 btn-sm float-end col-2" >Save</button>  
                                                 </div>                                                                                           
                                             </div>                                                                         
                                         </form>
@@ -150,7 +150,7 @@
                             <!--Optional Priorities -->
                             <div class="card-body">
                                 <div class="alert alert-primary d-flex align-items-center" role="alert" style="text-align:justify">
-                                    <i class="bi bi-info-circle-fill pr-2 fs-3"></i>                        
+                                    <i class="bi bi-info-circle-fill pe-2 fs-3"></i>                        
                                     <div>
                                         Select, from the below UBC and/or Ministry priorities and strategies, the items that align strongly with your course. This is <b>optional</b>.                                   
                                     </div>
@@ -187,7 +187,7 @@
                                                                         </div>
                                                                         <!-- UBC Mandate Date Filter -->
                                                                         <div class="col">
-                                                                            <select id="ubc-mandate" class="form-select col float-right bg-light fs-6" aria-label="UBC Mandate Year">
+                                                                            <select id="ubc-mandate" class="form-select col float-end bg-light fs-6" aria-label="UBC Mandate Year">
                                                                                 @foreach ($optionalPrioritySubcategory->optionalPriorities->pluck('year')->unique()->sortDesc() as $year)
                                                                                     <option value="{{$year}}-mandate">{{$year}}</option>
                                                                                 @endforeach
@@ -196,7 +196,7 @@
 
                                                                         @foreach ($optionalPrioritySubcategory->optionalPriorities->pluck('year')->unique()->sortDesc() as $year)
                                                                         <div class="collapse mandate show" id="{{$year}}-mandate">
-                                                                            <table class="table table-hover optionalPLO" id="{{$optionalPrioritySubcategory->subcat_id}}" data-toolbar="#toolbar" data-toggle="table" data-maintain-meta-data="true">
+                                                                            <table class="table table-hover optionalPLO" id="{{$optionalPrioritySubcategory->subcat_id}}" data-toolbar="#toolbar" data-bs-toggle="table" data-maintain-meta-data="true">
                                                                                 <thead class="thead-light">
                                                                                 <tr>
                                                                                     <th data-field="state" data-checkbox="true"></th>
@@ -278,7 +278,7 @@
                                                                             </div>
                                                                             <!-- UBC Market Date Filter -->
                                                                             <div class="col">
-                                                                                <select id="ubc-market" class="form-select col float-right bg-light fs-6" aria-label="UBC Market Year">
+                                                                                <select id="ubc-market" class="form-select col float-end bg-light fs-6" aria-label="UBC Market Year">
                                                                                     @foreach ($optionalPrioritySubcategory->optionalPriorities->pluck('year')->unique()->sortDesc() as $year)
                                                                                         <option value="{{$year}}-market">{{$year}}</option>
                                                                                     @endforeach
@@ -287,7 +287,7 @@
 
                                                                         @foreach ($optionalPrioritySubcategory->optionalPriorities->pluck('year')->unique()->sortDesc() as $year)
                                                                         <div class="collapse market show" id="{{$year}}-market">
-                                                                            <table class="table table-hover optionalPLO" id="{{$optionalPrioritySubcategory->subcat_id}}" data-toolbar="#toolbar" data-toggle="table" data-maintain-meta-data="true">
+                                                                            <table class="table table-hover optionalPLO" id="{{$optionalPrioritySubcategory->subcat_id}}" data-toolbar="#toolbar" data-bs-toggle="table" data-maintain-meta-data="true">
                                                                                 <thead class="thead-light">
                                                                                 <tr>
                                                                                     <th data-field="state" data-checkbox="true"></th>
@@ -361,7 +361,7 @@
                                                                 <!-- End of UBC market -->
                                                                 @else
                                                                     <!--optional Priorities for subcategory-->
-                                                                    <table class="table table-hover optionalPLO" id="{{$optionalPrioritySubcategory->subcat_id}}" data-toolbar="#toolbar" data-toggle="table" data-maintain-meta-data="true">
+                                                                    <table class="table table-hover optionalPLO" id="{{$optionalPrioritySubcategory->subcat_id}}" data-toolbar="#toolbar" data-bs-toggle="table" data-maintain-meta-data="true">
                                                                         <thead class="thead-light">
                                                                             <tr>
                                                                                 <th data-field="state" data-checkbox="true"></th>
@@ -424,7 +424,7 @@
                                                 </div>
                                             @endforeach
                                         </div>
-                                        <button type="submit" class="btn btn-success my-3 btn-sm float-right col-2">Save</button>
+                                        <button type="submit" class="btn btn-success my-3 btn-sm float-end col-2">Save</button>
                                     </form>
                                 </div>
                             </div>
@@ -434,10 +434,10 @@
                 <div class="card-footer">
                     <div class="card-body mb-4">
                         <a href="{{route('courseWizard.step5', $course->course_id)}}">
-                            <button class="btn btn-sm btn-primary col-3 float-left"><i class="bi bi-arrow-left mr-2"></i> Program Outcome Mapping</button>
+                            <button class="btn btn-sm btn-primary col-3 float-start"><i class="bi bi-arrow-left me-2"></i> Program Outcome Mapping</button>
                         </a>
                         <a href="{{route('courseWizard.step7', $course->course_id)}}">
-                            <button class="btn btn-sm btn-primary col-3 float-right">Course Summary <i class="bi bi-arrow-right ml-2"></i></button>
+                            <button class="btn btn-sm btn-primary col-3 float-end">Course Summary <i class="bi bi-arrow-right ms-2"></i></button>
                         </a>
                     </div>
                 </div>
@@ -456,7 +456,7 @@
         changeMandate($('#ubc-mandate').val(), mandateCollapseList)
         changeMarket($('#ubc-market').val(), marketCollapseList)
 
-        $('[data-toggle="tooltip"]').tooltip();
+        $('[data-bs-toggle="tooltip"]').tooltip();
 
         $("form").submit(function () {
         // prevent duplicate form submissions

@@ -16,7 +16,7 @@
                             <div class="modal-body" style="height: auto;">
                                 <form name="setContentForm" id="setContentForm">
                                 @csrf
-                                <div class="form-group">
+                                <div class="mb-3">
                                     <table class="table table-light table-bordered" style="margin: auto;"> 
                                         <thead>
                                             <tr class="table-primary">

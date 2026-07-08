@@ -24,6 +24,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        //
+        Schema::table('outcome_maps', function (Blueprint $table) {
+            DB::statement('ALTER TABLE outcome_maps DROP CONSTRAINT outcome_maps_pkey');
+            DB::statement('ALTER TABLE outcome_maps ADD CONSTRAINT idx_42650_primary PRIMARY KEY (l_outcome_id, pl_outcome_id)');
+        });
     }
 };

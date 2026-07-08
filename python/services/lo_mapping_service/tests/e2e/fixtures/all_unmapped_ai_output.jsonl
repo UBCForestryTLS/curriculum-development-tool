@@ -1,0 +1,4 @@
+[{"generated_text": "{\"id\": \"clo-99001__plo-99001\", \"CLO\": \"Test CLO 1\", \"Accreditation_Standard\": \"Test PLO 1\", \"is_mapped\": false, \"mapLabels\": [], \"explanation\": \"unmapped.\"}"}]
+[{"generated_text": "{\"id\": \"clo-99001__plo-99002\", \"CLO\": \"Test CLO 1\", \"Accreditation_Standard\": \"Test PLO 2\", \"is_mapped\": false, \"mapLabels\": [], \"explanation\": \"unmapped.\"}"}]
+[{"generated_text": "{\"id\": \"clo-99002__plo-99001\", \"CLO\": \"Test CLO 2\", \"Accreditation_Standard\": \"Test PLO 1\", \"is_mapped\": false, \"mapLabels\": [], \"explanation\": \"unmapped.\"}"}]
+[{"generated_text": "{\"id\": \"clo-99002__plo-99002\", \"CLO\": \"Test CLO 2\", \"Accreditation_Standard\": \"Test PLO 2\", \"is_mapped\": false, \"mapLabels\": [], \"explanation\": \"unmapped.\"}"}]
