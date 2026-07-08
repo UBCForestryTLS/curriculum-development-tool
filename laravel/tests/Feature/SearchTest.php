@@ -1464,7 +1464,7 @@ public function test_selected_course_level_is_preserved_and_displayed()
     $response->assertStatus(200);
     $response->assertViewHas('selectedCourseLevels', ['300']);
     $this->assertMatchesRegularExpression(
-        '/<option\s+value="300"\s+selected\s*>/s',
+        '/<input[^>]+name="course_levels\[\]"[^>]+id="courseLevel-300"[^>]+value="300"[^>]+checked/s',
         $response->getContent()
     );
     $response->assertSee('Course Level: 300');
