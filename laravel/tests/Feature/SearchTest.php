@@ -16,6 +16,14 @@ class SearchTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // After merging dev's package updates, tests need this so they do not look for built Vite files
+        $this->withoutVite();
+    }
+
     /**
      * A basic feature test example.
      */
