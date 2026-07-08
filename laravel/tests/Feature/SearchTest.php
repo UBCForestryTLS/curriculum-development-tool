@@ -221,7 +221,7 @@ class SearchTest extends TestCase
     $course = Course::factory()->create([
         'course_code' => 'TEST',
         'course_num' => 101,
-        'course_title' => 'Test Course',
+        'course_title' => 'Nonmatching Sentence',
     ]);
 
     CourseTopic::factory()->create([
@@ -234,7 +234,7 @@ class SearchTest extends TestCase
     ]));
 
     $response->assertStatus(200);
-    $response->assertDontSee('Test Course');
+    $response->assertDontSee('Nonmatching Sentence');
 }
 
 public function test_search_only_returns_course_with_matching_topic()
@@ -1284,6 +1284,48 @@ public function test_course_code_filter_excludes_other_course_codes()
     $response->assertStatus(200);
     $response->assertSee('Selected Code Course');
     $response->assertDontSee('Excluded Code Course');
+}
+
+public function test_multiple_course_code_filters_return_selected_codes()
+{
+    $this->createCourseScaleCategory();
+
+    $consCourse = Course::factory()->create([
+        'course_code' => 'CONS',
+        'course_num' => 321,
+        'course_title' => 'Selected CONS Course',
+    ]);
+
+    $frstCourse = Course::factory()->create([
+        'course_code' => 'FRST',
+        'course_num' => 322,
+        'course_title' => 'Selected FRST Course',
+    ]);
+
+    $bestCourse = Course::factory()->create([
+        'course_code' => 'BEST',
+        'course_num' => 323,
+        'course_title' => 'Excluded BEST Course',
+    ]);
+
+    foreach ([$consCourse, $frstCourse, $bestCourse] as $course) {
+        CourseTopic::factory()->create([
+            'course_id' => $course->course_id,
+            'topic' => 'Multicodefilterium search topic',
+        ]);
+    }
+
+    $response = $this->get(route('search.index', [
+        'query' => 'multicodefilterium',
+        'course_filters_applied' => 1,
+        'course_codes' => ['CONS', 'FRST'],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertViewHas('selectedCourseCodes', ['CONS', 'FRST']);
+    $response->assertSee('Selected CONS Course');
+    $response->assertSee('Selected FRST Course');
+    $response->assertDontSee('Excluded BEST Course');
 }
 
 
