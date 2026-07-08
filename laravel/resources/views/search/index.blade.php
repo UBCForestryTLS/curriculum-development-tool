@@ -265,17 +265,19 @@
                     </select>
                     <div class="form-text small">No selection searches all course levels.</div>
 
-                    <label class="form-label small mt-2 mb-1" for="programFilter">Program</label>
-                    <select class="form-select form-select-sm search-filter-select" name="program_ids[]" id="programFilter" multiple>
-                        @foreach($availablePrograms as $program)
-                            <option
-                                value="{{ $program->program_id }}"
-                                @selected(in_array($program->program_id, $selectedProgramIds))
-                            >
-                                {{ $program->program }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <label class="form-label small mt-2 mb-1" for="programSearch">Program</label>
+                    <div class="search-chip-selector" id="programChipSelector">
+                        <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            id="programSearch"
+                            placeholder="Search programs"
+                            autocomplete="off"
+                        >
+                        <div class="search-chip-options" id="programOptions"></div>
+                        <div id="selectedProgramChips"></div>
+                        <div id="selectedProgramInputs"></div>
+                    </div>
                     <div class="form-text small">No selection searches all programs.</div>
                 </div>
 
@@ -524,6 +526,15 @@
             const selectedCourseCodes = new Set(@json($selectedCourseCodes).map(function (courseCode) {
                 return String(courseCode);
             }));
+            const programSearch = document.getElementById('programSearch');
+            const programOptionsContainer = document.getElementById('programOptions');
+            const selectedProgramChips = document.getElementById('selectedProgramChips');
+            const selectedProgramInputs = document.getElementById('selectedProgramInputs');
+            const programChipSelector = document.getElementById('programChipSelector');
+            const programOptions = @json($availablePrograms);
+            const selectedPrograms = new Set(@json($selectedProgramIds).map(function (programId) {
+                return String(programId);
+            }));
 
             //Rebuilds the selected course code chips and the hidden form inputs
             function renderSelectedCourseCodes() {
@@ -599,13 +610,99 @@
             courseCodeSearch.addEventListener('focus', renderCourseCodeOptions);
             courseCodeSearch.addEventListener('input', renderCourseCodeOptions);
 
+            //Rebuilds the selected program chips and the hidden inputs submitted to Laravel
+            function renderSelectedPrograms() {
+                selectedProgramChips.innerHTML = '';
+                selectedProgramInputs.innerHTML = '';
+
+                selectedPrograms.forEach(function (programId) {
+                    const program = programOptions.find(function (programOption) {
+                        return String(programOption.program_id) === programId;
+                    });
+
+                    if (!program) {
+                        return;
+                    }
+
+                    //The chip is what the user sees, while the hidden input keeps normal form submission working
+                    const chip = document.createElement('span');
+                    chip.className = 'search-filter-chip';
+                    chip.textContent = program.program;
+
+                    const removeButton = document.createElement('button');
+                    removeButton.type = 'button';
+                    removeButton.setAttribute('aria-label', 'Remove ' + program.program);
+                    removeButton.textContent = 'x';
+                    removeButton.addEventListener('click', function () {
+                        selectedPrograms.delete(programId);
+                        renderSelectedPrograms();
+                        renderProgramOptions();
+                    });
+
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'program_ids[]';
+                    hiddenInput.value = programId;
+
+                    chip.appendChild(removeButton);
+                    selectedProgramChips.appendChild(chip);
+                    selectedProgramInputs.appendChild(hiddenInput);
+                });
+            }
+
+            //Shows program options that match the typed text and are not already selected
+            function renderProgramOptions() {
+                const searchText = programSearch.value.trim().toLowerCase();
+                programOptionsContainer.innerHTML = '';
+
+                const matchingPrograms = programOptions
+                    .filter(function (program) {
+                        const programId = String(program.program_id);
+
+                        return !selectedPrograms.has(programId)
+                            && (!searchText || program.program.toLowerCase().includes(searchText));
+                    })
+                    .slice(0, 8);
+
+                if (matchingPrograms.length === 0) {
+                    programOptionsContainer.style.display = 'none';
+                    return;
+                }
+
+                matchingPrograms.forEach(function (program) {
+                    const option = document.createElement('button');
+                    option.type = 'button';
+                    option.className = 'search-chip-option';
+                    option.textContent = program.program;
+                    option.addEventListener('click', function () {
+                        selectedPrograms.add(String(program.program_id));
+                        programSearch.value = '';
+                        renderSelectedPrograms();
+                        renderProgramOptions();
+                        programSearch.focus();
+                    });
+
+                    programOptionsContainer.appendChild(option);
+                });
+
+                programOptionsContainer.style.display = 'block';
+            }
+
+            programSearch.addEventListener('focus', renderProgramOptions);
+            programSearch.addEventListener('input', renderProgramOptions);
+
             document.addEventListener('click', function (event) {
                 if (!courseCodeChipSelector.contains(event.target)) {
                     courseCodeOptionsContainer.style.display = 'none';
                 }
+
+                if (!programChipSelector.contains(event.target)) {
+                    programOptionsContainer.style.display = 'none';
+                }
             });
 
             renderSelectedCourseCodes();
+            renderSelectedPrograms();
         });
     </script>
 @endsection
