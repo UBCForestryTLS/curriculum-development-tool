@@ -29,6 +29,62 @@
             border-radius: 6px;
         }
 
+        .search-filter-select {
+            min-height: 92px;
+        }
+
+        .search-chip-selector {
+            position: relative;
+        }
+
+        .search-chip-options {
+            display: none;
+            position: absolute;
+            z-index: 1056;
+            width: 100%;
+            max-height: 160px;
+            overflow-y: auto;
+            background-color: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.12);
+        }
+
+        .search-chip-option {
+            display: block;
+            width: 100%;
+            padding: 0.35rem 0.5rem;
+            color: #002145;
+            text-align: left;
+            background: none;
+            border: 0;
+        }
+
+        .search-chip-option:hover {
+            background-color: #e9f6fc;
+        }
+
+        .search-filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin: 0.35rem 0.25rem 0 0;
+            padding: 0.2rem 0.45rem;
+            color: #002145;
+            background-color: #e9f6fc;
+            border: 1px solid #40B4E5;
+            border-radius: 999px;
+            font-size: 0.82rem;
+        }
+
+        .search-filter-chip button {
+            padding: 0;
+            color: #0055b7;
+            background: none;
+            border: 0;
+            line-height: 1;
+        }
+
         .search-filter-heading {
             margin-bottom: 0.6rem;
             color: #6c757d;
@@ -181,22 +237,23 @@
 
                     <div class="search-filter-heading mt-3">Course Filters</div>
 
-                    <label class="form-label small mb-1" for="courseCodeFilter">Course Code</label>
-                    <select class="form-select form-select-sm" name="course_codes[]" id="courseCodeFilter">
-                        <option value="" @selected(empty($selectedCourseCodes))>All</option>
-                        @foreach($availableCourseCodes as $courseCode)
-                            <option
-                                value="{{ $courseCode }}"
-                                @selected(in_array($courseCode, $selectedCourseCodes))
-                            >
-                                {{ $courseCode }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <label class="form-label small mb-1" for="courseCodeSearch">Course Code</label>
+                    <div class="search-chip-selector" id="courseCodeChipSelector">
+                        <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            id="courseCodeSearch"
+                            placeholder="Search course codes"
+                            autocomplete="off"
+                        >
+                        <div class="search-chip-options" id="courseCodeOptions"></div>
+                        <div id="selectedCourseCodeChips"></div>
+                        <div id="selectedCourseCodeInputs"></div>
+                    </div>
+                    <div class="form-text small">No selection searches all course codes.</div>
 
                     <label class="form-label small mt-2 mb-1" for="courseLevelFilter">Course Level</label>
-                    <select class="form-select form-select-sm" name="course_levels[]" id="courseLevelFilter">
-                        <option value="" @selected(empty($selectedCourseLevels))>All</option>
+                    <select class="form-select form-select-sm search-filter-select" name="course_levels[]" id="courseLevelFilter" multiple>
                         @foreach(['100', '200', '300', '400', '500', '600'] as $courseLevel)
                             <option
                                 value="{{ $courseLevel }}"
@@ -206,10 +263,10 @@
                             </option>
                         @endforeach
                     </select>
+                    <div class="form-text small">No selection searches all course levels.</div>
 
                     <label class="form-label small mt-2 mb-1" for="programFilter">Program</label>
-                    <select class="form-select form-select-sm" name="program_ids[]" id="programFilter">
-                        <option value="" @selected(empty($selectedProgramIds))>All</option>
+                    <select class="form-select form-select-sm search-filter-select" name="program_ids[]" id="programFilter" multiple>
                         @foreach($availablePrograms as $program)
                             <option
                                 value="{{ $program->program_id }}"
@@ -219,6 +276,7 @@
                             </option>
                         @endforeach
                     </select>
+                    <div class="form-text small">No selection searches all programs.</div>
                 </div>
 
                 <button type="submit" class="btn btn-primary search-action-button">Search</button>
@@ -456,6 +514,98 @@
             });
 
             updatePropertyControls();
+
+            const courseCodeSearch = document.getElementById('courseCodeSearch');
+            const courseCodeOptionsContainer = document.getElementById('courseCodeOptions');
+            const selectedCourseCodeChips = document.getElementById('selectedCourseCodeChips');
+            const selectedCourseCodeInputs = document.getElementById('selectedCourseCodeInputs');
+            const courseCodeChipSelector = document.getElementById('courseCodeChipSelector');
+            const courseCodeOptions = @json($availableCourseCodes);
+            const selectedCourseCodes = new Set(@json($selectedCourseCodes).map(function (courseCode) {
+                return String(courseCode);
+            }));
+
+            //Rebuilds the selected course code chips and the hidden form inputs
+            function renderSelectedCourseCodes() {
+                selectedCourseCodeChips.innerHTML = '';
+                selectedCourseCodeInputs.innerHTML = '';
+
+                selectedCourseCodes.forEach(function (courseCode) {
+                    //The visible chip lets users see and remove selected course codes
+                    const chip = document.createElement('span');
+                    chip.className = 'search-filter-chip';
+                    chip.textContent = courseCode;
+
+                    const removeButton = document.createElement('button');
+                    removeButton.type = 'button';
+                    removeButton.setAttribute('aria-label', 'Remove ' + courseCode);
+                    removeButton.textContent = 'x';
+                    removeButton.addEventListener('click', function () {
+                        selectedCourseCodes.delete(courseCode);
+                        renderSelectedCourseCodes();
+                        renderCourseCodeOptions();
+                    });
+
+                    //backend still expects course_codes[] so each chip needs a matching hidden input
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'course_codes[]';
+                    hiddenInput.value = courseCode;
+
+                    chip.appendChild(removeButton);
+                    selectedCourseCodeChips.appendChild(chip);
+                    selectedCourseCodeInputs.appendChild(hiddenInput);
+                });
+            }
+
+            //Shows matching course-code options based on what the user has typed
+            function renderCourseCodeOptions() {
+                const searchText = courseCodeSearch.value.trim().toLowerCase();
+                courseCodeOptionsContainer.innerHTML = '';
+
+                //do not show already selected course codes and keep the dropdown short
+                const matchingCourseCodes = courseCodeOptions
+                    .filter(function (courseCode) {
+                        return !selectedCourseCodes.has(courseCode)
+                            && (!searchText || courseCode.toLowerCase().includes(searchText));
+                    })
+                    .slice(0, 8);
+
+                if (matchingCourseCodes.length === 0) {
+                    courseCodeOptionsContainer.style.display = 'none';
+                    return;
+                }
+
+                matchingCourseCodes.forEach(function (courseCode) {
+                    //selecting an option turns it into a chip instead of submitting right away
+                    const option = document.createElement('button');
+                    option.type = 'button';
+                    option.className = 'search-chip-option';
+                    option.textContent = courseCode;
+                    option.addEventListener('click', function () {
+                        selectedCourseCodes.add(courseCode);
+                        courseCodeSearch.value = '';
+                        renderSelectedCourseCodes();
+                        renderCourseCodeOptions();
+                        courseCodeSearch.focus();
+                    });
+
+                    courseCodeOptionsContainer.appendChild(option);
+                });
+
+                courseCodeOptionsContainer.style.display = 'block';
+            }
+
+            courseCodeSearch.addEventListener('focus', renderCourseCodeOptions);
+            courseCodeSearch.addEventListener('input', renderCourseCodeOptions);
+
+            document.addEventListener('click', function (event) {
+                if (!courseCodeChipSelector.contains(event.target)) {
+                    courseCodeOptionsContainer.style.display = 'none';
+                }
+            });
+
+            renderSelectedCourseCodes();
         });
     </script>
 @endsection

@@ -160,6 +160,7 @@ class SearchController extends Controller
             'availablePrograms' => $availablePrograms,
             'selectedProgramIds' => $selectedProgramIds,
         ]);
+        
 }
 
     /**
