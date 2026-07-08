@@ -33,6 +33,34 @@
             min-height: 92px;
         }
 
+        .search-level-toggle {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.35rem;
+        }
+
+        .search-level-toggle .btn {
+            color: #0055b7;
+            border-color: #40B4E5;
+            font-size: 0.82rem;
+        }
+
+        .search-level-toggle .btn:hover,
+        .search-level-toggle .btn-check:checked + .btn {
+            color: #fff;
+            background-color: #40B4E5;
+            border-color: #40B4E5;
+        }
+
+        .search-level-toggle .btn-check:focus + .btn {
+            box-shadow: none;
+        }
+
+        .search-level-toggle .btn-check:focus-visible + .btn {
+            outline: 2px solid #0055b7;
+            outline-offset: 2px;
+        }
+
         .search-chip-selector {
             position: relative;
         }
@@ -252,17 +280,23 @@
                     </div>
                     <div class="form-text small">No selection searches all course codes.</div>
 
-                    <label class="form-label small mt-2 mb-1" for="courseLevelFilter">Course Level</label>
-                    <select class="form-select form-select-sm search-filter-select" name="course_levels[]" id="courseLevelFilter" multiple>
+                    <label class="form-label small mt-2 mb-1">Course Level</label>
+                    <div class="search-level-toggle" role="group" aria-label="Course level filters">
                         @foreach(['100', '200', '300', '400', '500', '600'] as $courseLevel)
-                            <option
+                            <input
+                                type="checkbox"
+                                class="btn-check"
+                                name="course_levels[]"
+                                id="courseLevel-{{ $courseLevel }}"
                                 value="{{ $courseLevel }}"
-                                @selected(in_array($courseLevel, $selectedCourseLevels))
+                                @checked(in_array($courseLevel, $selectedCourseLevels))
+                                autocomplete="off"
                             >
-                                {{ $courseLevel }} Level
-                            </option>
+                            <label class="btn btn-outline-primary btn-sm" for="courseLevel-{{ $courseLevel }}">
+                                {{ $courseLevel }}
+                            </label>
                         @endforeach
-                    </select>
+                    </div>
                     <div class="form-text small">No selection searches all course levels.</div>
 
                     <label class="form-label small mt-2 mb-1" for="programSearch">Program</label>
