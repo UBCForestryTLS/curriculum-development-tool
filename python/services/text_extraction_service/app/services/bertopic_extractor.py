@@ -11,8 +11,7 @@ from sentence_transformers import SentenceTransformer
 
 TOPICS_COUNT = 100          # max topics returned overall
 TOPICS_PER_CLUSTER = 10     # top words taken from each cluster
-# TOPICS_PER_CLUSTER = 20     # top words taken from each cluster
-MIN_SENTENCE_WORDS = 4     # drop sentence fragments shorter than this
+MIN_SENTENCE_WORDS = 5     # drop sentence fragments shorter than this
 MIN_TOPIC_SIZE = 5         # min sentences to form a cluster (small docs need a low value)
 
 
@@ -34,18 +33,19 @@ def extract(pages: list[str]) -> list[Topic]:
     print("Extracting topics from text...")
 
     # This prevents stop words like "etc" and "the" from being counted as topics
-    # vectorizer_model = CountVectorizer(stop_words="english", ngram_range=(1, 5))
+    # vectorizer_model = CountVectorizer(stop_words="english", ngram_range=(1, 5), main_df=2)
+    vectorizer_model = CountVectorizer(stop_words=None, ngram_range=(1, 5), min_df=2)
+    # TODO: Add a local copy of the model in case the HF repo is taken down
     embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
     # embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
     # embedding_model = SentenceTransformer("ViktorDo/EcoBERT-Pretrained")
-    # TODO: Add a local copy of the model in case the HF repo is taken down
-    representation_model = KeyBERTInspired(top_n_words=10)
+    representation_model = KeyBERTInspired(top_n_words=30)
     
     print("Set up embedding and representation models for BERTopic")
 
     topic_model = BERTopic(
         embedding_model=embedding_model,
-        # vectorizer_model=vectorizer_model,
+        vectorizer_model=vectorizer_model,
         representation_model=representation_model,
         min_topic_size=MIN_TOPIC_SIZE,
         calculate_probabilities=False,
@@ -85,6 +85,7 @@ def _dedupe_plurals(pages: list[str]) -> list[str]:
     text = PAGE_BREAK.join(pages)
     doc = nlp_model(text)
     filtered_text = " ".join([token.lemma_ for token in doc if not token.is_stop])
+    # filtered_text = " ".join([token.lemma_ for token in doc])
     pages = filtered_text.split(PAGE_BREAK)
     return pages
     

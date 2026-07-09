@@ -50,9 +50,9 @@ class SlidesHandler(MaterialTypeHandler):
     def extract_topics(self, pages: list[dict]) -> list[Topic]:
         keyword_topics = self._keyword_topics(pages)
         return (keyword_topics)
-        # return postprocessor.process(self._title_topics(pages))
+        # return postprocessor.process(self._title_topics(pages), filterLowerCaseSingleWords = True)
         # TODO
-        # return postprocessor.union(self._title_topics(pages), keyword_topics)
+        # return postprocessor.union(self._title_topics(pages), keyword_topics, filterLowerCaseSingleWords = True)
 
     def _keyword_topics(self, pages: list[dict]) -> list[Topic]:
         text = ". \f".join(" ".join(line["text"] for line in page["lines"]) for page in pages if page["lines"])
@@ -74,7 +74,6 @@ class SlidesHandler(MaterialTypeHandler):
 
 class ArticleHandler(MaterialTypeHandler):
     MIN_HEADING_SIZE = 10.0
-
     def extract_topics(self, pages: list[dict]) -> list[Topic]:
         print("Page count:", len(pages))
         # TODO: Gotta make this a model of some sort to avoid the confusing dict operations
@@ -82,13 +81,24 @@ class ArticleHandler(MaterialTypeHandler):
         #     print(pages[0])
         print("Preprocessed pages count:", len(preprocessed_pages))
         print("Extracting topics from preprocessed_text...")
-        return extractor.extract(preprocessed_pages)
+        topics = extractor.extract(preprocessed_pages)
         # keyword_topics = super().extract_topics(pages)
-        # return keyword_topics
         # return postprocessor.process(keyword_topics)
-        # return self._heading_topics(pages)
         # TODO
+        postprocessed_topics = postprocessor.process(
+            topics, 
+            minTopicCharCount = 4, 
+            filterLowerCaseSingleWords = False, 
+            scoreThreshold = 0.8 # BERTopic
+            # TODO: Can we scale the score threshold inversely by text length?
+            # Reasoning: Longer texts should produce more topics, and better selected topics too.
+            #            The higher (worse) scored topics would then probably be less relevant
+            # TODO: Another point. Do we even need a score check here? Maybe for articles we do,
+            #                      but for slides, important terms may only appear once. We should still keep them.
+            #                      Could apply to articles too, especially if it's divided by section.
+        )
         # return postprocessor.union(self._heading_topics(pages), keyword_topics)
+        return postprocessed_topics
 
     def _heading_topics(self, pages: list[dict]) -> list[Topic]:
         headings = [
