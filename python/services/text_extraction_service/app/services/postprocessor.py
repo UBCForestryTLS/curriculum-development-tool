@@ -25,6 +25,13 @@ def process(topics: list[Topic]) -> list[Topic]:
             seen.add(topic_lower)
             deduped_topics.append(t)
             
+    # Remove number words
+    number_filtered_topics = []
+    for t in deduped_topics:
+        # TODO: Should this be not all instead?
+        if not any(char.isdigit() for char in t.topic):
+            number_filtered_topics.append(t)
+            
     # Remove topics already contained in other topics
     unique_topics = []
     for t in deduped_topics:

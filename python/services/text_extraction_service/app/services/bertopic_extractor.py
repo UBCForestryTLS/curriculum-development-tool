@@ -4,14 +4,16 @@ from app.schemas import Topic
 
 from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired
-# from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+import spacy
 
 from sentence_transformers import SentenceTransformer
 
 TOPICS_COUNT = 100          # max topics returned overall
-TOPICS_PER_CLUSTER = 5     # top words taken from each cluster
-MIN_SENTENCE_WORDS = 3     # drop sentence fragments shorter than this
-MIN_TOPIC_SIZE = 4         # min sentences to form a cluster (small docs need a low value)
+TOPICS_PER_CLUSTER = 10     # top words taken from each cluster
+# TOPICS_PER_CLUSTER = 20     # top words taken from each cluster
+MIN_SENTENCE_WORDS = 4     # drop sentence fragments shorter than this
+MIN_TOPIC_SIZE = 5         # min sentences to form a cluster (small docs need a low value)
 
 
 def extract(pages: list[str]) -> list[Topic]:
@@ -19,21 +21,25 @@ def extract(pages: list[str]) -> list[Topic]:
 
     BERTopic clusters a set of documents, so the text is split into sentences and
     treated as the document set.
-    """
+    """       
+    
     print("BERTopic extraction starting...")
 
-    docs = _to_documents(pages)
+    deduped_pages = _dedupe_plurals(pages)
+    docs = _to_documents(deduped_pages)
     print(f"Split text into {len(docs)} documents for topic extraction")
     # if len(docs) < MIN_TOPIC_SIZE:
     #     # TODO: Re-evaluate this
     #     return []
-    
     print("Extracting topics from text...")
 
     # This prevents stop words like "etc" and "the" from being counted as topics
     # vectorizer_model = CountVectorizer(stop_words="english", ngram_range=(1, 5))
-    embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    representation_model = KeyBERTInspired()
+    embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
+    # embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    # embedding_model = SentenceTransformer("ViktorDo/EcoBERT-Pretrained")
+    # TODO: Add a local copy of the model in case the HF repo is taken down
+    representation_model = KeyBERTInspired(top_n_words=10)
     
     print("Set up embedding and representation models for BERTopic")
 
@@ -69,6 +75,19 @@ def extract(pages: list[str]) -> list[Topic]:
                 topics.append(Topic(topic = word.strip(), score = 1 - round(float(score), 4)))
     return topics[:TOPICS_COUNT]
 
+
+def _dedupe_plurals(pages: list[str]) -> list[str]:
+    """Remove plurals with NLP before performing BERTopic extraction"""
+    # TODO: Should get a list of technical Forestry words perhaps to avoid filtering them out
+    PAGE_BREAK = "<<<PAGE_BREAK>>>" # ! If this exact string appears in the text, it may cause extra splitting and suboptimal results
+    print("Using NLP to filter out stop words and word variants")
+    nlp_model = spacy.load("en_core_web_sm")
+    text = PAGE_BREAK.join(pages)
+    doc = nlp_model(text)
+    filtered_text = " ".join([token.lemma_ for token in doc if not token.is_stop])
+    pages = filtered_text.split(PAGE_BREAK)
+    return pages
+    
 
 def _to_documents(pages: list[str]) -> list[str]:
     """Split text into paragraph-sized 'documents'"""
