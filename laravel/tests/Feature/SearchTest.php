@@ -1467,7 +1467,7 @@ public function test_selected_course_level_is_preserved_and_displayed()
         '/<input[^>]+name="course_levels\[\]"[^>]+id="courseLevel-300"[^>]+value="300"[^>]+checked/s',
         $response->getContent()
     );
-    $response->assertSee('Course Level: 300');
+    $response->assertSee('Levels: 300');
 }
 
 public function test_program_filter_only_returns_courses_in_selected_program()
