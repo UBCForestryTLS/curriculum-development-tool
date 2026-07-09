@@ -24,13 +24,29 @@
         }
 
         .search-filter-menu {
-            min-width: 240px;
-            padding: 1rem;
+            min-width: 540px;
+            padding: 0.85rem 1rem;
             border-radius: 6px;
         }
 
         .search-filter-select {
             min-height: 92px;
+        }
+
+        .search-property-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            column-gap: 0.8rem;
+            row-gap: 0.2rem;
+        }
+
+        .search-property-grid .form-check {
+            margin-bottom: 0;
+        }
+
+        .search-property-grid .form-check-label {
+            white-space: nowrap;
+            font-size: 0.9rem;
         }
 
         .search-filter-menu .form-check-input:checked {
@@ -244,7 +260,7 @@
                         </label>
                     </div>
 
-                    <div class="search-filter-heading mt-3">Properties</div>
+                    <div class="search-filter-heading mt-2">Properties</div>
 
                     @php
                         $propertyOptions = [
@@ -257,35 +273,37 @@
                         ];
                     @endphp
 
-                    <div class="form-check mb-1">
-                        <input
-                            class="form-check-input"
-                            type="checkbox"
-                            id="allProperties"
-                            @checked(count($selectedProperties) === count($propertyOptions))
-                        >
-                        <label class="form-check-label fw-semibold" for="allProperties">
-                            All Properties
-                        </label>
-                    </div>
-
-                    @foreach($propertyOptions as $value => $label)
+                    <div class="search-property-grid">
                         <div class="form-check">
                             <input
-                                class="form-check-input property-filter-option"
+                                class="form-check-input"
                                 type="checkbox"
-                                name="properties[]"
-                                value="{{ $value }}"
-                                id="property-{{ $value }}"
-                                @checked(in_array($value, $selectedProperties))
+                                id="allProperties"
+                                @checked(count($selectedProperties) === count($propertyOptions))
                             >
-                            <label class="form-check-label" for="property-{{ $value }}">
-                                {{ $label }}
+                            <label class="form-check-label fw-semibold" for="allProperties">
+                                All Properties
                             </label>
                         </div>
-                    @endforeach
 
-                    <div class="search-filter-heading mt-3">Course Filters</div>
+                        @foreach($propertyOptions as $value => $label)
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input property-filter-option"
+                                    type="checkbox"
+                                    name="properties[]"
+                                    value="{{ $value }}"
+                                    id="property-{{ $value }}"
+                                    @checked(in_array($value, $selectedProperties))
+                                >
+                                <label class="form-check-label" for="property-{{ $value }}">
+                                    {{ $label }}
+                                </label>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="search-filter-heading mt-2">Course Filters</div>
 
                     <label class="form-label small mb-1" for="courseCodeSearch">Course Code</label>
                     <div class="search-chip-selector" id="courseCodeChipSelector">
