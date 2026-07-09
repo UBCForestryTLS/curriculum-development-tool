@@ -104,6 +104,11 @@ class SearchController extends Controller
                 ->values()
                 ->all()
             : [];
+        $selectedProgramNames = $availablePrograms
+            ->whereIn('program_id', $selectedProgramIds)
+            ->pluck('program')
+            ->values()
+            ->all();
 
         $results = collect();
         $programMatches = collect();
@@ -159,6 +164,7 @@ class SearchController extends Controller
             'selectedCourseLevels' => $selectedCourseLevels,
             'availablePrograms' => $availablePrograms,
             'selectedProgramIds' => $selectedProgramIds,
+            'selectedProgramNames' => $selectedProgramNames,
         ]);
         
 }

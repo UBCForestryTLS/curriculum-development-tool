@@ -148,6 +148,18 @@
             color: #495057;
         }
 
+        .search-summary-chip {
+            display: inline-flex;
+            align-items: center;
+            margin: 0.2rem 0.25rem;
+            padding: 0.25rem 0.55rem;
+            color: #002145;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 999px;
+            font-size: 0.86rem;
+        }
+
         .course-match-stats {
             font-size: 0.9rem;
         }
@@ -324,20 +336,6 @@
                 </div>
             @enderror
 
-            @if(!empty($selectedCourseCodes) || !empty($selectedCourseLevels))
-                <div class="small text-muted mt-2">
-                    Filters:
-
-                    @if(!empty($selectedCourseCodes))
-                        Course Code: {{ implode(', ', $selectedCourseCodes) }}
-                    @endif
-
-                    @if(!empty($selectedCourseLevels))
-                        @if(!empty($selectedCourseCodes))<span class="mx-1">|</span>@endif
-                        Course Level: {{ implode(', ', $selectedCourseLevels) }}
-                    @endif
-                </div>
-            @endif
         </form>
     </div>
     
@@ -355,7 +353,42 @@
             'Descriptions' => $stats['descriptions'],
             'Materials' => $stats['materials'],
         ])->filter(fn ($count) => $count > 0);
+
+        $allPropertiesSelected = count($selectedProperties) === count($propertyOptions);
+        $selectedPropertyLabels = collect($selectedProperties)
+            ->map(fn ($property) => $propertyOptions[$property] ?? $property)
+            ->values()
+            ->all();
     @endphp
+
+    <div class="text-center mb-3">
+        <span class="search-summary-chip">
+            View: {{ $selectedView === 'programs' ? 'Programs' : 'Courses' }}
+        </span>
+
+        <span class="search-summary-chip">
+            Properties:
+            {{ $allPropertiesSelected ? 'All' : (empty($selectedPropertyLabels) ? 'None' : implode(', ', $selectedPropertyLabels)) }}
+        </span>
+
+        @if(!empty($selectedCourseCodes))
+            <span class="search-summary-chip">
+                Course Codes: {{ implode(', ', $selectedCourseCodes) }}
+            </span>
+        @endif
+
+        @if(!empty($selectedCourseLevels))
+            <span class="search-summary-chip">
+                Levels: {{ implode(', ', $selectedCourseLevels) }}
+            </span>
+        @endif
+
+        @if(!empty($selectedProgramNames))
+            <span class="search-summary-chip">
+                Programs: {{ implode(', ', $selectedProgramNames) }}
+            </span>
+        @endif
+    </div>
 
     @if($searchTerm !== '' && $hasSelectedResults)
         <div class="search-stats text-center mb-4">
