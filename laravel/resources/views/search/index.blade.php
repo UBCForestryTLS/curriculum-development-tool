@@ -432,11 +432,15 @@
     @if($selectedView === 'courses')
         @foreach($results as $result)
             <div class="border-bottom py-3">
-                @if($result->course_match_snippet)
-                    <h3 class="mb-1">{!! $result->course_match_snippet !!}</h3>
-                @else
-                    <h3 class="mb-1">{{ $result->course_code }} {{ $result->course_num }}: {{ $result->course_title }}</h3>
-                @endif
+                <h3 class="mb-1">
+                    <a href="{{ route('courseWizard.step1', $result->course_id) }}">
+                        @if($result->course_match_snippet)
+                            {!! $result->course_match_snippet !!}
+                        @else
+                            {{ $result->course_code }} {{ $result->course_num }}: {{ $result->course_title }}
+                        @endif
+                    </a>
+                </h3>
 
                 @if($result->programs->isNotEmpty())
                     <div class="small mb-2">
