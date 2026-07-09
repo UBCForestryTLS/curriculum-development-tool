@@ -24,6 +24,22 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.3/font/bootstrap-icons.css">
     @vite('resources/js/bootstrap.js')
     @vite('resources/sass/app.scss')
+    <style>
+        html,
+        body {
+            min-height: 100%;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #app {
+            flex: 1 0 auto;
+        }
+    </style>
 </head>
 <!-- Google Analytics -->
 <!-- Google tag (gtag.js) -->
