@@ -33,6 +33,16 @@
             min-height: 92px;
         }
 
+        .search-filter-menu .form-check-input:checked {
+            background-color: #40B4E5;
+            border-color: #40B4E5;
+        }
+
+        .search-filter-menu .form-check-input:focus {
+            border-color: #40B4E5;
+            box-shadow: 0 0 0 0.15rem rgba(64, 180, 229, 0.25);
+        }
+
         .search-level-toggle {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
