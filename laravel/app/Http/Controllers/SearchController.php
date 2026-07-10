@@ -113,6 +113,8 @@ class SearchController extends Controller
         $results = collect();
         $programMatches = collect();
         $programResults = collect();
+        $courseQuickLinks = collect();
+        $programQuickLinks = collect();
         $stats =  [//search statistics
             'courses' => 0,
             'programs' => 0,
@@ -136,6 +138,8 @@ class SearchController extends Controller
             $programMatches = $this->searchProgramNames($searchTerm);
             $programResults = $this->groupCourseResultsByProgram($results, $programMatches);
             $stats['programs'] = $programResults->count();
+            $courseQuickLinks = $results;
+            $programQuickLinks = $programResults;
 
             if ($selectedView === 'programs') {
                 $stats['courses'] = $programResults
@@ -144,6 +148,11 @@ class SearchController extends Controller
                     ->unique()
                     ->count();
                     //for the program view, only courses assigned to a program are counted in the statistics
+
+                $courseQuickLinks = $programResults
+                    ->flatMap(fn ($program) => $program->courses)
+                    ->unique('course_id')
+                    ->values();
             }
 
         }
@@ -158,6 +167,8 @@ class SearchController extends Controller
             'selectedView' => $selectedView,
             'programMatches' => $programMatches,
             'programResults' => $programResults,
+            'courseQuickLinks' => $courseQuickLinks,
+            'programQuickLinks' => $programQuickLinks,
             'selectedProperties' => $selectedProperties,
             'availableCourseCodes' => $availableCourseCodes,
             'selectedCourseCodes' => $selectedCourseCodes,
