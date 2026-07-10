@@ -186,6 +186,19 @@
             font-size: 0.86rem;
         }
 
+        .search-stats-divider {
+            display: inline-block;
+            height: 1.15rem;
+            margin: 0 0.85rem;
+            border-left: 2px solid #adb5bd;
+            vertical-align: middle;
+        }
+
+        .search-stats-modal-list {
+            max-height: 360px;
+            overflow-y: auto;
+        }
+
         .course-match-stats {
             font-size: 0.9rem;
         }
@@ -381,6 +394,7 @@
             'Descriptions' => $stats['descriptions'],
             'Materials' => $stats['materials'],
         ])->filter(fn ($count) => $count > 0);
+        $contentStats = $visibleStats->except(['Courses', 'Programs']);
 
         $allPropertiesSelected = count($selectedProperties) === count($propertyOptions);
         $selectedPropertyLabels = collect($selectedProperties)
@@ -420,10 +434,75 @@
 
     @if($searchTerm !== '' && $hasSelectedResults)
         <div class="search-stats text-center mb-4">
-            @foreach($visibleStats as $label => $count)
+            <span class="search-filter-heading me-2">Found in</span>
+
+            @if($stats['courses'] > 0)
+                <a href="#" data-bs-toggle="modal" data-bs-target="#matchedCoursesModal">
+                    Courses: {{ $stats['courses'] }}
+                </a>
+            @endif
+
+            @if($stats['programs'] > 0)
+                @if($stats['courses'] > 0)<span class="mx-2">|</span>@endif
+                <a href="#" data-bs-toggle="modal" data-bs-target="#matchedProgramsModal">
+                    Programs: {{ $stats['programs'] }}
+                </a>
+            @endif
+
+            @if(($stats['courses'] > 0 || $stats['programs'] > 0) && $contentStats->isNotEmpty())
+                <span class="search-stats-divider"></span>
+            @endif
+
+            @foreach($contentStats as $label => $count)
                 @if(!$loop->first)<span class="mx-2">|</span>@endif
                 <span>{{ $label }}: {{ $count }}</span>
             @endforeach
+        </div>
+
+        <div class="modal fade" id="matchedCoursesModal" tabindex="-1" aria-labelledby="matchedCoursesModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="matchedCoursesModalLabel">Matched Courses</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body search-stats-modal-list">
+                        @forelse($courseQuickLinks as $course)
+                            <div class="mb-2">
+                                <a href="{{ route('courseWizard.step1', $course->course_id) }}">
+                                    {{ $course->course_code }} {{ $course->course_num }}: {{ $course->course_title }}
+                                </a>
+                            </div>
+                        @empty
+                            <p class="mb-0 text-muted">No matching courses found.</p>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="matchedProgramsModal" tabindex="-1" aria-labelledby="matchedProgramsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="matchedProgramsModalLabel">Matched Programs</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body search-stats-modal-list">
+                        @forelse($programQuickLinks as $program)
+                            <div class="mb-2">
+                                <a href="{{ route('programWizard.step1', $program->program_id) }}">
+                                    {{ $program->program }}
+                                </a>
+                            </div>
+                        @empty
+                            <p class="mb-0 text-muted">No matching programs found.</p>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
         </div>
     @elseif($searchTerm !== '')
         <p class="text-center">No matches found.</p>
