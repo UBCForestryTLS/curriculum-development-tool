@@ -139,6 +139,10 @@
             line-height: 1;
         }
 
+        .search-clear-filters {
+            font-size: 0.85rem;
+        }
+
         .search-filter-heading {
             margin-bottom: 0.6rem;
             color: #6c757d;
@@ -366,6 +370,10 @@
                         <div id="selectedProgramInputs"></div>
                     </div>
                     <div class="form-text small">No selection searches all programs.</div>
+
+                    <button type="button" class="btn btn-link search-clear-filters px-0 mt-2" id="clearSearchFilters">
+                        Clear filters
+                    </button>
                 </div>
 
                 <button type="submit" class="btn btn-primary search-action-button">Search</button>
@@ -429,6 +437,12 @@
             <span class="search-summary-chip">
                 Programs: {{ implode(', ', $selectedProgramNames) }}
             </span>
+        @endif
+
+        @if($searchTerm !== '' || !$allPropertiesSelected || !empty($selectedCourseCodes) || !empty($selectedCourseLevels) || !empty($selectedProgramNames) || $selectedView !== 'courses')
+            <a href="{{ route('search.index') }}" class="search-clear-filters ms-2">
+                Clear search
+            </a>
         @endif
     </div>
 
@@ -713,6 +727,7 @@
             const selectedPrograms = new Set(@json($selectedProgramIds).map(function (programId) {
                 return String(programId);
             }));
+            const clearSearchFilters = document.getElementById('clearSearchFilters');
 
             //Rebuilds the selected course code chips and the hidden form inputs
             function renderSelectedCourseCodes() {
@@ -868,6 +883,26 @@
 
             programSearch.addEventListener('focus', renderProgramOptions);
             programSearch.addEventListener('input', renderProgramOptions);
+
+            clearSearchFilters.addEventListener('click', function () {
+                allProperties.checked = true;
+                propertyOptions.forEach(function (option) {
+                    option.checked = true;
+                });
+                selectedCourseCodes.clear();
+                selectedPrograms.clear();
+                document.querySelectorAll('input[name="course_levels[]"]').forEach(function (levelOption) {
+                    levelOption.checked = false;
+                });
+
+                updatePropertyControls();
+                renderSelectedCourseCodes();
+                renderSelectedPrograms();
+                propertyOptions.forEach(function (option) {
+                    option.disabled = false;
+                });
+                searchForm.submit();
+            });
 
             document.addEventListener('click', function (event) {
                 if (!courseCodeChipSelector.contains(event.target)) {
