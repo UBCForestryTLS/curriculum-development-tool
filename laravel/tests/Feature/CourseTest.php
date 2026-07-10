@@ -143,7 +143,7 @@ class CourseTest extends TestCase
 
         //LearningOutcomeController@store
 
-        $response = $this->actingAs($user)->post(route('la.store'), [
+        $response = $this->actingAs($user)->post(route('la.new.store'), [
             'current_l_activities' => [
 
             ],
@@ -179,7 +179,7 @@ class CourseTest extends TestCase
 
         //LearningOutcomeController@store
 
-        $response = $this->actingAs($user)->post(route('am.store'), [
+        $response = $this->actingAs($user)->post(route('am.new.store'), [
             'current_a_methods' => [
 
             ],
@@ -605,7 +605,7 @@ class CourseTest extends TestCase
         DB::table('courses')->where('course_id', $course->course_id)->update(['program_id' => $program->program_id]);
         //test mapping CLOs to PLOs
 
-        $response = $this->actingAs($user)->post(route('outcomeMap.store'), [
+        $response = $this->actingAs($user)->post(route('outcomeMap.new.store'), [
             'course_id' => $course->course_id,
             'l_outcome_id' => $clo->l_outcome_id,
             'map' => [
@@ -683,7 +683,7 @@ class CourseTest extends TestCase
 
         //LearningOutcomeController@store
 
-        $response = $this->actingAs($user)->post(route('am.store'), [
+        $response = $this->actingAs($user)->post(route('am.new.store'), [
             'current_a_methods' => [
 
             ],
@@ -714,7 +714,7 @@ class CourseTest extends TestCase
 
         //LearningOutcomeController@store
 
-        $response = $this->actingAs($user)->post(route('la.store'), [
+        $response = $this->actingAs($user)->post(route('la.new.store'), [
             'current_l_activities' => [
 
             ],
@@ -782,7 +782,7 @@ class CourseTest extends TestCase
 
         //setting this mapping to all "Introduced" for this course, except 1
         // Updated standardr scale id in test as standard scale IDs updated in seeder file with pgsql
-        $response = $this->actingAs($user)->post(route('standardsOutcomeMap.store'), [
+        $response = $this->actingAs($user)->post(route('standardsOutcomeMap.new.store'), [
             'course_id' => $course->course_id,
             'map' => [
                 $course->course_id => [
@@ -892,7 +892,7 @@ class CourseTest extends TestCase
         $course = Course::where('course_title', 'Intro to Unit Testing')->orderBy('course_id', 'DESC')->first();
         $program = Program::where('program', 'Testing Program for Courses')->first();
 
-        $response = $this->actingAs($user2)->delete(route('courses.destroy', $course->course_id));
+        $response = $this->actingAs($user2)->delete(route('courses.single.destroy', $course->course_id));
 
         $this->assertDatabaseMissing('courses', [
             'course_id' => $course->course_id,

@@ -4,7 +4,6 @@ use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\ServiceProvider;
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Application Name
@@ -56,8 +55,6 @@ return [
     */
 
     'url' => env('APP_URL'),
-
-    'login_url' => env('LOGIN_URL'),
 
     'login_url' => env('LOGIN_URL'),
 
@@ -190,9 +187,17 @@ return [
     */
 
     'aliases' => Facade::defaultAliases()->merge([
-        'PDF' => Barryvdh\DomPDF\Facade::class,
+        'PDF' => Barryvdh\DomPDF\Facade\Pdf::class,
         'Redis' => Illuminate\Support\Facades\Redis::class,
         'RoleAssignmentHelpers' => App\Helpers\RoleAssignmentHelpers::class,
     ])->toArray(),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Google reCAPTCHA keys
+    |--------------------------------------------------------------------------
+    |
+    */
+    'captcha_public_key' => env('GOOGLE_CAPTCHA_PUBLIC_KEY'),
+    'captcha_private_key' => env('GOOGLE_CAPTCHA_PRIVATE_KEY', false)
 ];

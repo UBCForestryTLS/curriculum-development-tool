@@ -403,7 +403,7 @@
                                                                 @endif
                                                             </div>
 
-                                                            <form action="{{route('plo.destroy', $ploCat->pl_outcome_id)}}" method="POST">
+                                                            <form action="{{route('plo.single.destroy', $ploCat->pl_outcome_id)}}" method="POST">
                                                                 @csrf
                                                                 {{method_field('DELETE')}}
                                                                 <input type="hidden" class="form-check-input " name="program_id" value={{$program->program_id}}>
@@ -428,7 +428,7 @@
                                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                             </div>
 
-                                                            <form action="{{route('plo.update', $ploCat->pl_outcome_id)}}" method="POST">
+                                                            <form action="{{route('plo.single.update', $ploCat->pl_outcome_id)}}" method="POST">
                                                                 @csrf
                                                                 {{method_field('POST')}}
                                                                 <div class="modal-body">
@@ -519,7 +519,7 @@
                                                                 Are you sure you want to delete this program learning outcome?
                                                             @endif
                                                         </div>
-                                                        <form action="{{route('plo.destroy', $unCatplo->pl_outcome_id)}}" method="POST">
+                                                        <form action="{{route('plo.single.destroy', $unCatplo->pl_outcome_id)}}" method="POST">
                                                             @csrf
                                                             {{method_field('DELETE')}}
                                                             <input type="hidden" class="form-check-input " name="program_id" value={{$program->program_id}}>
@@ -541,7 +541,7 @@
                                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                         </div>
 
-                                                        <form action="{{route('plo.update', $unCatplo->pl_outcome_id)}}" method="POST">
+                                                        <form action="{{route('plo.single.update', $unCatplo->pl_outcome_id)}}" method="POST">
                                                             @csrf
                                                             {{method_field('POST')}}
                                                             <div class="modal-body">

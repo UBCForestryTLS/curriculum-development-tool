@@ -111,8 +111,8 @@ Route::post('/syllabusUserTransfer', [SyllabusUserController::class, 'transferOw
 Route::resource('/programs', ProgramController::class);
 Route::post('/programs', [ProgramController::class, 'store'])->name('programs.store');
 Route::get('/programs/{program}/submit', [ProgramController::class, 'submit'])->name('programs.submit');
-Route::post('/programs/{program}/update', [ProgramController::class, 'update'])->name('programs.update');
-Route::delete('/programs/{program}/delete', [ProgramController::class, 'destroy'])->name('programs.destroy');
+Route::post('/programs/{program}/update', [ProgramController::class, 'update'])->name('programs.single.update');
+Route::delete('/programs/{program}/delete', [ProgramController::class, 'destroy'])->name('programs.single.destroy');
 // Program Summary PDF routes
 Route::get('/programs/{program}/pdf', [ProgramController::class, 'pdf'])->name('programs.pdf');
 Route::delete('/programs/{program}/pdf', [ProgramController::class, 'deletePDF'])->name('programs.delete.pdf');
@@ -151,7 +151,7 @@ Route::delete('/courses/{course}/pdf', [CourseController::class, 'deletePDF'])->
 Route::get('/courses/{course}/remove', [CourseController::class, 'removeFromProgram'])->name('courses.remove');
 Route::get('/courses/{course}/emailCourseInstructor', [CourseController::class, 'emailCourseInstructor'])->name('courses.emailCourseInstructor');
 Route::post('/courses/{course}/duplicate', [CourseController::class, 'duplicate'])->name('courses.duplicate');
-Route::delete('/courses/{course}/destroy', [CourseController::class, 'destroy'])->name('courses.destroy');
+Route::delete('/courses/{course}/destroy', [CourseController::class, 'destroy'])->name('courses.single.destroy');
 
 // Route::resource('/lo','LearningOutcomeController')->only(['store','update','edit', 'destroy']);
 Route::resource('/lo', LearningOutcomeController::class);
@@ -162,30 +162,30 @@ Route::post('/store/clos', [LearningOutcomeController::class, 'store'])->name('c
 Route::resource('/plo', ProgramLearningOutcomeController::class);
 Route::post('/plo/store', [ProgramLearningOutcomeController::class, 'store'])->name('program.outcomes.store');
 Route::post('/import/plos', [ProgramLearningOutcomeController::class, 'import'])->name('program.outcomes.import');
-Route::delete('/plo/{program}/delete', [ProgramLearningOutcomeController::class, 'destroy'])->name('plo.destroy');
-Route::post('/plo/{program}/update', [ProgramLearningOutcomeController::class, 'update'])->name('plo.update');
+Route::delete('/plo/{program}/delete', [ProgramLearningOutcomeController::class, 'destroy'])->name('plo.single.destroy');
+Route::post('/plo/{program}/update', [ProgramLearningOutcomeController::class, 'update'])->name('plo.single.update');
 
 Route::resource('/la', LearningActivityController::class);
-Route::post('/la/store', [LearningActivityController::class, 'store'])->name('la.store');
+Route::post('/la/store', [LearningActivityController::class, 'store'])->name('la.new.store');
 
 Route::post('/ajax/custom_activities', [CustomLearningActivitiesController::class, 'store']);
 Route::post('/ajax/custom_methods', [CustomAssessmentMethodsController::class, 'store']);
-Route::post('/store/la', [LearningActivityController::class, 'store'])->name('la.store');
+Route::post('/store/la', [LearningActivityController::class, 'store'])->name('store.la');
 
 Route::resource('/am', AssessmentMethodController::class);
-Route::post('/am/store', [AssessmentMethodController::class, 'store'])->name('am.store');
+Route::post('/am/store', [AssessmentMethodController::class, 'store'])->name('am.new.store');
 
 Route::resource('/outcomeMap', OutcomeMapController::class);
-Route::post('/store/OutcomeMap', [OutcomeMapController::class, 'store'])->name('outcomeMap.store');
+Route::post('/store/OutcomeMap', [OutcomeMapController::class, 'store'])->name('outcomeMap.new.store');
 //Route for standards mapping
 Route::resource('/standardsOutcomeMap', StandardsOutcomeMapController::class);
-Route::post('/store/standardsOutcomeMap', [StandardsOutcomeMapController::class, 'store'])->name('standardsOutcomeMap.store');
+Route::post('/store/standardsOutcomeMap', [StandardsOutcomeMapController::class, 'store'])->name('standardsOutcomeMap.new.store');
 
 Route::resource('/mappingScale', MappingScaleController::class);
 Route::post('/mappingScale/store', [MappingScaleController::class, 'store'])->name('program.mappingScale.store');
 Route::post('/mappingScale/addDefaultMappingScale', [MappingScaleController::class, 'addDefaultMappingScale'])->name('mappingScale.addDefaultMappingScale');
-Route::delete('/mappingScale/{program}/delete', [MappingScaleController::class, 'destroy'])->name('mappingScale.destroy');
-Route::post('/mappingScale/{program}/update', [MappingScaleController::class, 'update'])->name('mappingScale.update');
+Route::delete('/mappingScale/{program}/delete', [MappingScaleController::class, 'destroy'])->name('mappingScale.single.destroy');
+Route::post('/mappingScale/{program}/update', [MappingScaleController::class, 'update'])->name('mappingScale.single.update');
 
 Route::resource('/ploCategory', PLOCategoryController::class);
 Route::post('/ploCategory/store', [PLOCategoryController::class, 'store'])->name('program.category.store');
@@ -194,7 +194,7 @@ Route::post('/ploCategory/{program}/update', [PLOCategoryController::class, 'upd
 
 Route::resource('/programUser', ProgramUserController::class);
 Route::post('/program/{programId}/collaborator/add', [ProgramUserController::class, 'store'])->name('programUser.add');
-Route::delete('/programUser/delete', [ProgramUserController::class, 'delete'])->name('programUser.destroy');
+Route::delete('/programUser/delete', [ProgramUserController::class, 'delete'])->name('programUser.delete');
 Route::get('/programUser/leave', [ProgramUserController::class, 'leave'])->name('programUser.leave');
 Route::get('/programUserTransfer', [ProgramUserController::class, 'transferOwnership'])->name('programUser.transferOwnership');
 

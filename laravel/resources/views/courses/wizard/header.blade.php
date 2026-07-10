@@ -363,7 +363,7 @@
                                     Are you sure you want to delete {{$course->course_code}} {{$course->course_num}} ?
                                     </div>
 
-                                    <form action="{{route('courses.destroy', $course->course_id)}}" method="POST">
+                                    <form action="{{route('courses.single.destroy', $course->course_id)}}" method="POST">
                                         @csrf
                                         {{method_field('DELETE')}}
                                         <input type="hidden" class="form-check-input " name="program_id"
@@ -446,10 +446,10 @@
     @endif
 </div>
 <script type="application/javascript">
-    var course = {!! json_encode($course, JSON_HEX_TAG) !!};
-    var campuses = {!! json_encode($campuses, JSON_HEX_TAG) !!};
-    var faculties = {!! json_encode($faculties, JSON_HEX_TAG) !!};
-    var departments = {!! json_encode($departments, JSON_HEX_TAG) !!};
+    var course = JSON.parse(`<?php echo json_encode($course, JSON_HEX_TAG) ?>`);
+    var campuses = JSON.parse(`<?php echo json_encode($campuses, JSON_HEX_TAG) ?>`);
+    var faculties = JSON.parse(`<?php echo json_encode($faculties, JSON_HEX_TAG) ?>`);
+    var departments = JSON.parse(`<?php echo json_encode($departments, JSON_HEX_TAG) ?>`);
     var vFaculties = faculties.filter(item => {
         return item.campus_id === 1;
     });

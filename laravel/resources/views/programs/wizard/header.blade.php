@@ -68,7 +68,7 @@
                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                         </div>
 
-                                        <form method="POST" action="{{route('programs.update', $program->program_id)}}">
+                                        <form method="POST" action="{{route('programs.single.update', $program->program_id)}}">
                                             @csrf
                                             {{method_field('POST')}}
                                             <div class="modal-body">
@@ -225,7 +225,7 @@
                                     <div class="modal-body">
                                     Are you sure you want to delete {{$program->program}} program ?
                                     </div>
-                                    <form action="{{route('programs.destroy', $program->program_id)}}" method="POST" class="float-end">
+                                    <form action="{{route('programs.single.destroy', $program->program_id)}}" method="POST" class="float-end">
                                         @csrf
                                         {{method_field('DELETE')}}
                                         <div class="modal-footer">
@@ -265,10 +265,10 @@
 </div>
 
 <script>
-    var program = {!! json_encode($program, JSON_HEX_TAG) !!};
-    var campuses = {!! json_encode($campuses, JSON_HEX_TAG) !!};
-    var faculties = {!! json_encode($faculties, JSON_HEX_TAG) !!};
-    var departments = {!! json_encode($departments, JSON_HEX_TAG) !!};
+    var program = JSON.parse(`<?php echo json_encode($program, JSON_HEX_TAG)?>`);
+    var campuses = JSON.parse(`<?php echo json_encode($campuses, JSON_HEX_TAG)?>`);
+    var faculties = JSON.parse(`<?php echo json_encode($faculties, JSON_HEX_TAG)?>`);
+    var departments = JSON.parse(`<?php echo json_encode($departments, JSON_HEX_TAG)?>`);
     var vFaculties = faculties.filter(item => {
         return item.campus_id === 1;
     });

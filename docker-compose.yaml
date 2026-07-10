@@ -1,0 +1,12 @@
+# TODO: Replace applicable environment variables with service references (Docker networking)
+# TODO: Modify Dockerfile apache config to serve follow Laravel's deployment reqs (see https://laravel.com/docs/13.x/deployment)
+
+name: curriculum-tool
+
+services:
+  laravel:
+    build:
+      context: laravel/
+    env_file: laravel/.dockerenv
+    ports:
+      - 9000:80

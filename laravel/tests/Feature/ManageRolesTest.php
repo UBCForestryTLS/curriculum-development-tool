@@ -920,7 +920,7 @@ class ManageRolesTest extends TestCase
         $user = User::where('email', 'usertest@gmail.com')->first();
         $program = Program::where('program', 'Bachelor of New Test Program')->orderBy('program_id', 'DESC')->first();
 
-        $response = $this->actingAs($adminUser)->post(route('programs.update', $program->program_id),[
+        $response = $this->actingAs($adminUser)->post(route('programs.single.update', $program->program_id),[
             'program_id' => $program->program_id,
             'program' => 'Changed Name of Program',
             'level' => $program->level,
@@ -1172,7 +1172,7 @@ class ManageRolesTest extends TestCase
 
         $courseNew = Course::where(['course_code' => 'CPSC', 'course_num' => 234])->first();
 
-        $response = $this->actingAs($adminUser)->post(route('programs.update', $program->program_id),[
+        $response = $this->actingAs($adminUser)->post(route('programs.single.update', $program->program_id),[
             'program_id' => $program->program_id,
             'program' => 'Changed Faculty of Program',
             'level' => $program->level,

@@ -2,10 +2,12 @@
 
 namespace App\Rules;
 
+use Closure;
 use GuzzleHttp\Client;
-use Illuminate\Contracts\Validation\Rule;
+use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Support\Facades\Config;
 
-class GoogleRecaptcha implements Rule
+class GoogleRecaptcha implements ValidationRule
 {
     /**
      * Create a new rule instance.
@@ -18,18 +20,17 @@ class GoogleRecaptcha implements Rule
     }
 
     /**
-     * Determine if the validation rule passes.
+     * Run the validation rule.
      *
-     * @param  mixed  $value
+     * @param mixed $value
      */
-    public function passes($attribute, $value)
+    public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        //
         $client = new Client();
         $response = $client->post('https://www.google.com/recaptcha/api/siteverify',
             [
                 'form_params' => [
-                    'secret' => env('GOOGLE_CAPTCHA_PRIVATE_KEY', false),
+                    'secret' => Config::get('app.captcha_private_key'),
                     'remoteip' => request()->getClientIp(),
                     'response' => $value,
                 ],
@@ -37,14 +38,9 @@ class GoogleRecaptcha implements Rule
         );
         $body = json_decode((string) $response->getBody());
 
-        return $body->success;
-    }
-
-    /**
-     * Get the validation error message.
-     */
-    public function message(): string
-    {
-        return 'Are you a robot?';
+        //return $body->success;
+        if(!$body->success) {
+            $fail('reCAPTCHA validation failed. Are you a robot?');
+        }
     }
 }

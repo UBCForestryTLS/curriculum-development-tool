@@ -160,7 +160,7 @@
 
                                             <div class="modal-body">Are you sure you want to delete {{$program->program}} program ?</div>
 
-                                            <form action="{{route('programs.destroy', $program->program_id)}}" method="POST" class="float-end">
+                                            <form action="{{route('programs.single.destroy', $program->program_id)}}" method="POST" class="float-end">
                                                 @csrf
                                                 {{method_field('DELETE')}}
 
@@ -489,7 +489,7 @@
                                                     Are you sure you want to delete course {{$course->course_code}} {{$course->course_num}} ?
                                                     </div>
 
-                                                    <form action="{{route('courses.destroy', $course->course_id)}}" method="POST">
+                                                    <form action="{{route('courses.single.destroy', $course->course_id)}}" method="POST">
                                                         @csrf
                                                         {{method_field('DELETE')}}
 

@@ -143,7 +143,7 @@
                                                 </td>
 
                                                 <td class="text-center align-middle">
-                                                    <form id="deleteMSForm-{{$mappingScale->map_scale_id}}" action="{{route('mappingScale.destroy', $mappingScale->map_scale_id)}}" method="POST">
+                                                    <form id="deleteMSForm-{{$mappingScale->map_scale_id}}" action="{{route('mappingScale.single.destroy', $mappingScale->map_scale_id)}}" method="POST">
                                                         @csrf
                                                         {{method_field('DELETE')}}
                                                         <input type="hidden" class="form-check-input" name="program_id" value="{{$program->program_id}}">
@@ -177,7 +177,7 @@
                                                 {{$mappingScale->description}}
                                             </td>
                                             <td class="text-center align-middle">
-                                                <form id="deleteMSForm-{{$mappingScale->map_scale_id}}" action="{{route('mappingScale.destroy', $mappingScale->map_scale_id)}}" method="POST">
+                                                <form id="deleteMSForm-{{$mappingScale->map_scale_id}}" action="{{route('mappingScale.single.destroy', $mappingScale->map_scale_id)}}" method="POST">
                                                     @csrf
                                                     {{method_field('DELETE')}}
                                                     <input type="hidden" class="form-check-input" name="program_id" value="{{$program->program_id}}">
@@ -194,7 +194,7 @@
                                                                 <h5 class="modal-title" id="editMSModalLabel">Edit Mapping Scale Level</h5>
                                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                             </div>
-                                                            <form action="{{route('mappingScale.update', $mappingScale->map_scale_id)}}" method="POST">
+                                                            <form action="{{route('mappingScale.single.update', $mappingScale->map_scale_id)}}" method="POST">
                                                                 @csrf
                                                                 {{method_field('POST')}}
                                                                 <div class="modal-body">

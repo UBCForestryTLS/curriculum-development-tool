@@ -1,0 +1,30 @@
+**/.classpath
+**/.dockerignore
+**/.env*
+**/.git
+**/.gitattributes
+**/.gitignore
+**/.vscode
+**/*.cache
+**/docker-compose*
+**/compose.y*ml
+!**/composer.json
+!**/composer.lock
+**/Dockerfile*
+**/node_modules
+**/*.log
+LICENSE*
+README*
+
+# project-specific
+.dockerenv
+.editorconfig
+.styleci.yml
+
+# storage/
+scripts/
+tests/
+vendor/
+
+phpunit.xml
+vite.config.js
