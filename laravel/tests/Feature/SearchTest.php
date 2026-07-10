@@ -1091,7 +1091,7 @@ public function test_search_groups_matching_courses_under_their_program()
     $response->assertSee('Matching courses: 1');
     $response->assertSee('Courses: 1');
     $response->assertDontSee('Unassigned Quantum Course');
-    $response->assertSee(route('courseWizard.step1', $course->course_id));
+    $response->assertSee(route('courseWizard.step8', $course->course_id));
 }
 
 public function test_program_search_results_are_paginated_with_ten_programs_per_page()

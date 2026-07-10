@@ -470,7 +470,7 @@
                     <div class="modal-body search-stats-modal-list">
                         @forelse($courseQuickLinks as $course)
                             <div class="mb-2">
-                                <a href="{{ route('courseWizard.step1', $course->course_id) }}">
+                                <a href="{{ route('courseWizard.step8', $course->course_id) }}">
                                     {{ $course->course_code }} {{ $course->course_num }}: {{ $course->course_title }}
                                 </a>
                             </div>
@@ -512,7 +512,7 @@
         @foreach($results as $result)
             <div class="border-bottom py-3">
                 <h3 class="mb-1">
-                    <a href="{{ route('courseWizard.step1', $result->course_id) }}">
+                    <a href="{{ route('courseWizard.step8', $result->course_id) }}">
                         @if($result->course_match_snippet)
                             {!! $result->course_match_snippet !!}
                         @else
@@ -609,7 +609,7 @@
                 @foreach($programResult->courses as $course)
                     <div class="program-course-result">
                         <h5 class="mb-2">
-                            <a href="{{ route('courseWizard.step1', $course->course_id) }}">
+                            <a href="{{ route('courseWizard.step8', $course->course_id) }}">
                                 @if($course->course_match_snippet)
                                     {!! $course->course_match_snippet !!}
                                 @else
