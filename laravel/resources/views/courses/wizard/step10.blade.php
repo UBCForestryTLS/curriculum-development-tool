@@ -424,8 +424,71 @@
         </div>
     </div>
 
+    <template id="materialRowTemplate">
+        <tr>
+            <td><input class="form-control material-name" required></td>
+            <td><input class="form-control material-type"></td>
+            <td><textarea class="form-control material-desc" rows="1"></textarea></td>
+            <td><input class="form-control material-url"></td>
+            <td class="text-center">
+                <input type="checkbox" class="form-check-input material-required" value="1">
+            </td>
+            <td class="text-center">
+                <i class="bi bi-x-circle-fill text-danger fs-4 btn delete-row"></i>
+            </td>
+        </tr>
+    </template>
+
+
     <script>
+        const materials = [
+        @foreach($courseMaterials as $m)
+            {
+                id: {{ $m->course_material_id }},
+                name: @json($m->name),
+                type: @json($m->type),
+                description: @json($m->description),
+                url: @json($m->url),
+                is_required: {{ $m->is_required ? 'true' : 'false' }}
+            },
+            @endforeach
+        ];
+
+        function renderMaterials() {
+            const tbody = document.querySelector("#addCourseMaterialsTbl tbody");
+            tbody.innerHTML = "";
+
+            const fields = [
+                { cls: "material-name",     field: "name" },
+                { cls: "material-type",     field: "type" },
+                { cls: "material-desc",     field: "description" },
+                { cls: "material-url",      field: "url" },
+                { cls: "material-required", field: "is_required" },
+            ];
+
+            materials.forEach((m, idx) => {
+                const templateRow = document.getElementById("materialRowTemplate").content.cloneNode(true);
+                const base = (m.id !== null) ? `current_material[${m.id}]` : `new_material[${idx}]`;
+
+                fields.forEach(({ cls, field, isCheckbox }) => {
+                    const element = templateRow.querySelector(`.${cls}`);
+                    element.name = `${base}[${field}]`;
+                    element.setAttribute("form", "saveCourseMaterialChanges");
+                    if (field === 'is_required') element.checked = m[field];
+                    else element.value = m[field];
+                });
+
+                templateRow.querySelector(".delete-row").onclick = () => {
+                    materials.splice(idx, 1);
+                    renderMaterials();
+                };
+
+                tbody.appendChild(templateRow);
+            });
+        }
+
         $(document).ready(function () {
+            renderMaterials();
 
             //   $("form").submit(function () {
             //     // prevent duplicate form submissions
@@ -453,31 +516,19 @@
 
             });
 
-            $('#cancel').click(function (event) {
-                $('#addCourseMaterialsTbl tbody').html(`
-                    @foreach($courseMaterials as $index => $courseMaterial)
-                        <tr>
-                            <td>
-                                <input id="courseMaterialName{{$courseMaterial->course_material_id}}" type="text" class="form-control" name="current_material[{{$courseMaterial->course_material_id}}][name]" value="{{$courseMaterial->name}}" placeholder="Material name" form="saveCourseMaterialChanges" required spellcheck="true" style="white-space: pre">
-                            </td>
-                            <td>
-                                <input id="courseMaterialType{{$courseMaterial->course_material_id}}" type="text" class="form-control" name="current_material[{{$courseMaterial->course_material_id}}][type]" value="{{$courseMaterial->type}}" placeholder="Type" form="saveCourseMaterialChanges" spellcheck="true" style="white-space: pre">
-                            </td>
-                            <td>
-                                <textarea id="courseMaterialDescription{{$courseMaterial->course_material_id}}" class="form-control" rows="1" name="current_material[{{$courseMaterial->course_material_id}}][description]" placeholder="Description" form="saveCourseMaterialChanges" spellcheck="true">{{$courseMaterial->description}}</textarea>
-                            </td>
-                            <td>
-                                <input id="courseMaterialUrl{{$courseMaterial->course_material_id}}" type="text" class="form-control" name="current_material[{{$courseMaterial->course_material_id}}][url]" value="{{$courseMaterial->url}}" placeholder="URL" form="saveCourseMaterialChanges" spellcheck="true">
-                            </td>
-                            <td class="text-center">
-                                <input type="checkbox" class="form-check-input" name="current_material[{{$courseMaterial->course_material_id}}][is_required]" value="1" form="saveCourseMaterialChanges" @checked($courseMaterial->is_required)>
-                            </td>
-                            <td class="text-center">
-                                <i class="bi bi-x-circle-fill text-danger fs-4 btn" onclick="deleteCourseMaterial(this)"></i>
-                            </td>
-                        </tr>
-                    @endforeach
-                `);
+            $('#cancel').click(() => {
+                materials.length = 0;
+                @foreach($courseMaterials as $m)
+                materials.push({
+                    id: {{ $m->course_material_id }},
+                    name: @json($m->name),
+                    type: @json($m->type),
+                    description: @json($m->description),
+                    url: @json($m->url),
+                    is_required: {{ $m->is_required ? 'true' : 'false' }}
+                });
+                @endforeach
+                renderMaterials();
             });
         });
 
@@ -540,34 +591,16 @@
         }
 
         function addCourseMaterial() {
-            // Build grouped request keys because each material has several fields.
-            const materialIndex = $('#addCourseMaterialsTbl tbody tr').length;
-            const requiredInput = $('#courseMaterialRequired').is(':checked')
-                ? `<input type="checkbox" class="form-check-input" name="new_material[${materialIndex}][is_required]" value="1" form="saveCourseMaterialChanges" checked>`
-                : `<input type="checkbox" class="form-check-input" name="new_material[${materialIndex}][is_required]" value="1" form="saveCourseMaterialChanges">`;
+            materials.push({
+                id: null,
+                name: $('#courseMaterialName').val(),
+                type: $('#courseMaterialType').val(),
+                description: $('#courseMaterialDescription').val(),
+                url: $('#courseMaterialUrl').val(),
+                is_required: $('#courseMaterialRequired').is(':checked')
+            });
 
-            $('#addCourseMaterialsTbl tbody').append(`
-                <tr>
-                    <td>
-                        <input type="text" class="form-control" name="new_material[${materialIndex}][name]" value="${$('#courseMaterialName').val()}" placeholder="Material name" form="saveCourseMaterialChanges" required spellcheck="true" style="white-space: pre">
-                    </td>
-                    <td>
-                        <input type="text" class="form-control" name="new_material[${materialIndex}][type]" value="${$('#courseMaterialType').val()}" placeholder="Type" form="saveCourseMaterialChanges" spellcheck="true" style="white-space: pre">
-                    </td>
-                    <td>
-                        <textarea class="form-control" rows="1" name="new_material[${materialIndex}][description]" placeholder="Description" form="saveCourseMaterialChanges" spellcheck="true">${$('#courseMaterialDescription').val()}</textarea>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control" name="new_material[${materialIndex}][url]" value="${$('#courseMaterialUrl').val()}" placeholder="URL" form="saveCourseMaterialChanges" spellcheck="true">
-                    </td>
-                    <td class="text-center">
-                        ${requiredInput}
-                    </td>
-                    <td class="text-center">
-                        <i class="bi bi-x-circle-fill text-danger fs-4 btn" onclick="deleteCourseMaterial(this)"></i>
-                    </td>
-                </tr>
-            `);
+            renderMaterials();
         }
 
 
