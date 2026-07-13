@@ -2,6 +2,23 @@
 
 @section('content')
 
+    @php
+    // Storing these in the DB can lead to complications if the user selects 'Other'.
+    // The main reason for this dropdown is to allow the text extraction service to
+    // handle different types (currently has special handling for Slides and Articles),
+    // and dropdown avoids free text not matching any condition due to minor differences.
+    $materialTypes = [
+        'Slides',
+        'Article',
+        'Textbook',
+        'Video',
+        'Podcast',
+        'Website',
+        'Notes',
+        'Other',
+    ];
+    @endphp
+
     <div>
         @include('courses.wizard.header')
         <div id="app">
@@ -46,11 +63,18 @@
                                                     Please provide a material name.
                                                 </div>
                                             </div>
-                                            <div class="col-2">
+                                            <div class="col-3">
                                                 <label for="courseMaterialType" class="form-label fs-6"><b>Type</b></label>
-                                                <input id="courseMaterialType" class="form-control"
-                                                    oninput="validateMaxlength(event)" onpaste="validateMaxlength(event)"
-                                                    maxlength="191" placeholder="Textbook, video, article...">
+                                                <div class="d-flex gap-1">
+                                                    <select id="courseMaterialType" class="form-control form-select flex-grow-1">
+                                                        @foreach ($materialTypes as $materialType)
+                                                        <option value="{{ $materialType }}">{{ $materialType }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <input id="courseMaterialTypeOther" class="form-control d-none"
+                                                        oninput="validateMaxlength(event)" onpaste="validateMaxlength(event)"
+                                                        maxlength="191" placeholder="Specify type...">
+                                                </div>
                                             </div>
                                             <div class="col-2">
                                                 <label for="courseMaterialUrl" class="form-label fs-6"><b>URL</b></label>
@@ -97,57 +121,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach($courseMaterials as $index => $courseMaterial)
-                                                    <tr>
-                                                        <td>
-                                                            <input
-                                                                id="courseMaterialName{{$courseMaterial->course_material_id}}"
-                                                                type="text" class="form-control"
-                                                                oninput="validateMaxlength(event)"
-                                                                onpaste="validateMaxlength(event)" maxlength="191"
-                                                                name="current_material[{{$courseMaterial->course_material_id}}][name]"
-                                                                value="{{$courseMaterial->name}}" placeholder="Material name"
-                                                                form="saveCourseMaterialChanges" required spellcheck="true"
-                                                                style="white-space: pre">
-                                                        </td>
-                                                        <td>
-                                                            <input
-                                                                id="courseMaterialType{{$courseMaterial->course_material_id}}"
-                                                                type="text" class="form-control"
-                                                                oninput="validateMaxlength(event)"
-                                                                onpaste="validateMaxlength(event)" maxlength="191"
-                                                                name="current_material[{{$courseMaterial->course_material_id}}][type]"
-                                                                value="{{$courseMaterial->type}}" placeholder="Type"
-                                                                form="saveCourseMaterialChanges" spellcheck="true"
-                                                                style="white-space: pre">
-                                                        </td>
-                                                        <td>
-                                                            <textarea
-                                                                id="courseMaterialDescription{{$courseMaterial->course_material_id}}"
-                                                                class="form-control" rows="1"
-                                                                name="current_material[{{$courseMaterial->course_material_id}}][description]"
-                                                                placeholder="Description" form="saveCourseMaterialChanges"
-                                                                spellcheck="true">{{$courseMaterial->description}}</textarea>
-                                                        </td>
-                                                        <td>
-                                                            <input id="courseMaterialUrl{{$courseMaterial->course_material_id}}"
-                                                                type="text" class="form-control"
-                                                                name="current_material[{{$courseMaterial->course_material_id}}][url]"
-                                                                value="{{$courseMaterial->url}}" placeholder="URL"
-                                                                form="saveCourseMaterialChanges" spellcheck="true">
-                                                        </td>
-                                                        <td class="text-center">
-                                                            <input type="checkbox" class="form-check-input"
-                                                                name="current_material[{{$courseMaterial->course_material_id}}][is_required]"
-                                                                value="1" form="saveCourseMaterialChanges"
-                                                                @checked($courseMaterial->is_required)>
-                                                        </td>
-                                                        <td class="text-center">
-                                                            <i class="bi bi-x-circle-fill text-danger fs-4 btn"
-                                                                onclick="deleteCourseMaterial(this)"></i>
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
+                                                <!-- Populated via renderMaterials() -->
                                             </tbody>
                                         </table>
                                     </div>
@@ -427,7 +401,18 @@
     <template id="materialRowTemplate">
         <tr>
             <td><input class="form-control material-name" required></td>
-            <td><input class="form-control material-type"></td>
+            <td>
+                <div class="d-flex gap-1">
+                    <select class="form-control form-select material-type flex-grow-1">
+                        @foreach ($materialTypes as $materialType)
+                            <option value="{{ $materialType }}">{{ $materialType }}</option>
+                        @endforeach
+                    </select>
+                    <input class="form-control d-none material-type-other"
+                        oninput="validateMaxlength(event)" onpaste="validateMaxlength(event)"
+                        maxlength="191" placeholder="Specify type...">
+                </div>
+            </td>
             <td><textarea class="form-control material-desc" rows="1"></textarea></td>
             <td><input class="form-control material-url"></td>
             <td class="text-center">
@@ -460,23 +445,56 @@
 
             const fields = [
                 { cls: "material-name",     field: "name" },
-                { cls: "material-type",     field: "type" },
+                // { cls: "material-type",     field: "type" },
                 { cls: "material-desc",     field: "description" },
                 { cls: "material-url",      field: "url" },
                 { cls: "material-required", field: "is_required" },
             ];
 
+            // TODO: Should we just move materialTypes to JS here?
+            //       Kept in PHP for now in case we move it to DB later
+            const materialTypes = @json($materialTypes);
+
             materials.forEach((m, idx) => {
                 const templateRow = document.getElementById("materialRowTemplate").content.cloneNode(true);
                 const base = (m.id !== null) ? `current_material[${m.id}]` : `new_material[${idx}]`;
 
-                fields.forEach(({ cls, field, isCheckbox }) => {
+                fields.forEach(({ cls, field }) => {
                     const element = templateRow.querySelector(`.${cls}`);
                     element.name = `${base}[${field}]`;
                     element.setAttribute("form", "saveCourseMaterialChanges");
                     if (field === 'is_required') element.checked = m[field];
                     else element.value = m[field];
                 });
+
+
+                const typeSelect = templateRow.querySelector(".material-type");
+                const otherInput = templateRow.querySelector(".material-type-other");
+
+                typeSelect.name = `${base}[type]`;
+                typeSelect.setAttribute("form", "saveCourseMaterialChanges");
+
+                otherInput.name = `${base}[type]`;
+                otherInput.setAttribute("form", "saveCourseMaterialChanges");
+
+                if (m.type && !materialTypes.includes(m.type)) {
+                    // If we modify materialTypes to be a DB table that users can modify,
+                    // we will have to modify this logic
+                    typeSelect.value = "Other";
+                    otherInput.value = m.type;
+                    otherInput.classList.remove("d-none");
+                    otherInput.disabled = false;
+                } else {
+                    typeSelect.value = m.type;
+                    otherInput.disabled = true;
+                }
+
+                typeSelect.onchange = () => {
+                    const isOther = typeSelect.value === "Other";
+                    otherInput.classList.toggle("d-none", !isOther);
+                    otherInput.disabled = !isOther;
+                };
+
 
                 templateRow.querySelector(".delete-row").onclick = () => {
                     materials.splice(idx, 1);
@@ -489,6 +507,10 @@
 
         $(document).ready(function () {
             renderMaterials();
+
+            $('#courseMaterialType').change(function () {
+                $('#courseMaterialTypeOther').toggleClass('d-none', $(this).val() !== 'Other');
+            });
 
             //   $("form").submit(function () {
             //     // prevent duplicate form submissions
@@ -594,7 +616,10 @@
             materials.push({
                 id: null,
                 name: $('#courseMaterialName').val(),
-                type: $('#courseMaterialType').val(),
+                // TODO: What should we do if they leave the input blank after choosing 'Other'? Just store blank?
+                type: $('#courseMaterialType').val() === 'Other'
+                    ? $('#courseMaterialTypeOther').val()
+                    : $('#courseMaterialType').val(),
                 description: $('#courseMaterialDescription').val(),
                 url: $('#courseMaterialUrl').val(),
                 is_required: $('#courseMaterialRequired').is(':checked')
