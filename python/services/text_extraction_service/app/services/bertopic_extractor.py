@@ -4,7 +4,7 @@ from app.schemas import Topic
 
 from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS
 import spacy
 
 from sentence_transformers import SentenceTransformer
@@ -14,6 +14,13 @@ TOPICS_PER_CLUSTER = 10     # top words taken from each cluster
 MIN_SENTENCE_WORDS = 5     # drop sentence fragments shorter than this
 MIN_TOPIC_SIZE = 5         # min sentences to form a cluster (small docs need a low value)
 
+CUSTOM_STOP_WORDS = [
+    "et al", "et. al.", "plot", "chart", "diagram", "graph"
+    # Add more stop words as needed
+]
+# TODO: Even though it's supposedly better to pass these into the vectorizer,
+#       I seem to have gotten better results by just filtering them out in postprocessing.
+#       Should these just be moved back there then?
 
 def extract(pages: list[str]) -> list[Topic]:
     """Extract topics from text using BERTopic.
@@ -34,7 +41,7 @@ def extract(pages: list[str]) -> list[Topic]:
 
     # This prevents stop words like "etc" and "the" from being counted as topics
     # vectorizer_model = CountVectorizer(stop_words="english", ngram_range=(1, 5), main_df=2)
-    vectorizer_model = CountVectorizer(stop_words=None, ngram_range=(1, 5), min_df=2)
+    vectorizer_model = CountVectorizer(stop_words=list(ENGLISH_STOP_WORDS.union(CUSTOM_STOP_WORDS)), ngram_range=(1, 5), min_df=1)
     # TODO: Add a local copy of the model in case the HF repo is taken down
     embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
     # embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
