@@ -359,8 +359,8 @@ class SearchController extends Controller
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
-        $results = $query->whereRaw( //need to use raw SQL to support SQL functions like to_tsvector and ts_headline
-                "to_tsvector('english', course_topics.topic) @@ websearch_to_tsquery('english', ?)",
+        $results = $query->whereRaw( //need to use raw SQL to support PostgreSQL full-text search functions
+                "course_topics.search_vector @@ websearch_to_tsquery('english', ?)",
                 [$searchTerm])
             ->selectRaw("
                 courses.course_id,
@@ -398,7 +398,7 @@ class SearchController extends Controller
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
-            "to_tsvector('english', learning_outcomes.l_outcome) @@ websearch_to_tsquery('english', ?)",
+            "learning_outcomes.search_vector @@ websearch_to_tsquery('english', ?)",
             [$searchTerm])
         ->selectRaw("
             courses.course_id,
@@ -436,7 +436,7 @@ class SearchController extends Controller
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
-            "to_tsvector('english', course_description.description) @@ websearch_to_tsquery('english', ?)",
+            "course_description.search_vector @@ websearch_to_tsquery('english', ?)",
             [$searchTerm])
         ->selectRaw("
             courses.course_id,
@@ -474,7 +474,7 @@ class SearchController extends Controller
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
-            "to_tsvector('english', concat_ws(' ', course_materials.name, course_materials.type, course_materials.description)) @@ websearch_to_tsquery('english', ?)",
+            "course_materials.search_vector @@ websearch_to_tsquery('english', ?)",
             [$searchTerm])
         ->selectRaw("
             courses.course_id,
@@ -512,7 +512,7 @@ class SearchController extends Controller
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
-            "to_tsvector('english', assessment_methods.a_method) @@ websearch_to_tsquery('english', ?)",
+            "assessment_methods.search_vector @@ websearch_to_tsquery('english', ?)",
             [$searchTerm])
         ->selectRaw("
             courses.course_id,
@@ -552,7 +552,7 @@ class SearchController extends Controller
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
-                "to_tsvector('english', {$searchText}) @@ websearch_to_tsquery('english', ?)",
+                "courses.search_vector @@ websearch_to_tsquery('english', ?)",
                 [$normalizedSearchTerm]
             )
             ->selectRaw("
