@@ -10,6 +10,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        //To store and index the program name vector for direct program searches
         DB::statement("
             ALTER TABLE programs
             ADD COLUMN search_vector tsvector GENERATED ALWAYS AS (

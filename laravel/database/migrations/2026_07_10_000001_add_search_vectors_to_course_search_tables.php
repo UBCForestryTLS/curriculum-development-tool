@@ -10,6 +10,8 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // PostgreSQL automatically rebuilds generated search vectors when their source fields change, 
+        // keeping search vectors accurate and up to date
         DB::statement("
             ALTER TABLE courses
             ADD COLUMN search_vector tsvector GENERATED ALWAYS AS (
@@ -19,9 +21,12 @@ return new class extends Migration
                     coalesce(course_num::text, '') || ' ' ||
                     coalesce(course_title, '')
                 )
-            ) STORED
-        ");
-        
+            ) STORED "
+            //We combine the course code, number, and title so one vector can support the entire course identity
+            
+        );
+
+        //GIN indexes speed up full-text matching against the generated search vectors.
         DB::statement("CREATE INDEX courses_search_vector_gin_idx ON courses USING GIN (search_vector)");
 
         DB::statement("
@@ -67,8 +72,10 @@ return new class extends Migration
                     coalesce(type, '') || ' ' ||
                     coalesce(description, '')
                 )
-            ) STORED
-        ");
+            ) STORED"
+            //For materials, it searches over the name, type, and description as one searchable doc. 
+            
+        );
         DB::statement("CREATE INDEX course_materials_search_vector_gin_idx ON course_materials USING GIN (search_vector)");
     }
 

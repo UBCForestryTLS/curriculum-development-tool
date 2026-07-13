@@ -361,6 +361,8 @@ class SearchController extends Controller
 
         $results = $query->whereRaw( //need to use raw SQL to support PostgreSQL full-text search functions
                 "course_topics.search_vector @@ websearch_to_tsquery('english', ?)",
+                //this would match against the already generated vector so PostgreSQL can use its GIN index
+                //so no need to call to_tsvector() directly
                 [$searchTerm])
             ->selectRaw("
                 courses.course_id,
