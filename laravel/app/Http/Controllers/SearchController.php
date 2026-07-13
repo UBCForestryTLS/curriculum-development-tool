@@ -584,7 +584,7 @@ class SearchController extends Controller
     public function searchProgramNames(string $searchTerm){
         $results = DB::table('programs')
             ->whereRaw(
-                "to_tsvector('english', programs.program) @@ websearch_to_tsquery('english', ?)",
+                "programs.search_vector @@ websearch_to_tsquery('english', ?)",
                 [$searchTerm]
             )
             ->selectRaw("
