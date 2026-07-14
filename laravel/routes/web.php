@@ -262,17 +262,20 @@ Route::get('/courseWizard/{course}/step10', [CourseWizardController::class, 'ste
 Route::get('/search', [SearchController::class, 'index'])
     ->name('search.index');
 
-Route::post(
-    '/search/filters',
-    [SavedSearchFilterController::class, 'store']
-)->middleware(['auth', 'verified'])->name('search.filters.store');
-//before calling the controller method, we use middleware to run auth and verified to confirm the user
-//this way laravel can safely call $request->user()
 
-Route::delete(
-    '/search/filters/{savedFilterId}',
-    [SavedSearchFilterController::class, 'destroy']
+
+//Saved filter routes: before calling the controller method, we use middleware to run auth and verified to confirm the user
+//this way laravel can safely call $request->user()
+Route::post('/search/filters',[SavedSearchFilterController::class, 'store']
+)->middleware(['auth', 'verified'])->name('search.filters.store');
+
+Route::delete('/search/filters/{savedFilterId}',[SavedSearchFilterController::class, 'destroy']
 )->middleware(['auth', 'verified'])->name('search.filters.destroy');
+
+Route::get('/search/filteres/{savedFilterId}/apply', [SavedSearchFilterController::class, 'apply']
+)->middleware(['auth', 'verified'])->name('search.filters.apply');
+
+
 
 //lets blade form submit to courseTopicController@store
 Route::post('/courseTopics/store', [CourseTopicController::class, 'store'])->name('courseTopics.store');
