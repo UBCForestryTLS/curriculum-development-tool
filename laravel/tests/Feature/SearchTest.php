@@ -10,6 +10,7 @@ use App\Models\Course;
 use App\Models\CourseMaterial;
 use App\Models\CourseTopic;
 use App\Models\LearningOutcome;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class SearchTest extends TestCase
@@ -1536,6 +1537,40 @@ public function test_program_filter_only_returns_courses_in_selected_program()
     $response->assertDontSee('Climate Adaptation');
 
 
+}
+
+public function test_authenticated_user_can_save_search_filter(): void{
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->from(route('search.index'))->post(route('search.filters.store'), [
+        'name' => 'Forestry Search',
+        'view' => 'programs',
+        'property_filters_applied' => 1,
+        'properties' => ['topics', 'materials'],
+        'course_codes' => ['frst', 'CONS'],
+        'course_levels' => ['300'],
+        'program_ids' => [],
+
+    ]);
+
+    $response->assertRedirect(route('search.index'));
+    $response->assertSessionHas('success');
+
+    $this->assertDatabaseHas('saved_search_filters', [
+        'user_id' => $user->id,
+        'name' => 'Forestry Search',
+
+    ]);
+
+    $savedFilter = $user->savedSearchFilters()->where('name', 'Forestry Search')->firstOrFail();
+
+    $this->assertEquals([
+        'view' => 'programs',
+        'properties' => ['topics', 'materials'],
+        'course_codes' => ['FRST', 'CONS'],
+        'course_levels' => ['300'],
+        'program_ids' => [],
+    ], $savedFilter->filters);
 }
 
 }
