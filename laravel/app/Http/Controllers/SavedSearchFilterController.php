@@ -95,4 +95,38 @@ class SavedSearchFilterController extends Controller
 
         return redirect()->back()->with('success', 'Saved search filter deleted successfully.');
     }
+
+
+
+    /**
+     * Apply a User's saved filter preset.
+     */
+    public function apply(Request $request, int $savedFilterId): RedirectResponse{
+        $validated = $request->validate([
+            'query' => ['nullable', 'string', 'max:200']
+            //validate query because user may already have typed something in search when applying preset
+        ]);
+
+        $savedFilter = $request->user()->savedSearchFilters()->findOrFail($savedFilterId);
+        $filters = $savedFilter->filters;
+
+        $searchParameters = [
+            'query' => trim($validated['query'] ?? ''),
+            'view' => $filters['view'] ?? 'courses',
+
+            //use these "applied" flags as search controller uses these
+            'property_filters_applied' => 1,
+            'properties' => $filters['properties'] ?? [],
+
+            'course_filters_applied' => 1,
+            'course_codes' => $filters['course_codes'] ??[],
+            'course_levels' => $filters['course_levels'] ?? [],
+
+            'program_filters_applied' => 1,
+            'program_ids' => $filters['program_ids'] ?? [],
+        ];
+
+        return redirect()->route('search.index', $searchParameters);
+
+    }
 }
