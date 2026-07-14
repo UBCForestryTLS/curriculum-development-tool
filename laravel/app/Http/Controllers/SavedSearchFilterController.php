@@ -33,6 +33,7 @@ class SavedSearchFilterController extends Controller
                     ->where(fn ($query) => $query->where('user_id', $userId)),
             ],
             'view' => ['nullable', 'in:courses,programs'],
+            'property_filters_applied' => ['nullable', 'boolean'],
             'properties' => ['nullable', 'array'],
             'properties.*' => ['in:' . implode(',', $availableProperties)],
             'course_codes' => ['nullable', 'array'],
@@ -47,7 +48,9 @@ class SavedSearchFilterController extends Controller
             //filter normalization: This code block makes it so the controller creates one consistent filter structure
             //with normalized properties that are in line with the core search engine
             'view' => $validated['view'] ?? 'courses',
-            'properties' => collect($validated['properties'] ?? $availableProperties)
+            'properties' => collect(($validated['property_filters_applied'] ?? false)
+                ? ($validated['properties'] ?? [])
+                : $availableProperties)
                 ->unique()
                 ->values()
                 ->all(),
