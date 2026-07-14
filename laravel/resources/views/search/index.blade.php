@@ -371,9 +371,24 @@
                     </div>
                     <div class="form-text small">No selection searches all programs.</div>
 
-                    <button type="button" class="btn btn-link search-clear-filters px-0 mt-2" id="clearSearchFilters">
-                        Clear filters
-                    </button>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <button type="button" class="btn btn-link search-clear-filters px-0" id="clearSearchFilters">
+                            Clear filters
+                        </button>
+
+                        @auth
+                            <button
+                                type="button"
+                                class="btn btn-primary btn-sm"
+                                id="openSaveFilterModal"
+                                data-bs-toggle="modal"
+                                data-bs-target="#saveFilterModal"
+                            >
+                                Save Filter
+                            </button>
+                        @endauth
+                    </div>
+
                 </div>
 
                 <button type="submit" class="btn btn-primary search-action-button">Search</button>
@@ -386,6 +401,60 @@
             @enderror
 
         </form>
+        @auth
+            <div
+                id="saveFilterModal"
+                class="modal fade text-start"
+                tabindex="-1"
+                aria-labelledby="saveFilterModalLabel"
+                aria-hidden="true"
+            >
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="POST" action="{{ route('search.filters.store') }}" id="saveFilterForm">
+                            @csrf
+
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="saveFilterModalLabel">
+                                    Save Filter Selection
+                                </h5>
+                                <button
+                                    type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+
+                            <div class="modal-body">
+                                <label for="savedFilterName" class="form-label">
+                                    Filter Name
+                                </label>
+
+                                <input
+                                    type="text"
+                                    id="savedFilterName"
+                                    name="name"
+                                    class="form-control"
+                                    maxlength="100"
+                                    required
+                                >
+                            </div>
+
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    Cancel
+                                </button>
+                                <button type="button" class="btn btn-primary" disabled>
+                                    Save Filter
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endauth
+
     </div>
     
     @php

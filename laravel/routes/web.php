@@ -272,7 +272,7 @@ Route::post('/search/filters',[SavedSearchFilterController::class, 'store']
 Route::delete('/search/filters/{savedFilterId}',[SavedSearchFilterController::class, 'destroy']
 )->middleware(['auth', 'verified'])->name('search.filters.destroy');
 
-Route::get('/search/filteres/{savedFilterId}/apply', [SavedSearchFilterController::class, 'apply']
+Route::get('/search/filters/{savedFilterId}/apply', [SavedSearchFilterController::class, 'apply']
 )->middleware(['auth', 'verified'])->name('search.filters.apply');
 
 
