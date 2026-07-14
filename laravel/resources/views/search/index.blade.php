@@ -439,13 +439,15 @@
                                     maxlength="100"
                                     required
                                 >
+
+                                <div id="savedFilterValues"></div>
                             </div>
 
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                                     Cancel
                                 </button>
-                                <button type="button" class="btn btn-primary" disabled>
+                                <button type="submit" class="btn btn-primary">
                                     Save Filter
                                 </button>
                             </div>
@@ -797,6 +799,48 @@
                 return String(programId);
             }));
             const clearSearchFilters = document.getElementById('clearSearchFilters');
+            const openSaveFilterModal = document.getElementById('openSaveFilterModal');
+            const savedFilterValues = document.getElementById('savedFilterValues');
+
+            //Adds one selected filter as a hidden field in the save-filter form
+            function addSavedFilterValue(name, value) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                savedFilterValues.appendChild(input);
+            }
+
+            //Copies the current filter controls into the separate save-filter form
+            function prepareSavedFilterValues() {
+                savedFilterValues.innerHTML = '';
+
+                const selectedView = document.querySelector('input[name="view"]:checked');
+                addSavedFilterValue('view', selectedView ? selectedView.value : 'courses');
+                addSavedFilterValue('property_filters_applied', '1');
+
+                propertyOptions.forEach(function (option) {
+                    if (option.checked) {
+                        addSavedFilterValue('properties[]', option.value);
+                    }
+                });
+
+                selectedCourseCodes.forEach(function (courseCode) {
+                    addSavedFilterValue('course_codes[]', courseCode);
+                });
+
+                document.querySelectorAll('input[name="course_levels[]"]:checked').forEach(function (level) {
+                    addSavedFilterValue('course_levels[]', level.value);
+                });
+
+                selectedPrograms.forEach(function (programId) {
+                    addSavedFilterValue('program_ids[]', programId);
+                });
+            }
+
+            if (openSaveFilterModal && savedFilterValues) {
+                openSaveFilterModal.addEventListener('click', prepareSavedFilterValues);
+            }
 
             //Rebuilds the selected course code chips and the hidden form inputs
             function renderSelectedCourseCodes() {
