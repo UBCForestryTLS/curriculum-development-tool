@@ -10,7 +10,7 @@ class MaterialTypeHandler:
 
     def preprocess(self, text: str) -> str:
         # Remove links
-        text = re.sub(r'http:.*?/.*?\. .*(?:jpg|jpeg|png|gif|bmp|svg|webp)', '', text)
+        text = re.sub(r'(?:http|https|www):.*?/.*?\. .*(?:jpg|jpeg|png|gif|bmp|svg|webp)', '', text)
         text = re.sub(r'\b(?:http|https|www)\S*\b', '', text)
         text = re.sub(r'\b(?:jpg|jpeg|png|gif|bmp|svg|webp)\b', '', text)
         return text
@@ -42,18 +42,25 @@ class SlidesHandler(MaterialTypeHandler):
         # Add a period after newlines so bullets without punctuation are treated
         # as separate sentences.
         text = re.sub(r'(?<![.!?])\n', '. \n', text)
+        # remove bullet points • or - with a space after 
+        text = re.sub(r'(?<=\n)[•-]\s+', '', text)
         return text
 
     def extract_topics(self, pages: list[dict]) -> list[Topic]:
+        title_topics = self._title_topics(pages)
         keyword_topics = self._keyword_topics(pages)
-        return (keyword_topics)
+        # return (keyword_topics)
         # return postprocessor.process(self._title_topics(pages), filterLowerCaseSingleWords = True)
         # TODO
-        # return postprocessor.union(self._title_topics(pages), keyword_topics, filterLowerCaseSingleWords = True)
+        return postprocessor.process(
+                        postprocessor.union(title_topics, keyword_topics), 
+                        filterLowerCaseSingleWords = False
+                    )
 
     def _keyword_topics(self, pages: list[dict]) -> list[Topic]:
-        text = ". \f".join(self.preprocess(" ".join(line["text"] for line in page["lines"])) for page in pages if page["lines"])
-        return extractor.extract(text)
+        # text = ". \f".join(self.preprocess(" ".join(line["text"] for line in page["lines"])) for page in pages if page["lines"])
+        pages = [self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages]
+        return extractor.extract(pages, min_topic_size=3)
 
     def _title_topics(self, pages: list[dict]) -> list[Topic]:
         # A slide's title is simply the largest-font line on the slide.
@@ -74,14 +81,12 @@ class ArticleHandler(MaterialTypeHandler):
     def extract_topics(self, pages: list[dict]) -> list[Topic]:
         print("Page count:", len(pages))
         # TODO: Gotta make this a model of some sort to avoid the confusing dict operations
-        preprocessed_pages = [" ".join([line["text"] for line in page["lines"]]) for page in pages]        # if len(preprocessed_pages) > 0:
-        #     print(pages[0])
+        preprocessed_pages = [" ".join([line["text"] for line in page["lines"]]) for page in pages]
         print("Preprocessed pages count:", len(preprocessed_pages))
         print("Extracting topics from preprocessed_text...")
-        topics = extractor.extract(preprocessed_pages)
-        # keyword_topics = super().extract_topics(pages)
-        # return postprocessor.process(keyword_topics)
-        # TODO
+        keyword_topics = extractor.extract(preprocessed_pages)
+        heading_topics = self._heading_topics(pages)
+        topics = postprocessor.union(heading_topics, keyword_topics)
         postprocessed_topics = postprocessor.process(
             topics, 
             minTopicCharCount = 4, 
@@ -108,7 +113,8 @@ class ArticleHandler(MaterialTypeHandler):
 
     def _is_heading(self, line: dict) -> bool:
         bold = line.get("bold")
-        # bold is None for OCR (weight unknown), but require bold if non-OCR
+        # bold is None for OCR, but require bold if non-OCR
+        # Note: Tesseract does have a way to estimate bold text with some math, but results are decent as-is already.
         if line.get("size", 0.0) >= self.MIN_HEADING_SIZE and (bold or bold is None):
             return True
         else:
