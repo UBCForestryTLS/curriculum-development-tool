@@ -1,4 +1,5 @@
 import re
+import math
 
 from app.schemas import Topic
 
@@ -14,6 +15,8 @@ TOPICS_PER_CLUSTER = 10     # top words taken from each cluster
 MIN_SENTENCE_WORDS = 5     # drop sentence fragments shorter than this
 MIN_TOPIC_SIZE = 5         # min sentences to form a cluster (small docs need a low value)
 
+WORDS_TO_JUMP_RATIO = 137 # Optimized with trial and error so far
+
 CUSTOM_STOP_WORDS = [
     "et al", "et. al.", "plot", "chart", "diagram", "graph"
     # Add more stop words as needed
@@ -25,7 +28,7 @@ CUSTOM_STOP_WORDS = [
 def extract(pages: list[str]) -> list[Topic]:
     """Extract topics from text using BERTopic.
 
-    BERTopic clusters a set of documents, so the text is split into sentences and
+    BERTopic clusters a set of documents, so the text is split into pages/chunks and
     treated as the document set.
     """       
     
@@ -54,14 +57,20 @@ def extract(pages: list[str]) -> list[Topic]:
         embedding_model=embedding_model,
         vectorizer_model=vectorizer_model,
         representation_model=representation_model,
-        min_topic_size=MIN_TOPIC_SIZE,
+        min_topic_size= max(MIN_TOPIC_SIZE, 2),
+        # min_topic_size= max(len(docs), 2) if len(docs) < MIN_TOPIC_SIZE else MIN_TOPIC_SIZE,
         calculate_probabilities=False,
         verbose=True,
     )
     
     print("Configured BERTopic model, fitting to documents...")
     
-    topic_model.fit_transform(docs)
+    try:
+        topic_model.fit_transform(docs)
+    except Exception as e:
+        pass
+    finally:
+        print("Points:", topic_model.get_document_info(docs).shape[0], len(docs))
 
     topics: list[Topic] = []
     seen: set[str] = set()
@@ -70,10 +79,7 @@ def extract(pages: list[str]) -> list[Topic]:
     
     for topic_id in topic_model.get_topic_info()["Topic"]:
         print("")
-        print(f"Topic ID: {topic_id}, Name: {topic_model.get_topic(topic_id)}")
-        # TODO: Find out why genuinely relevant topics are being labelled -1 (outlier)
-        # if topic_id == -1:  # outlier cluster
-            # continue
+        # print(f"Topic ID: {topic_id}, Name: {topic_model.get_topic(topic_id)}")
         for word, score in topic_model.get_topic(topic_id)[:TOPICS_PER_CLUSTER]:
             print(f"Word: {word}, Score: {score}")
             key = word.strip().lower()
@@ -89,9 +95,13 @@ def _dedupe_plurals(pages: list[str]) -> list[str]:
     PAGE_BREAK = "<<<PAGE_BREAK>>>" # ! If this exact string appears in the text, it may cause extra splitting and suboptimal results
     print("Using NLP to filter out stop words and word variants")
     nlp_model = spacy.load("en_core_web_sm")
+    nlp_model.tokenizer.add_special_case(PAGE_BREAK, [{"ORTH": PAGE_BREAK}])
+    print(pages)
     text = PAGE_BREAK.join(pages)
     doc = nlp_model(text)
+    # print("Non filtered text:", (text))
     filtered_text = " ".join([token.lemma_ for token in doc if not token.is_stop])
+    # print("Filtered text:", (filtered_text))
     # filtered_text = " ".join([token.lemma_ for token in doc])
     pages = filtered_text.split(PAGE_BREAK)
     return pages
@@ -101,31 +111,21 @@ def _to_documents(pages: list[str]) -> list[str]:
     """Split text into paragraph-sized 'documents'"""
     
     # Strategy 1
-    # TODO: Will this splitting work well for various layouts? Eg: Multi col text layour
-    #       Note: after trying this in Strategy 3 with a 100 word limit, results seem decent
-    #             We should keep the word limit as large as possible but the number of chunks should also be large
-    #             So maybe instead of 100, we use a proportion of the total word count?
-    #             TODO: Try the above proportionate splitting after refining model parameters
-    # print("Splitting text into paragraphs")
-    # paragraphs = re.split(r"\n\s*\n", text)
-    # paragraphs = [p.strip() for p in paragraphs if len(p.split()) >= 20]
-    # return paragraphs 
-    
-    # Strategy 2 (includes refactor in other files)
-    # print(pages[0])
-    # for i, page in enumerate(pages):
-    #     print("Page", i, "word count:", len(page.split()))
         
     # Strategy 3 (somewhat mix of 1 & 2)
+    word_count = sum(len(page.split()) for page in pages)
+    # jump_size = round(word_count / WORDS_TO_JUMP_RATIO)
+    jump_size = round(math.sqrt(word_count))
+    
     paragraphs = []
     for page in pages:
         page_words = page.split()
         if len(page_words) < 20:
             paragraphs.append(page)
         else:
-            JUMP_SIZE = 100 # TODO Rename
-            for i in range(0, len(page_words), JUMP_SIZE):
-                paragraph = " ".join(page_words[i:i+JUMP_SIZE])
+            # jump_size = 100
+            for i in range(0, len(page_words), jump_size):
+                paragraph = " ".join(page_words[i:i+jump_size])
                 paragraphs.append(paragraph)
     
     return paragraphs 

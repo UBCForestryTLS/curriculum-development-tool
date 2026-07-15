@@ -6,7 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging_config import logger
 from app.schemas import ExtractRequest, ExtractResponse, PageContent
-from app.services import document_extractor, type_specific_handlers
+from app.services.text_readers import document_extractor
+from app.services.topic_extraction import type_specific_handlers
 
 
 app = FastAPI(

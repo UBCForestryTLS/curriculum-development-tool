@@ -1,8 +1,8 @@
 import regex as re
 
 from app.schemas import Topic
-from app.services import postprocessor
-from app.services import bertopic_extractor as extractor
+from app.services.topic_extraction import postprocessor
+from app.services.topic_extraction import bertopic_extractor as extractor
 
 
 class MaterialTypeHandler:
@@ -19,10 +19,7 @@ class MaterialTypeHandler:
         text = ". \f".join("\n".join(line["text"] for line in page["lines"]) for page in pages if page["lines"])
         preprocessed_text = self.preprocess(text)
         print("Extracting topics from preprocessed_text...")
-        # return extractor.extract(preprocessed_text)
-        return []
-        # TODO
-        # return postprocessor.process(extractor.extract(preprocessed_text))
+        return postprocessor.process(extractor.extract(preprocessed_text))
 
 def _to_topics(texts) -> list[Topic]:
     """De-duplicate (case-insensitive) and wrap heading texts as topics."""
@@ -55,7 +52,7 @@ class SlidesHandler(MaterialTypeHandler):
         # return postprocessor.union(self._title_topics(pages), keyword_topics, filterLowerCaseSingleWords = True)
 
     def _keyword_topics(self, pages: list[dict]) -> list[Topic]:
-        text = ". \f".join(" ".join(line["text"] for line in page["lines"]) for page in pages if page["lines"])
+        text = ". \f".join(self.preprocess(" ".join(line["text"] for line in page["lines"])) for page in pages if page["lines"])
         return extractor.extract(text)
 
     def _title_topics(self, pages: list[dict]) -> list[Topic]:
