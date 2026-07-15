@@ -383,15 +383,26 @@
                         </button>
 
                         @auth
-                            <button
-                                type="button"
-                                class="btn btn-primary btn-sm"
-                                id="openSaveFilterModal"
-                                data-bs-toggle="modal"
-                                data-bs-target="#saveFilterModal"
-                            >
-                                Save Filter
-                            </button>
+                            <div class="d-flex gap-2">
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-primary btn-sm"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#savedFiltersModal"
+                                >
+                                    View Saved Filters
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="btn btn-primary btn-sm"
+                                    id="openSaveFilterModal"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#saveFilterModal"
+                                >
+                                    Save Filter
+                                </button>
+                            </div>
                         @endauth
                     </div>
 
@@ -484,6 +495,40 @@
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                id="savedFiltersModal"
+                class="modal fade text-start"
+                tabindex="-1"
+                aria-labelledby="savedFiltersModalLabel"
+                aria-hidden="true"
+            >
+                <div class="modal-dialog modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="savedFiltersModalLabel">
+                                Saved Filters
+                            </h5>
+                            <button
+                                type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Close"
+                            ></button>
+                        </div>
+
+                        <div class="modal-body">
+                            @forelse($savedSearchFilters as $savedFilter)
+                                <div class="border-bottom py-2">
+                                    {{ $savedFilter->name }}
+                                </div>
+                            @empty
+                                <p class="mb-0 text-muted">You do not have any saved filters.</p>
+                            @endforelse
+                        </div>
                     </div>
                 </div>
             </div>

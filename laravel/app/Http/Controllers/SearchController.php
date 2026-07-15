@@ -159,6 +159,9 @@ class SearchController extends Controller
 
         $results = $this->paginateResults($results, $request); //handle many restults via pagination
         $programResults = $this->paginateResults($programResults, $request);
+        $savedSearchFilters = $request->user()
+            ? $request->user()->savedSearchFilters()->latest()->get()
+            : collect();
 
         return view('search.index', [
             'searchTerm' => $searchTerm,
@@ -176,6 +179,7 @@ class SearchController extends Controller
             'availablePrograms' => $availablePrograms,
             'selectedProgramIds' => $selectedProgramIds,
             'selectedProgramNames' => $selectedProgramNames,
+            'savedSearchFilters' => $savedSearchFilters,
         ]);
         
 }
