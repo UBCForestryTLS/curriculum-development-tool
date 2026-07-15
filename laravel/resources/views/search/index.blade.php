@@ -522,8 +522,33 @@
 
                         <div class="modal-body">
                             @forelse($savedSearchFilters as $savedFilter)
-                                <div class="border-bottom py-2">
-                                    {{ $savedFilter->name }}
+                                <div class="d-flex justify-content-between align-items-center gap-3 border-bottom py-2">
+                                    <span>{{ $savedFilter->name }}</span>
+
+                                    <div class="d-flex gap-2">
+                                        <a
+                                            href="{{ route('search.filters.apply', [
+                                                'savedFilterId' => $savedFilter->id,
+                                                'query' => $searchTerm,
+                                            ]) }}"
+                                            class="btn btn-primary btn-sm"
+                                        >
+                                            Apply
+                                        </a>
+
+                                        <form
+                                            method="POST"
+                                            action="{{ route('search.filters.destroy', $savedFilter->id) }}"
+                                            onsubmit="return confirm('Delete this saved filter?')"
+                                        >
+                                            @csrf
+                                            @method('DELETE')
+
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             @empty
                                 <p class="mb-0 text-muted">You do not have any saved filters.</p>
