@@ -4,7 +4,7 @@ import math
 from app.schemas import Topic
 
 from bertopic import BERTopic
-from bertopic.representation import KeyBERTInspired
+from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
 from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS
 from umap import UMAP
 import spacy
@@ -28,7 +28,7 @@ CUSTOM_STOP_WORDS = [
     "cm", "mm", "m", "km", "ha", "m3", "m2", "m³", "m²", "g", "kg", "t", "tonne", "tonnes", "°C", "°F", "K"
 ]
 
-def extract(pages: list[str], min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
+def extract(text: str, min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
     """Extract topics from text using BERTopic.
 
     BERTopic clusters a set of documents, so the text is split into pages/chunks and
@@ -37,7 +37,7 @@ def extract(pages: list[str], min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
     
     print("BERTopic extraction starting...")
 
-    deduped_pages = _dedupe_plurals(pages)
+    deduped_pages = _dedupe_plurals(text)
     docs = _to_documents(deduped_pages)
     print(f"Split text into {len(docs)} documents for topic extraction")
     print("Extracting topics from text...")
@@ -51,9 +51,8 @@ def extract(pages: list[str], min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
                         )
     # TODO: Add a local copy of the model in case the HF repo is taken down
     embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
-    # embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    # embedding_model = SentenceTransformer("ViktorDo/EcoBERT-Pretrained")
-    representation_model = KeyBERTInspired(top_n_words=30)
+    # representation_model = KeyBERTInspired(top_n_words=30)
+    representation_model = MaximalMarginalRelevance(diversity=0.8)
     
     umap_model = UMAP(
         n_neighbors=15, 
@@ -102,34 +101,24 @@ def extract(pages: list[str], min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
                 topics.append(Topic(topic = word.strip(), score = 1 - round(float(score), 4)))
     return topics[:TOPICS_COUNT]
 
-def _dedupe_plurals(pages: list[str]) -> list[str]:
+def _dedupe_plurals(text: str) -> str:
     """Remove plurals with NLP before performing BERTopic extraction"""
-    # TODO: Should get a list of technical Forestry words perhaps to avoid filtering them out
     print("Using NLP to filter out stop words and word variants")
     nlp_model = spacy.load("en_core_web_sm")
     nlp_model.tokenizer.add_special_case(PAGE_BREAK, [{"ORTH": PAGE_BREAK}])
-    print(pages)
-    text = PAGE_BREAK.join(pages)
     doc = nlp_model(text)
-    # print("Non filtered text:", (text))
     filtered_text = " ".join([token.lemma_ for token in doc if not token.is_stop])
-    # print("Filtered text:", (filtered_text))
-    # filtered_text = " ".join([token.lemma_ for token in doc])
-    # pages = filtered_text.split(PAGE_BREAK.lower())
-    pages = re.split(PAGE_BREAK, filtered_text, flags=re.IGNORECASE)
-    print("Filtered pages:", pages)
-    return pages
+    return filtered_text
     
 
-def _to_documents(pages: list[str]) -> list[str]:
+def _to_documents(text: str) -> list[str]:
     """Split text into paragraph-sized 'documents'"""
     
-    word_count = sum(len(page.split()) for page in pages)
+    word_count = len(text.split())
     # jump_size = round(word_count / WORDS_TO_JUMP_RATIO)
     jump_size = round(math.sqrt(word_count))
     
     paragraphs = []
-    text = ' \f '.join(pages)
     words = text.split()
     for i in range(0, len(words), jump_size):
         paragraph = " ".join(words[i:i+jump_size])

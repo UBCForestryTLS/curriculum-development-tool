@@ -59,8 +59,8 @@ class SlidesHandler(MaterialTypeHandler):
 
     def _keyword_topics(self, pages: list[dict]) -> list[Topic]:
         # text = ". \f".join(self.preprocess(" ".join(line["text"] for line in page["lines"])) for page in pages if page["lines"])
-        pages = [self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages]
-        return extractor.extract(pages, min_topic_size=3)
+        text = ". \f".join([self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages])
+        return extractor.extract(text, min_topic_size=3)
 
     def _title_topics(self, pages: list[dict]) -> list[Topic]:
         # A slide's title is simply the largest-font line on the slide.
@@ -78,13 +78,24 @@ class SlidesHandler(MaterialTypeHandler):
 
 class ArticleHandler(MaterialTypeHandler):
     MIN_HEADING_SIZE = 10.0
+    
+    def preprocess(self, text: str) -> str:
+        text = super().preprocess(text)
+        
+        # Find the final occurrence of 'Citations' or 'References'
+        match = re.search(r'\b(?:Citations|References)\b', text, flags=re.IGNORECASE)
+        if match:
+            return text[:match.start()]
+        else:
+            return text
+    
     def extract_topics(self, pages: list[dict]) -> list[Topic]:
         print("Page count:", len(pages))
         # TODO: Gotta make this a model of some sort to avoid the confusing dict operations
-        preprocessed_pages = [" ".join([line["text"] for line in page["lines"]]) for page in pages]
-        print("Preprocessed pages count:", len(preprocessed_pages))
+        text = ". \f".join([self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages])
+        print("Preprocessed pages count:", len(text))
         print("Extracting topics from preprocessed_text...")
-        keyword_topics = extractor.extract(preprocessed_pages)
+        keyword_topics = extractor.extract(text)
         heading_topics = self._heading_topics(pages)
         topics = postprocessor.union(heading_topics, keyword_topics)
         postprocessed_topics = postprocessor.process(
