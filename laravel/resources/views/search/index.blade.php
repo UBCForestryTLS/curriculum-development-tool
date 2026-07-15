@@ -233,6 +233,12 @@
     </style>
 
     <div class="search-page-header text-center">
+        @if(session('success'))
+            <div class="alert alert-success" role="alert">
+                {{ session('success') }}
+            </div>
+        @endif
+
         <h1 class="mb-3">Course Search</h1>
 
         <form method="GET" action="{{ route('search.index') }}" id="courseSearchForm">
@@ -435,12 +441,38 @@
                                     type="text"
                                     id="savedFilterName"
                                     name="name"
-                                    class="form-control"
+                                    value="{{ old('name') }}"
+                                    class="form-control @error('name') is-invalid @enderror"
                                     maxlength="100"
                                     required
                                 >
 
-                                <div id="savedFilterValues"></div>
+                                @error('name')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+
+                                <div id="savedFilterValues">
+                                    @if($errors->has('name'))
+                                        <input type="hidden" name="view" value="{{ old('view', 'courses') }}">
+                                        <input type="hidden" name="property_filters_applied" value="1">
+
+                                        @foreach((array) old('properties', []) as $property)
+                                            <input type="hidden" name="properties[]" value="{{ $property }}">
+                                        @endforeach
+
+                                        @foreach((array) old('course_codes', []) as $courseCode)
+                                            <input type="hidden" name="course_codes[]" value="{{ $courseCode }}">
+                                        @endforeach
+
+                                        @foreach((array) old('course_levels', []) as $courseLevel)
+                                            <input type="hidden" name="course_levels[]" value="{{ $courseLevel }}">
+                                        @endforeach
+
+                                        @foreach((array) old('program_ids', []) as $programId)
+                                            <input type="hidden" name="program_ids[]" value="{{ $programId }}">
+                                        @endforeach
+                                    @endif
+                                </div>
                             </div>
 
                             <div class="modal-footer">
@@ -1029,6 +1061,13 @@
 
             renderSelectedCourseCodes();
             renderSelectedPrograms();
+
+            @if($errors->has('name'))
+                const saveFilterModal = document.getElementById('saveFilterModal');
+                if (saveFilterModal) {
+                    window.bootstrap.Modal.getOrCreateInstance(saveFilterModal).show();
+                }
+            @endif
         });
     </script>
 @endsection
