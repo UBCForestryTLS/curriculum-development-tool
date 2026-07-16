@@ -8,6 +8,17 @@ from app.services.topic_extraction import bertopic_extractor as extractor
 class MaterialTypeHandler:
     """Base handler - extracts keywords from text only"""
 
+    def match_topics(self, text: str, topics: list[str], min_count: int = 1) -> list[str]:
+        from app.services.topic_extraction.faiss_topic_matcher import FaissTopicMatcher  # noqa: F401
+        # return FaissTopicMatcher().match(text, topics, min_count=min_count)
+
+        matched: list[str] = []
+        for topic in topics:
+            pattern = re.compile(rf'(?<!\S){re.escape(topic)}(?!\S)', re.IGNORECASE | re.UNICODE)
+            if len(pattern.findall(text)) >= min_count:
+                matched.append(topic)
+        return matched
+
     def preprocess(self, text: str) -> str:
         # Remove links
         text = re.sub(r'(?:http|https|www):.*?/.*?\. .*(?:jpg|jpeg|png|gif|bmp|svg|webp)', '', text)
@@ -49,12 +60,11 @@ class SlidesHandler(MaterialTypeHandler):
     def extract_topics(self, pages: list[dict]) -> list[Topic]:
         title_topics = self._title_topics(pages)
         keyword_topics = self._keyword_topics(pages)
-        # return (keyword_topics)
-        # return postprocessor.process(self._title_topics(pages), filterLowerCaseSingleWords = True)
-        # TODO
         return postprocessor.process(
                         postprocessor.union(title_topics, keyword_topics), 
-                        filterLowerCaseSingleWords = False
+                        filterLowerCaseSingleWords = False,
+                        # TODO: Remove 1 - score to revert to higher is better everywhere
+                        scoreThreshold = 0.8 # Lower score is better
                     )
 
     def _keyword_topics(self, pages: list[dict]) -> list[Topic]:
