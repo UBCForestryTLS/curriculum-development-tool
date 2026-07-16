@@ -1573,4 +1573,27 @@ public function test_authenticated_user_can_save_search_filter(): void{
     ], $savedFilter->filters);
 }
 
+public function test_applied_saved_filter_is_shown_as_the_current_preset(): void
+{
+    $user = User::factory()->create();
+    $savedFilter = $user->savedSearchFilters()->create([
+        'name' => 'Forestry Topics',
+        'filters' => [
+            'view' => 'courses',
+            'properties' => ['topics'],
+            'course_codes' => [],
+            'course_levels' => [],
+            'program_ids' => [],
+        ],
+    ]);
+
+    $response = $this->actingAs($user)->get(route('search.index', [
+        'saved_filter_id' => $savedFilter->id,
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('Current preset:');
+    $response->assertSee('Forestry Topics');
+}
+
 }
