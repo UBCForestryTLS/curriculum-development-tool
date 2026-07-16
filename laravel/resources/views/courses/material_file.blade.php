@@ -21,7 +21,7 @@
 
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">Extraction Details</h6>
+            <h6 class="mb-0">File Details</h6>
             <div class="d-flex align-items-center flex-wrap gap-2">
                 @if ($file->ocr_enabled)
                     @php
@@ -121,18 +121,53 @@
 
     <div class="card mb-3">
         <div class="card-header">
-            <h6 class="mb-0">Extracted Topics</h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Topics</h6>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" id="add-topic-btn" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-plus-lg"></i> Add
+                    </button>
+                    <button type="button" id="edit-topics-btn" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-pencil-square"></i> Edit
+                    </button>
+                    <button type="button" id="save-topics-btn" class="btn btn-sm btn-success d-none">
+                        <i class="bi bi-check-lg"></i> Save
+                    </button>
+                    <button type="button" id="cancel-topics-btn" class="btn btn-sm btn-outline-secondary d-none">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </button>
+                </div>
+            </div>
         </div>
+
         <div class="card-body">
-            @if ($file->topics->isEmpty())
-                <p class="text-muted mb-0 small">
-                    No topics were extracted from this file.
-                </p>
-            @else
-                @foreach ($file->topics as $topic)
-                    <span class="badge bg-light text-dark border me-1 mb-1 fw-normal">{{ $topic->topic }}</span>
-                @endforeach
-            @endif
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0" id="topics-table">
+                    <thead>
+                        <tr>
+                            <th>Topic</th>
+                            <th class="topic-actions-col d-none">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topics-tbody">
+                        @forelse ($file->topics as $topic)
+                            <tr class="topic-row" data-topic-id="{{ $topic->course_topic_id }}">
+                                <td>
+                                    <span class="topic-display">{{ $topic->topic }}</span>
+                                    <input type="text" class="form-control form-control-sm topic-input d-none" value="{{ $topic->topic }}">
+                                </td>
+                                <td class="topic-actions-col d-none">
+                                    <button type="button" class="btn btn-sm btn-outline-danger topic-delete-btn">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <div></div>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -155,7 +190,7 @@
                 </div>
             @elseif ($file->chunks->isEmpty())
                 @if ($file->ocr_enabled)
-                    <p class="text-muted mb-0">No text was recovered. OCR did not find readable content in this PDF.</p>
+                    <p class="text-muted mb-0">No text was extracted. Try increasing the OCR threshold or making the scan clearer. If OCR is not required, please try re-uploading with OCR disabled.</p>
                 @else
                     <p class="text-muted mb-0">No text was extracted. Try re-uploading with the OCR option enabled.</p>
                 @endif
@@ -178,9 +213,152 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+
+    const tbody = document.getElementById('topics-tbody');
+    const editBtn = document.getElementById('edit-topics-btn');
+    const saveBtn = document.getElementById('save-topics-btn');
+    const cancelBtn = document.getElementById('cancel-topics-btn');
+    const addBtn = document.getElementById('add-topic-btn');
+
+    const updateUrl = '{{ route("course.material.files.topics.update", [$course_id, $material_id, $file->course_material_file_id]) }}';
+    const csrfToken = '{{ csrf_token() }}';
+
+    let editMode = false;
+
+    let topics = [
+        @foreach ($file->topics as $topic)
+            { id: {{ $topic->course_topic_id }}, text: @json($topic->topic) },
+        @endforeach
+    ];
+
+    function renderNoTopics() {
+        return `
+            <tr id="empty-topics-row">
+                <td colspan="2" class="text-muted small">
+                    No topics were extracted from this file.
+                </td>
+            </tr>
+        `;
+    }
+
+
+    function renderTopics() {
+        tbody.innerHTML = '';
+
+        if (topics.length === 0) {
+            tbody.innerHTML = renderNoTopics();
+            return;
+        }
+
+        topics.forEach((t, index) => {
+            const row = document.createElement('tr');
+            row.className = 'topic-row';
+            row.dataset.index = index;
+
+            row.innerHTML = `
+                <td>
+                    <span class="topic-display ${editMode ? 'd-none' : ''}">${t.text}</span>
+                    <input type="text" class="form-control form-control-sm topic-input ${editMode ? '' : 'd-none'}"
+                           value="${t.text}">
+                </td>
+                <td class="topic-actions-col ${editMode ? '' : 'd-none'}">
+                    <button type="button" class="btn btn-sm btn-outline-danger topic-delete-btn">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        });
+    }
+
+    function setEditMode(enabled) {
+        editMode = enabled;
+
+        editBtn.classList.toggle('d-none', enabled);
+        addBtn.classList.toggle('d-none', !enabled);
+        saveBtn.classList.toggle('d-none', !enabled);
+        cancelBtn.classList.toggle('d-none', !enabled);
+
+        renderTopics();
+    }
+
+    tbody.addEventListener('click', e => {
+        const btn = e.target.closest('.topic-delete-btn');
+        if (!btn) return;
+
+        const row = btn.closest('.topic-row');
+        const index = parseInt(row.dataset.index, 10);
+
+        topics.splice(index, 1);
+        renderTopics();
     });
+    editBtn.addEventListener('click', () => {
+        setEditMode(true);
+    });
+
+    addBtn.addEventListener('click', () => {
+        topics.unshift({ id: null, text: '' });
+        setEditMode(true);
+
+        renderTopics();
+
+        const firstInput = tbody.querySelector('.topic-input');
+        if (firstInput) firstInput.focus();
+    });
+
+    tbody.addEventListener('input', e => {
+        const input = e.target.closest('.topic-input');
+        if (!input) return;
+
+        const row = input.closest('.topic-row');
+        const index = parseInt(row.dataset.index, 10);
+
+        topics[index].text = input.value;
+    });
+
+    saveBtn.addEventListener('click', () => {
+        const cleaned = topics
+            .map(t => ({ id: t.id, text: t.text.trim() }))
+            .filter(t => t.text !== '');
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = updateUrl;
+
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = '_token';
+        csrf.value = csrfToken;
+        form.appendChild(csrf);
+
+        cleaned.forEach((topic, index) => {
+            const idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = `topics[${index}][id]`;
+            idInput.value = topic.id || '';
+            form.appendChild(idInput);
+
+            const textInput = document.createElement('input');
+            textInput.type = 'hidden';
+            textInput.name = `topics[${index}][text]`;
+            textInput.value = topic.text;
+            form.appendChild(textInput);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+    });
+
+    cancelBtn.addEventListener('click', () => {
+        location.reload();
+    });
+
+    // Initial render
+    renderTopics();
+});
 </script>
 
 <style>

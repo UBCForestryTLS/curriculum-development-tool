@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\IndexCourseMaterial;
 use App\Models\CourseMaterialFile;
+use App\Models\CourseTopic;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -170,6 +171,93 @@ class CourseMaterialFileController extends Controller
             'material_id' => $material_id,
         ]);
     }
+
+    public function updateTopics(Request $request, $course_id, $material_id, $file_id)
+    {
+        $this->assertIsEditor((int) $course_id);
+
+        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
+            ->where('course_material_id', $material_id)
+            ->where('course_id', $course_id)
+            ->firstOrFail();
+
+        $request->validate([
+            'topics' => 'required|array',
+            'topics.*.id' => 'nullable',
+            'topics.*.text' => 'required|string|min:1|max:255',
+        ]);
+
+        DB::transaction(function () use ($file, $request, $course_id) {
+
+            $file->topics()->detach();
+
+            foreach ($request->input('topics', []) as $topicData) {
+
+                $text = trim($topicData['text']);
+                $normalized = $text;
+
+                // Check if topic already exists in this course
+                $existing = CourseTopic::where('course_id', $course_id)
+                    ->whereRaw('LOWER(topic) = ?', [strtolower($normalized)])
+                    ->first();
+
+                // User Edited an existing topic
+                if (!empty($topicData['id'])) {
+
+                    $current = CourseTopic::find($topicData['id']);
+
+                    if ($existing && $existing->course_topic_id !== $current->course_topic_id) {
+                        // If the topic already exists, just associate it with this file
+                        $file->topics()->attach($existing->course_topic_id);
+
+                    } else {
+                        // If the topic is only used by this file, edit it directly
+                        // If it is used by other files, create a new topic to associate to this file
+
+                        // After detach, count how many OTHER files still reference this topic.
+                        // 0 = no other file uses it, so can update directly
+                        $usageCount = DB::table('course_material_file_topic')
+                            ->where('course_topic_id', $current->course_topic_id)
+                            ->count();
+
+                        if ($usageCount === 0) {
+                            $current->update(['topic' => $normalized]);
+                            $file->topics()->attach($current->course_topic_id);
+
+                        } else {
+                            $newTopic = CourseTopic::create([
+                                'course_id' => $course_id,
+                                'topic' => $normalized,
+                                'position' => 0,
+                            ]);
+
+                            $file->topics()->attach($newTopic->course_topic_id);
+                        }
+                    }
+
+                } else {
+
+                    // User added a new topic
+                    if ($existing) {
+                        // Reuse existing topic
+                        $file->topics()->attach($existing->course_topic_id);
+
+                    } else {
+                        $new = CourseTopic::create([
+                            'course_id' => $course_id,
+                            'topic' => $normalized,
+                            'position' => 0,
+                        ]);
+
+                        $file->topics()->attach($new->course_topic_id);
+                    }
+                }
+            }
+        });
+
+        return redirect()->back()->with('success', 'Topics updated successfully.');
+    }
+
 
     private function assertIsEditor(int $course_id): void
     {
