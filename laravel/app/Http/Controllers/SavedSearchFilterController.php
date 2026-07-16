@@ -115,6 +115,7 @@ class SavedSearchFilterController extends Controller
 
         $searchParameters = [
             'query' => trim($validated['query'] ?? ''),
+            'saved_filter_id' => $savedFilter->id,
             'view' => $filters['view'] ?? 'courses',
 
             //use these "applied" flags as search controller uses these

@@ -23,6 +23,7 @@ class SearchController extends Controller
 
         $validated = $request->validate([
             'query' => ['nullable', 'string', 'max:200'],
+            'saved_filter_id' => ['nullable', 'integer'],
             'view' => ['nullable', 'in:courses,programs'],
             'property_filters_applied' => ['nullable', 'boolean'],
             'properties' => ['nullable', 'array'],
@@ -162,6 +163,9 @@ class SearchController extends Controller
         $savedSearchFilters = $request->user()
             ? $request->user()->savedSearchFilters()->latest()->get()
             : collect();
+        $currentSavedFilter = isset($validated['saved_filter_id'])
+            ? $savedSearchFilters->firstWhere('id', $validated['saved_filter_id'])
+            : null;
 
         return view('search.index', [
             'searchTerm' => $searchTerm,
@@ -180,6 +184,7 @@ class SearchController extends Controller
             'selectedProgramIds' => $selectedProgramIds,
             'selectedProgramNames' => $selectedProgramNames,
             'savedSearchFilters' => $savedSearchFilters,
+            'currentSavedFilter' => $currentSavedFilter,
         ]);
         
 }

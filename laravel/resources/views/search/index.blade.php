@@ -239,6 +239,9 @@
             <input type="hidden" name="property_filters_applied" value="1">
             <input type="hidden" name="course_filters_applied" value="1">
             <input type="hidden" name="program_filters_applied" value="1">
+            @if($currentSavedFilter)
+                <input type="hidden" name="saved_filter_id" id="currentSavedFilterId" value="{{ $currentSavedFilter->id }}">
+            @endif
 
             <div class="input-group">
                 <input
@@ -284,6 +287,13 @@
                             <i class="bi bi-diagram-3 me-1"></i> Programs
                         </label>
                     </div>
+
+                    @if($currentSavedFilter)
+                        <div class="small text-muted mt-2">
+                            <i class="bi bi-bookmark-check me-1"></i>
+                            Current preset: <strong>{{ $currentSavedFilter->name }}</strong>
+                        </div>
+                    @endif
 
                     <div class="search-filter-heading mt-2">Properties</div>
 
@@ -913,6 +923,32 @@
             const openSaveFilterModal = document.getElementById('openSaveFilterModal');
             const openSavedFiltersModal = document.getElementById('openSavedFiltersModal');
             const savedFilterValues = document.getElementById('savedFilterValues');
+            const currentSavedFilterInput = document.getElementById('currentSavedFilterId');
+
+            function getCurrentFilterState() {
+                const selectedView = document.querySelector('input[name="view"]:checked');
+
+                return JSON.stringify({
+                    view: selectedView ? selectedView.value : 'courses',
+                    properties: propertyOptions
+                        .filter(function (option) { return option.checked; })
+                        .map(function (option) { return option.value; })
+                        .sort(),
+                    courseCodes: Array.from(selectedCourseCodes).sort(),
+                    courseLevels: Array.from(document.querySelectorAll('input[name="course_levels[]"]:checked'))
+                        .map(function (level) { return level.value; })
+                        .sort(),
+                    programs: Array.from(selectedPrograms).sort(),
+                });
+            }
+
+            const savedPresetFilterState = currentSavedFilterInput ? getCurrentFilterState() : null;
+
+            searchForm.addEventListener('submit', function () {
+                if (currentSavedFilterInput && getCurrentFilterState() !== savedPresetFilterState) {
+                    currentSavedFilterInput.disabled = true;
+                }
+            });
 
             function closeSearchFilterMenu() {
                 window.bootstrap.Dropdown.getOrCreateInstance(searchFiltersButton).hide();
@@ -1139,6 +1175,9 @@
                 propertyOptions.forEach(function (option) {
                     option.disabled = false;
                 });
+                if (currentSavedFilterInput) {
+                    currentSavedFilterInput.disabled = true;
+                }
                 searchForm.submit();
             });
 
