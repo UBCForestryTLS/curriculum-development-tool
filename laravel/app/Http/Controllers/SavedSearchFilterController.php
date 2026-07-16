@@ -130,7 +130,10 @@ class SavedSearchFilterController extends Controller
             'program_ids' => $filters['program_ids'] ?? [],
         ];
 
-        return redirect()->route('search.index', $searchParameters);
+        return redirect()
+            ->route('search.index', $searchParameters)
+            ->with('success', 'Filter preset applied.')
+            ->with('preset_applied', true);
 
     }
 }

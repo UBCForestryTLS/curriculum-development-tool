@@ -126,7 +126,7 @@ class SearchController extends Controller
             'materials' => 0,
         ];
 
-        if($searchTerm !== ''){
+        if($searchTerm !== '' && !$request->session()->get('preset_applied', false)){
             $resultsAndStats = $this->searchCourses(
                 $searchTerm,
                 $selectedProperties,
