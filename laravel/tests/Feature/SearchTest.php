@@ -1576,6 +1576,16 @@ public function test_authenticated_user_can_save_search_filter(): void{
 public function test_applied_saved_filter_is_shown_as_the_current_preset(): void
 {
     $user = User::factory()->create();
+    $this->createCourseScaleCategory();
+    $course = Course::factory()->create([
+        'course_code' => 'FRST',
+        'course_num' => 300,
+        'course_title' => 'Climate Forestry',
+    ]);
+    CourseTopic::factory()->create([
+        'course_id' => $course->course_id,
+        'topic' => 'climate adaptation',
+    ]);
     $savedFilter = $user->savedSearchFilters()->create([
         'name' => 'Forestry Topics',
         'filters' => [
@@ -1587,13 +1597,17 @@ public function test_applied_saved_filter_is_shown_as_the_current_preset(): void
         ],
     ]);
 
-    $response = $this->actingAs($user)->get(route('search.index', [
-        'saved_filter_id' => $savedFilter->id,
+    $applyResponse = $this->actingAs($user)->get(route('search.filters.apply', [
+        'savedFilterId' => $savedFilter->id,
+        'query' => 'climate',
     ]));
+    $applyResponse->assertSessionHas('success', 'Filter preset applied.');
 
+    $response = $this->get($applyResponse->headers->get('Location'));
     $response->assertStatus(200);
     $response->assertSee('Current preset:');
     $response->assertSee('Forestry Topics');
+    $response->assertDontSee('Climate Forestry');
 }
 
 }
