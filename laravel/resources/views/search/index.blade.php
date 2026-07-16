@@ -233,12 +233,6 @@
     </style>
 
     <div class="search-page-header text-center">
-        @if(session('success'))
-            <div class="alert alert-success" role="alert">
-                {{ session('success') }}
-            </div>
-        @endif
-
         <h1 class="mb-3">Course Search</h1>
 
         <form method="GET" action="{{ route('search.index') }}" id="courseSearchForm">
@@ -260,7 +254,7 @@
                     class="btn btn-outline-secondary search-action-button search-filter-button"
                     id="searchFiltersButton"
                     data-bs-toggle="dropdown"
-                    data-bs-auto-close="outside"
+                    data-bs-auto-close="false"
                     aria-expanded="false"
                     aria-label="Search settings"
                     title="Search settings"
@@ -269,7 +263,15 @@
                 </button>
 
                 <div class="dropdown-menu dropdown-menu-end search-filter-menu" aria-labelledby="searchFiltersButton">
-                    <div class="search-filter-heading">View</div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="search-filter-heading mb-0">View</div>
+                        <button
+                            type="button"
+                            class="btn-close"
+                            id="closeSearchFilters"
+                            aria-label="Close search settings"
+                        ></button>
+                    </div>
 
                     <div class="btn-group w-100 search-view-toggle" role="group" aria-label="Search result view">
                         <input type="radio" class="btn-check" name="view" id="courseView" value="courses" @checked($selectedView === 'courses') autocomplete="off">
@@ -387,6 +389,7 @@
                                 <button
                                     type="button"
                                     class="btn btn-outline-primary btn-sm"
+                                    id="openSavedFiltersModal"
                                     data-bs-toggle="modal"
                                     data-bs-target="#savedFiltersModal"
                                 >
@@ -425,6 +428,8 @@
                 tabindex="-1"
                 aria-labelledby="saveFilterModalLabel"
                 aria-hidden="true"
+                data-bs-backdrop="static"
+                data-bs-keyboard="false"
             >
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -505,6 +510,8 @@
                 tabindex="-1"
                 aria-labelledby="savedFiltersModalLabel"
                 aria-hidden="true"
+                data-bs-backdrop="static"
+                data-bs-keyboard="false"
             >
                 <div class="modal-dialog modal-dialog-scrollable">
                     <div class="modal-content">
@@ -901,8 +908,17 @@
                 return String(programId);
             }));
             const clearSearchFilters = document.getElementById('clearSearchFilters');
+            const searchFiltersButton = document.getElementById('searchFiltersButton');
+            const closeSearchFilters = document.getElementById('closeSearchFilters');
             const openSaveFilterModal = document.getElementById('openSaveFilterModal');
+            const openSavedFiltersModal = document.getElementById('openSavedFiltersModal');
             const savedFilterValues = document.getElementById('savedFilterValues');
+
+            function closeSearchFilterMenu() {
+                window.bootstrap.Dropdown.getOrCreateInstance(searchFiltersButton).hide();
+            }
+
+            closeSearchFilters.addEventListener('click', closeSearchFilterMenu);
 
             //Adds one selected filter as a hidden field in the save-filter form
             function addSavedFilterValue(name, value) {
@@ -941,7 +957,14 @@
             }
 
             if (openSaveFilterModal && savedFilterValues) {
-                openSaveFilterModal.addEventListener('click', prepareSavedFilterValues);
+                openSaveFilterModal.addEventListener('click', function () {
+                    prepareSavedFilterValues();
+                    closeSearchFilterMenu();
+                });
+            }
+
+            if (openSavedFiltersModal) {
+                openSavedFiltersModal.addEventListener('click', closeSearchFilterMenu);
             }
 
             //Rebuilds the selected course code chips and the hidden form inputs
