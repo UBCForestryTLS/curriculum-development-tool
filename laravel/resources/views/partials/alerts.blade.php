@@ -25,7 +25,7 @@
 @if(session('success'))
     <div class="alert alert-success alert-dismissible fade show py-2 px-3 mx-auto auto-dismiss-alert" style="max-width: 780px;" role="alert">
         {{ session('success') }}
-        <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+        <button type="button" class="btn-close top-50 translate-middle-y" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 @endif
 
