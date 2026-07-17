@@ -1041,13 +1041,12 @@
                 const searchText = courseCodeSearch.value.trim().toLowerCase();
                 courseCodeOptionsContainer.innerHTML = '';
 
-                //do not show already selected course codes and keep the dropdown short
+                // Do not show course codes that are already selected.
                 const matchingCourseCodes = courseCodeOptions
                     .filter(function (courseCode) {
                         return !selectedCourseCodes.has(courseCode)
                             && (!searchText || courseCode.toLowerCase().includes(searchText));
-                    })
-                    .slice(0, 8);
+                    });
 
                 if (matchingCourseCodes.length === 0) {
                     courseCodeOptionsContainer.style.display = 'none';
@@ -1128,8 +1127,7 @@
 
                         return !selectedPrograms.has(programId)
                             && (!searchText || program.program.toLowerCase().includes(searchText));
-                    })
-                    .slice(0, 8);
+                    });
 
                 if (matchingPrograms.length === 0) {
                     programOptionsContainer.style.display = 'none';
@@ -1178,7 +1176,6 @@
                 if (currentSavedFilterInput) {
                     currentSavedFilterInput.disabled = true;
                 }
-                searchForm.submit();
             });
 
             document.addEventListener('click', function (event) {
