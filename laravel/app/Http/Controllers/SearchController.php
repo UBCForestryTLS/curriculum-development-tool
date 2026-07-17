@@ -137,7 +137,8 @@ class SearchController extends Controller
             $results = $resultsAndStats['results'];
             $stats = $resultsAndStats['stats'];
             $programMatches = $this->searchProgramNames($searchTerm);
-            $programResults = $this->groupCourseResultsByProgram($results, $programMatches);
+            $programResults = $this->groupCourseResultsByProgram($results,$programMatches,$selectedProgramIds);
+
             $stats['programs'] = $programResults->count();
             $courseQuickLinks = $results;
             $programQuickLinks = $programResults;
@@ -644,13 +645,20 @@ class SearchController extends Controller
      * @param Collection $courseResults The combined matching course results and their programs
      * @param Collection $programMatches Programs whose names directly matched the search term
      *
+     * @param array $selectedProgramIds Program IDs used to limit Program view groups.
+     *
      * @return Collection One result per program containing its matching courses
      */
-    public function groupCourseResultsByProgram(Collection $courseResults, Collection $programMatches): Collection
-    {
+    public function groupCourseResultsByProgram(Collection $courseResults, Collection $programMatches, array $selectedProgramIds): Collection {
         $programResults = collect();
 
         foreach ($programMatches as $match) {
+            if (! empty($selectedProgramIds) && ! in_array($match->program_id, $selectedProgramIds)) {
+                continue;
+                //skip programs that were not selected by user filters (so the program view does not return non-selected programs)
+                //filters direct program-name matches
+            }
+
             $programResults[$match->program_id] = (object) [
                 'program_id' => $match->program_id,
                 'program' => $match->program,
@@ -662,6 +670,12 @@ class SearchController extends Controller
 
         foreach ($courseResults as $course) {
             foreach ($course->programs as $program) {
+                if (! empty($selectedProgramIds) && ! in_array($program->program_id, $selectedProgramIds)) {
+                    continue;
+                    //similar skip as above: filters programs associated with matching courses
+                    //both checks are necessary because either source can independently add a program to results
+                }
+
                 if (!$programResults->has($program->program_id)) {
                     $programResults[$program->program_id] = (object) [
                         'program_id' => $program->program_id,
