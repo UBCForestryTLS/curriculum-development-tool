@@ -165,10 +165,15 @@ class CourseMaterialFileController extends Controller
             ])
             ->firstOrFail();
 
+        $courseTopics = CourseTopic::where('course_id', $course_id)
+            ->orderBy('position')
+            ->get();
+
         return view('courses.material_file', [
-            'file'        => $file,
-            'course_id'   => $course_id,
-            'material_id' => $material_id,
+            'file'          => $file,
+            'course_id'     => $course_id,
+            'material_id'   => $material_id,
+            'courseTopics'  => $courseTopics,
         ]);
     }
 
@@ -182,78 +187,22 @@ class CourseMaterialFileController extends Controller
             ->firstOrFail();
 
         $request->validate([
-            'topics' => 'required|array',
-            'topics.*.id' => 'nullable',
-            'topics.*.text' => 'required|string|min:1|max:255',
+            'topic_ids' => 'required|array',
+            'topic_ids.*' => 'required|integer|exists:course_topics,course_topic_id',
         ]);
 
-        DB::transaction(function () use ($file, $request, $course_id) {
+        $topicIds = $request->input('topic_ids', []);
 
-            $file->topics()->detach();
+        // Verify all topic IDs belong to this course
+        $validCount = CourseTopic::where('course_id', $course_id)
+            ->whereIn('course_topic_id', $topicIds)
+            ->count();
 
-            foreach ($request->input('topics', []) as $topicData) {
+        if ($validCount !== count($topicIds)) {
+            return redirect()->back()->with('error', 'One or more selected topics do not belong to this course.');
+        }
 
-                $text = trim($topicData['text']);
-                $normalized = $text;
-
-                // Check if topic already exists in this course
-                $existing = CourseTopic::where('course_id', $course_id)
-                    ->whereRaw('LOWER(topic) = ?', [strtolower($normalized)])
-                    ->first();
-
-                // User Edited an existing topic
-                if (!empty($topicData['id'])) {
-
-                    $current = CourseTopic::find($topicData['id']);
-
-                    if ($existing && $existing->course_topic_id !== $current->course_topic_id) {
-                        // If the topic already exists, just associate it with this file
-                        $file->topics()->attach($existing->course_topic_id);
-
-                    } else {
-                        // If the topic is only used by this file, edit it directly
-                        // If it is used by other files, create a new topic to associate to this file
-
-                        // After detach, count how many OTHER files still reference this topic.
-                        // 0 = no other file uses it, so can update directly
-                        $usageCount = DB::table('course_material_file_topic')
-                            ->where('course_topic_id', $current->course_topic_id)
-                            ->count();
-
-                        if ($usageCount === 0) {
-                            $current->update(['topic' => $normalized]);
-                            $file->topics()->attach($current->course_topic_id);
-
-                        } else {
-                            $newTopic = CourseTopic::create([
-                                'course_id' => $course_id,
-                                'topic' => $normalized,
-                                'position' => 0,
-                            ]);
-
-                            $file->topics()->attach($newTopic->course_topic_id);
-                        }
-                    }
-
-                } else {
-
-                    // User added a new topic
-                    if ($existing) {
-                        // Reuse existing topic
-                        $file->topics()->attach($existing->course_topic_id);
-
-                    } else {
-                        $new = CourseTopic::create([
-                            'course_id' => $course_id,
-                            'topic' => $normalized,
-                            'position' => 0,
-                        ]);
-
-                        $file->topics()->attach($new->course_topic_id);
-                    }
-                }
-            }
-        });
+        $file->topics()->sync($topicIds);
 
         return redirect()->back()->with('success', 'Topics updated successfully.');
     }

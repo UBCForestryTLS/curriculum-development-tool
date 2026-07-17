@@ -124,7 +124,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">Topics</h6>
                 <div class="d-flex align-items-center gap-2">
-                    <button type="button" id="add-topic-btn" class="btn btn-sm btn-outline-primary">
+                    <button type="button" id="add-topic-btn" class="btn btn-sm btn-outline-primary d-none">
                         <i class="bi bi-plus-lg"></i> Add
                     </button>
                     <button type="button" id="edit-topics-btn" class="btn btn-sm btn-outline-secondary">
@@ -154,7 +154,6 @@
                             <tr class="topic-row" data-topic-id="{{ $topic->course_topic_id }}">
                                 <td>
                                     <span class="topic-display">{{ $topic->topic }}</span>
-                                    <input type="text" class="form-control form-control-sm topic-input d-none" value="{{ $topic->topic }}">
                                 </td>
                                 <td class="topic-actions-col d-none">
                                     <button type="button" class="btn btn-sm btn-outline-danger topic-delete-btn">
@@ -225,11 +224,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateUrl = '{{ route("course.material.files.topics.update", [$course_id, $material_id, $file->course_material_file_id]) }}';
     const csrfToken = '{{ csrf_token() }}';
 
+    const courseTopics = [
+        @foreach ($courseTopics as $ct)
+            { id: {{ $ct->course_topic_id }}, text: @json($ct->topic) },
+        @endforeach
+    ];
+
     let editMode = false;
 
     let topics = [
         @foreach ($file->topics as $topic)
-            { id: {{ $topic->course_topic_id }}, text: @json($topic->topic) },
+            { id: {{ $topic->course_topic_id }} },
         @endforeach
     ];
 
@@ -243,6 +248,21 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
+    function buildTopicSelect(selectedId, index) {
+        const selectedIds = topics
+            .filter((t, i) => t.id !== null)
+            .map(t => t.id);
+
+        let options = '<option value="">-- Select a topic --</option>';
+        courseTopics.forEach(ct => {
+            if (ct.id === selectedId || !selectedIds.includes(ct.id)) {
+                const selected = ct.id === selectedId ? 'selected' : '';
+                options += `<option value="${ct.id}" ${selected}>${ct.text}</option>`;
+            }
+        });
+
+        return `<select class="form-select form-select-sm topic-select" data-index="${index}">${options}</select>`;
+    }
 
     function renderTopics() {
         tbody.innerHTML = '';
@@ -257,11 +277,13 @@ document.addEventListener('DOMContentLoaded', () => {
             row.className = 'topic-row';
             row.dataset.index = index;
 
+            const topicObj = courseTopics.find(ct => ct.id === t.id);
+            const topicText = topicObj ? topicObj.text : '';
+
             row.innerHTML = `
                 <td>
-                    <span class="topic-display ${editMode ? 'd-none' : ''}">${t.text}</span>
-                    <input type="text" class="form-control form-control-sm topic-input ${editMode ? '' : 'd-none'}"
-                           value="${t.text}">
+                    <span class="topic-display ${editMode ? 'd-none' : ''}">${topicText}</span>
+                    ${editMode ? buildTopicSelect(t.id, index) : ''}
                 </td>
                 <td class="topic-actions-col ${editMode ? '' : 'd-none'}">
                     <button type="button" class="btn btn-sm btn-outline-danger topic-delete-btn">
@@ -295,34 +317,39 @@ document.addEventListener('DOMContentLoaded', () => {
         topics.splice(index, 1);
         renderTopics();
     });
+
+    tbody.addEventListener('change', e => {
+        const select = e.target.closest('.topic-select');
+        if (!select) return;
+
+        const index = parseInt(select.dataset.index, 10);
+        const val = select.value;
+        topics[index].id = val === '' ? null : parseInt(val, 10);
+        renderTopics();
+    });
+
     editBtn.addEventListener('click', () => {
         setEditMode(true);
     });
 
     addBtn.addEventListener('click', () => {
-        topics.unshift({ id: null, text: '' });
+        topics.unshift({ id: null });
         setEditMode(true);
 
-        renderTopics();
-
-        const firstInput = tbody.querySelector('.topic-input');
-        if (firstInput) firstInput.focus();
-    });
-
-    tbody.addEventListener('input', e => {
-        const input = e.target.closest('.topic-input');
-        if (!input) return;
-
-        const row = input.closest('.topic-row');
-        const index = parseInt(row.dataset.index, 10);
-
-        topics[index].text = input.value;
+        const firstSelect = tbody.querySelector('.topic-select');
+        if (firstSelect) firstSelect.focus();
     });
 
     saveBtn.addEventListener('click', () => {
-        const cleaned = topics
-            .map(t => ({ id: t.id, text: t.text.trim() }))
-            .filter(t => t.text !== '');
+        const selected = topics
+            .filter(t => t.id !== null)
+            .map(t => t.id);
+
+        if (selected.length === 0) {
+            topics = [];
+        } else {
+            topics = selected.map(id => ({ id }));
+        }
 
         const form = document.createElement('form');
         form.method = 'POST';
@@ -334,18 +361,12 @@ document.addEventListener('DOMContentLoaded', () => {
         csrf.value = csrfToken;
         form.appendChild(csrf);
 
-        cleaned.forEach((topic, index) => {
-            const idInput = document.createElement('input');
-            idInput.type = 'hidden';
-            idInput.name = `topics[${index}][id]`;
-            idInput.value = topic.id || '';
-            form.appendChild(idInput);
-
-            const textInput = document.createElement('input');
-            textInput.type = 'hidden';
-            textInput.name = `topics[${index}][text]`;
-            textInput.value = topic.text;
-            form.appendChild(textInput);
+        topics.forEach((topic, index) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `topic_ids[${index}]`;
+            input.value = topic.id;
+            form.appendChild(input);
         });
 
         document.body.appendChild(form);
@@ -356,7 +377,6 @@ document.addEventListener('DOMContentLoaded', () => {
         location.reload();
     });
 
-    // Initial render
     renderTopics();
 });
 </script>
