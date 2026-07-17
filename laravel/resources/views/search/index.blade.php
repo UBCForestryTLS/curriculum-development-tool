@@ -718,7 +718,7 @@
                 <h3 class="mb-1">
                     <a href="{{ route('courseWizard.step8', $result->course_id) }}">
                         @if($result->course_match_snippet)
-                            {!! $result->course_match_snippet !!}
+                            @include('search.partials.highlighted-snippet', ['snippet' => $result->course_match_snippet])
                         @else
                             {{ $result->course_code }} {{ $result->course_num }}: {{ $result->course_title }}
                         @endif
@@ -764,7 +764,7 @@
                     <div class="search-result-match">
                         <p>
                             <strong>{{ $match->property === 'learning outcome' ? 'Learning Objective' : ucfirst($match->property) }}:</strong>
-                            {!! $match->snippet !!}
+                            @include('search.partials.highlighted-snippet', ['snippet' => $match->snippet])
                         </p>
                     </div>
                 @endforeach
@@ -778,7 +778,7 @@
                                 <div class="search-result-match">
                                     <p>
                                         <strong>{{ $match->property === 'learning outcome' ? 'Learning Objective' : ucfirst($match->property) }}:</strong>
-                                        {!! $match->snippet !!}
+                                        @include('search.partials.highlighted-snippet', ['snippet' => $match->snippet])
                                     </p>
                                 </div>
                             @endforeach
@@ -799,7 +799,7 @@
                 <h3 class="mb-1">
                     <a href="{{ route('programWizard.step1', $programResult->program_id) }}">
                         @if($programResult->program_match_snippet)
-                            {!! $programResult->program_match_snippet !!}
+                            @include('search.partials.highlighted-snippet', ['snippet' => $programResult->program_match_snippet])
                         @else
                             {{ $programResult->program }}
                         @endif
@@ -815,7 +815,7 @@
                         <h5 class="mb-2">
                             <a href="{{ route('courseWizard.step8', $course->course_id) }}">
                                 @if($course->course_match_snippet)
-                                    {!! $course->course_match_snippet !!}
+                                    @include('search.partials.highlighted-snippet', ['snippet' => $course->course_match_snippet])
                                 @else
                                     {{ $course->course_code }} {{ $course->course_num }}: {{ $course->course_title }}
                                 @endif
@@ -826,7 +826,7 @@
                             <div class="search-result-match">
                                 <p>
                                     <strong>{{ $match->property === 'learning outcome' ? 'Learning Objective' : ucfirst($match->property) }}:</strong>
-                                    {!! $match->snippet !!}
+                                    @include('search.partials.highlighted-snippet', ['snippet' => $match->snippet])
                                 </p>
                             </div>
                         @endforeach
@@ -840,7 +840,7 @@
                                         <div class="search-result-match">
                                             <p>
                                                 <strong>{{ $match->property === 'learning outcome' ? 'Learning Objective' : ucfirst($match->property) }}:</strong>
-                                                {!! $match->snippet !!}
+                                                @include('search.partials.highlighted-snippet', ['snippet' => $match->snippet])
                                             </p>
                                         </div>
                                     @endforeach
