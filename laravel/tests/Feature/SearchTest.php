@@ -1680,6 +1680,8 @@ public function test_applied_saved_filter_is_shown_as_the_current_preset(): void
     $response->assertSee('Current preset:');
     $response->assertSee('Forestry Topics');
     $response->assertDontSee('Climate Forestry');
+    $response->assertViewHas('searchPerformed', false);
+    $response->assertDontSee('No matches found.');
 }
 
 }

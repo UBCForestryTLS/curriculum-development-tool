@@ -126,7 +126,10 @@ class SearchController extends Controller
             'materials' => 0,
         ];
 
-        if($searchTerm !== '' && !$request->session()->get('preset_applied', false)){
+        $presetApplied = (bool) $request->session()->get('preset_applied', false);
+        $searchPerformed = $searchTerm !== '' && ! $presetApplied;
+
+        if($searchPerformed){
             $resultsAndStats = $this->searchCourses(
                 $searchTerm,
                 $selectedProperties,
@@ -186,6 +189,7 @@ class SearchController extends Controller
             'selectedProgramNames' => $selectedProgramNames,
             'savedSearchFilters' => $savedSearchFilters,
             'currentSavedFilter' => $currentSavedFilter,
+            'searchPerformed' => $searchPerformed,
         ]);
         
 }

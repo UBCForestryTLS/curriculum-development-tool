@@ -636,7 +636,7 @@
         @endif
     </div>
 
-    @if($searchTerm !== '' && $hasSelectedResults)
+    @if($searchPerformed && $hasSelectedResults)
         <div class="search-stats text-center mb-4">
             <span class="search-filter-heading me-2">Found in</span>
 
@@ -708,7 +708,7 @@
                 </div>
             </div>
         </div>
-    @elseif($searchTerm !== '')
+    @elseif($searchPerformed)
         <p class="text-center">No matches found.</p>
     @endif
 
