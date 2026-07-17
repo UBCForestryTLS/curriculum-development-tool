@@ -1539,6 +1539,78 @@ public function test_program_filter_only_returns_courses_in_selected_program()
 
 }
 
+public function test_program_filter_only_groups_course_under_selected_program()
+{
+    $selectedProgramId = DB::table('programs')->insertGetId([
+        'program' => 'Selected Forest Program',
+        'level' => 'Bachelors',
+        'status' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ], 'program_id');
+
+    $otherProgramId = DB::table('programs')->insertGetId([
+        'program' => 'Unselected Climate Program',
+        'level' => 'Bachelors',
+        'status' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ], 'program_id');
+
+    $course = Course::factory()->create([
+        'course_code' => 'FRST',
+        'course_num' => 303,
+        'course_title' => 'Climate Resilient Forests',
+    ]);
+
+    DB::table('course_programs')->insert([
+        [
+            'course_id' => $course->course_id,
+            'program_id' => $selectedProgramId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'course_id' => $course->course_id,
+            'program_id' => $otherProgramId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+
+
+    CourseTopic::factory()->create([
+        'course_id' => $course->course_id,
+        'topic' => 'Climate resilience in managed forests',
+    ]);
+
+    $parameters = [
+        'query' => 'climate',
+        'program_filters_applied' => 1,
+        'program_ids' => [$selectedProgramId],
+    ];
+
+    
+    $courseResponse = $this->get(route('search.index', $parameters));
+    $courseResult = $courseResponse->viewData('results')->first();
+
+    $courseResponse->assertStatus(200);
+    $this->assertCount(2, $courseResult->programs);
+
+    $programResponse = $this->get(route('search.index', [
+        ...$parameters,
+        'view' => 'programs',
+    ]));
+    $programResults = $programResponse->viewData('programResults');
+
+    $programResponse->assertStatus(200);
+    $this->assertCount(1, $programResults);
+    $this->assertSame($selectedProgramId, $programResults->first()->program_id);
+    $this->assertCount(1, $programResults->first()->courses);
+    $this->assertSame($course->course_id, $programResults->first()->courses->first()->course_id);
+}
+
 public function test_authenticated_user_can_save_search_filter(): void{
     $user = User::factory()->create();
 
