@@ -317,6 +317,17 @@ public function test_search_returns_multiple_matching_topics_for_same_course()
     $response->assertDontSee('Soil classification methods');
 }
 
+    public function test_highlighted_snippet_escapes_stored_html_while_preserving_highlights()
+    {
+        $renderedSnippet = view('search.partials.highlighted-snippet', [
+            'snippet' => '<mark>Climate</mark> <img src=x onerror="alert(\'unsafe\')">',
+        ])->render();
+
+        $this->assertStringContainsString('<mark>Climate</mark>', $renderedSnippet);
+        $this->assertStringContainsString('&lt;img src=x onerror=', $renderedSnippet);
+        $this->assertStringNotContainsString('<img src=x onerror=', $renderedSnippet);
+    }
+
 public function test_search_finds_course_by_description()
 {
     $this->createCourseScaleCategory();
