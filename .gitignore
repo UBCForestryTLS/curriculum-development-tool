@@ -12,6 +12,7 @@ laravel/.env
 laravel/.env.backup
 laravel/.env.testing
 laravel/database/seeders/UserSeeder.php
+laravel/database/seeders/LocalSearchSeeder.php
 laravel/resources/views/emails/
 laravel/.phpunit.cache
 .phpunit.result.cache
