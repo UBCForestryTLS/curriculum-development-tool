@@ -19,6 +19,7 @@ class ExtractRequest(BaseModel):
     extraction_engine: str = "tesseract"
     ocr_threshold: int = 0
     material_type: Optional[str] = None
+    existing_topics: list[str] = []
 
 
 class ExtractResponse(BaseModel):

@@ -1,3 +1,5 @@
+from itertools import chain
+
 from app.schemas import Topic
 import spacy
 
@@ -63,11 +65,10 @@ def process(topics: list[Topic], filterLowerCaseSingleWords = False, minTopicCha
     return relevant_topics
 
 
-def union(topics_1: list[Topic], topics_2: list[Topic]) -> list[Topic]:
-    # TODO: More efficient way of doing this
+def union(*topic_lists: list[Topic]) -> list[Topic]:
     seen: set[str] = set()
     merged: list[Topic] = []
-    for t in [*topics_1, *topics_2]:
+    for t in chain.from_iterable(topic_lists):
         key = t.topic.lower().strip()
         if key and key not in seen:
             seen.add(key)

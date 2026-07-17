@@ -44,7 +44,7 @@ def extract(request: ExtractRequest) -> ExtractResponse:
         )
         # TODO: See how best to handle text-only input from Textract here
         handler = type_specific_handlers.get_handler(request.material_type)
-        topics = handler.extract_topics(pages)
+        topics = handler.extract_topics(pages, request.existing_topics)
 
         return ExtractResponse(
             pages=[

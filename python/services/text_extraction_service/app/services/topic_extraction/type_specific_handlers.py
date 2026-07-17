@@ -8,15 +8,15 @@ from app.services.topic_extraction import bertopic_extractor as extractor
 class MaterialTypeHandler:
     """Base handler - extracts keywords from text only"""
 
-    def match_topics(self, text: str, topics: list[str], min_count: int = 1) -> list[str]:
+    def match_topics(self, text: str, topics: list[str], min_count: int = 1) -> list[Topic]:
         from app.services.topic_extraction.faiss_topic_matcher import FaissTopicMatcher  # noqa: F401
         # return FaissTopicMatcher().match(text, topics, min_count=min_count)
 
-        matched: list[str] = []
+        matched: list[Topic] = []
         for topic in topics:
             pattern = re.compile(rf'(?<!\S){re.escape(topic)}(?!\S)', re.IGNORECASE | re.UNICODE)
             if len(pattern.findall(text)) >= min_count:
-                matched.append(topic)
+                matched.append(Topic(topic=topic, score=0.0))
         return matched
 
     def preprocess(self, text: str) -> str:
@@ -26,11 +26,14 @@ class MaterialTypeHandler:
         text = re.sub(r'\b(?:jpg|jpeg|png|gif|bmp|svg|webp)\b', '', text)
         return text
 
-    def extract_topics(self, pages: list[dict]) -> list[Topic]:
+    def extract_topics(self, pages: list[dict], existing_topics: list[str] = []) -> list[Topic]:
         text = ". \f".join("\n".join(line["text"] for line in page["lines"]) for page in pages if page["lines"])
         preprocessed_text = self.preprocess(text)
         print("Extracting topics from preprocessed_text...")
-        return postprocessor.process(extractor.extract(preprocessed_text))
+        
+        matched_topics = self.match_topics(preprocessed_text, existing_topics)
+
+        return matched_topics
 
 def _to_topics(texts) -> list[Topic]:
     """De-duplicate (case-insensitive) and wrap heading texts as topics."""
@@ -57,15 +60,21 @@ class SlidesHandler(MaterialTypeHandler):
         text = re.sub(r'(?<=\n)[•-]\s+', '', text)
         return text
 
-    def extract_topics(self, pages: list[dict]) -> list[Topic]:
+    def extract_topics(self, pages: list[dict], existing_topics: list[str] = []) -> list[Topic]:
         title_topics = self._title_topics(pages)
         keyword_topics = self._keyword_topics(pages)
+        matched_topics = self._matched_topics(pages, existing_topics)
         return postprocessor.process(
-                        postprocessor.union(title_topics, keyword_topics), 
+                        postprocessor.union(title_topics, keyword_topics, matched_topics), 
                         filterLowerCaseSingleWords = False,
                         # TODO: Remove 1 - score to revert to higher is better everywhere
                         scoreThreshold = 0.8 # Lower score is better
                     )
+        
+    def _matched_topics(self, pages: list[dict], existing_topics: list[str]):
+        text = ". \f".join([self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages])
+        matched_topics = self.match_topics(text, existing_topics)
+        return matched_topics
 
     def _keyword_topics(self, pages: list[dict]) -> list[Topic]:
         # text = ". \f".join(self.preprocess(" ".join(line["text"] for line in page["lines"])) for page in pages if page["lines"])
@@ -99,7 +108,7 @@ class ArticleHandler(MaterialTypeHandler):
         else:
             return text
     
-    def extract_topics(self, pages: list[dict]) -> list[Topic]:
+    def extract_topics(self, pages: list[dict], existing_topics: list[str] = []) -> list[Topic]:
         print("Page count:", len(pages))
         # TODO: Gotta make this a model of some sort to avoid the confusing dict operations
         text = ". \f".join([self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages])
@@ -107,12 +116,13 @@ class ArticleHandler(MaterialTypeHandler):
         print("Extracting topics from preprocessed_text...")
         keyword_topics = extractor.extract(text)
         heading_topics = self._heading_topics(pages)
-        topics = postprocessor.union(heading_topics, keyword_topics)
+        matched_topics = self._matched_topics(pages, existing_topics)
+        topics = postprocessor.union(heading_topics, keyword_topics, matched_topics)
         postprocessed_topics = postprocessor.process(
             topics, 
             minTopicCharCount = 4, 
             filterLowerCaseSingleWords = False, 
-            scoreThreshold = 0.8 # BERTopic
+            scoreThreshold = 1 # BERTopic
             # TODO: Can we scale the score threshold inversely by text length?
             # Reasoning: Longer texts should produce more topics, and better selected topics too.
             #            The higher (worse) scored topics would then probably be less relevant
@@ -122,6 +132,12 @@ class ArticleHandler(MaterialTypeHandler):
         )
         # return postprocessor.union(self._heading_topics(pages), keyword_topics)
         return postprocessed_topics
+    
+    def _matched_topics(self, pages: list[dict], existing_topics: list[str]):
+        text = ". \f".join([self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages])
+        # We can potentially scale min_count by the number of pages or text size
+        matched_topics = self.match_topics(text, existing_topics, min_count=2)
+        return matched_topics
 
     def _heading_topics(self, pages: list[dict]) -> list[Topic]:
         headings = [

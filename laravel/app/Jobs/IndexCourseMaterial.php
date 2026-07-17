@@ -49,6 +49,10 @@ class IndexCourseMaterial implements ShouldQueue
             $absolutePath = Storage::disk('local')->path($file->file_path);
             $fileBytes = file_get_contents($absolutePath);
 
+            $existingTopics = CourseTopic::where('course_id', $file->course_id)
+                ->pluck('topic')
+                ->all();
+
             $response = Http::timeout($this->timeout)
                 ->post(config('services.text_extraction.base_url') . '/extract', [
                     'file' => base64_encode($fileBytes),
@@ -56,6 +60,7 @@ class IndexCourseMaterial implements ShouldQueue
                     'extraction_engine' => $file->extraction_engine,
                     'ocr_threshold' => $file->ocr_threshold,
                     'material_type' => $file->courseMaterial?->type,
+                    'existing_topics' => $existingTopics,
                 ]);
 
             $response->throw();
