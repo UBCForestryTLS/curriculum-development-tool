@@ -45,17 +45,17 @@ def process(topics: list[Topic], filterLowerCaseSingleWords = False, minTopicCha
             continue
         url_filtered_topics.append(t)
         
-    # Remove topics that have adjectives in word final position
-    adjective_filtered_topics = []
+    # Only keep topics that end with a noun or a verb ending in "ing"
+    noun_filtered_topics = []
     nlp = spacy.load("en_core_web_sm") # Shouldn't slow down here, since it'll be cached from the BERTopic extractor
     for t in url_filtered_topics:
         doc = nlp(t.topic)
-        if doc[-1].pos_ != "ADJ":
-            adjective_filtered_topics.append(t)
+        if doc[-1].pos_ in ["NOUN", "PROPN"] or (doc[-1].pos_ == "VERB" and doc[-1].text.endswith("ing")):
+            noun_filtered_topics.append(t)
             
     # Remove topics already contained in other topics
     unique_topics = []
-    for t in adjective_filtered_topics:
+    for t in noun_filtered_topics:
         if not any(t.topic.lower() in other.topic.lower() and t.topic.lower() != other.topic.lower() for other in deduped_topics):
             unique_topics.append(t)
     

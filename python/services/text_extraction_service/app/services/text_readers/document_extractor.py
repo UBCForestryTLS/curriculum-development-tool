@@ -103,11 +103,11 @@ def _from_ocr(page) -> list[dict]:
         if not text:
             continue
         # Convert median box height (px at OCR_RENDER_DPI) to an approximate point
-        # size, so `size` is comparable to actual font size, and a single size threshold
+        # size, so size is comparable to actual font size, and a single size threshold
         # works for both readable and scanned pages.
         height_px = statistics.median(height for height, _ in words)
         size_pt = height_px * 72 / OCR_RENDER_DPI
-        # Cannot determine if bold with Tesseract
+        # Cannot easily determine if bold with Tesseract
         lines.append({"text": text, "size": round(float(size_pt), 1), "bold": None})
 
     return lines
