@@ -305,15 +305,17 @@ class CourseMaterialFileController extends Controller
             return;
         }
 
+        $lowercaseTopics = array_unique(array_map('strtolower', $topicTexts));
+
         $existingTopics = CourseTopic::where('course_id', $file->course_id)
-            ->whereIn(DB::raw('LOWER(topic)'), $topicTexts)
+            ->whereIn(DB::raw('LOWER(topic)'), $lowercaseTopics)
             ->get()
             ->keyBy(fn($t) => strtolower($t->topic));
 
         $existingIds = [];
         $newNames = [];
 
-        foreach ($topicTexts as $name) {
+        foreach ($lowercaseTopics as $name) {
             if ($existingTopics->has($name)) {
                 $existingIds[] = $existingTopics->get($name)->course_topic_id;
             } else {
@@ -345,16 +347,15 @@ class CourseMaterialFileController extends Controller
                 ->all();
         }
 
-        $allTopicIds = array_unique(array_merge($existingIds, $newIds)); // Don't really need unique here, but just in case
+        $allTopicIds = array_unique(array_merge($existingIds, $newIds));
 
         if ($allTopicIds) {
-            // Associates these suggested topics with the file, but doesn't remove previous associations
             $file->topics()->syncWithoutDetaching($allTopicIds);
         }
 
         SuggestedTopic::where('course_material_file_id', $file->course_material_file_id)
             ->where('status', SuggestedTopic::STATUS_PENDING)
-            ->whereIn(DB::raw('LOWER(topic)'), $topicTexts)
+            ->whereIn(DB::raw('LOWER(topic)'), $lowercaseTopics)
             ->delete();
     }
 
