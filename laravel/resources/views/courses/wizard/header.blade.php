@@ -398,7 +398,7 @@
         <div class="row my-2">
             <div class="col">
                 <a href="{{ route('course.coverageAnalysis', $course->course_id) }}">
-                    <button type="button" style="width:200px" class="btn btn-info btn-sm float-end">Coverage Analysis</button>
+                    <button type="button" style="width:200px" class="btn btn-info btn-sm float-end">Search (Temp)</button>
                 </a>
             </div>
         </div>
