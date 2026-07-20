@@ -260,6 +260,7 @@ Route::get('/courseWizard/{course}/step10', [CourseWizardController::class, 'ste
 
 //Search engine routes
 Route::get('/search', [SearchController::class, 'index'])
+    ->middleware(['auth', 'verified'])
     ->name('search.index');
 
 

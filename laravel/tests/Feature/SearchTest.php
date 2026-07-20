@@ -17,12 +17,17 @@ class SearchTest extends TestCase
 {
     use DatabaseTransactions;
 
+    private User $searchUser;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         // After merging dev's package updates, tests need this so they do not look for built Vite files
         $this->withoutVite();
+
+        $this->searchUser = User::factory()->create();
+        $this->actingAs($this->searchUser);
     }
 
     /**
@@ -43,6 +48,15 @@ class SearchTest extends TestCase
         $response->assertSee('Search settings');
         $response->assertSee('Courses');
         $response->assertSee('Programs');
+    }
+
+    public function test_guest_user_is_redirected_from_search_page()
+    {
+        auth()->logout();
+
+        $response = $this->get(route('search.index'));
+
+        $response->assertRedirect(route('login'));
     }
 
     public function test_program_view_selection_is_preserved(){
