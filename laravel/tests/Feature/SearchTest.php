@@ -1656,6 +1656,93 @@ public function test_authenticated_user_can_save_search_filter(): void{
     ], $savedFilter->filters);
 }
 
+public function test_authenticated_user_can_apply_saved_search_filter(): void
+{
+    $user = User::factory()->create();
+    $programId = DB::table('programs')->insertGetId([
+        'program' => 'Forest Sciences',
+        'level' => 'Bachelors',
+        'status' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ], 'program_id');
+
+    $savedFilter = $user->savedSearchFilters()->create([
+        'name' => 'Forest Program Preset',
+        'filters' => [
+            'view' => 'programs',
+            'properties' => ['topics', 'materials'],
+            'course_codes' => ['FRST'],
+            'course_levels' => ['300'],
+            'program_ids' => [$programId],
+        ],
+    ]);
+
+    $response = $this->actingAs($user)->get(route('search.filters.apply', [
+        'savedFilterId' => $savedFilter->id,
+        'query' => 'climate adaptation',
+    ]));
+
+    $response->assertRedirect(route('search.index', [
+        'query' => 'climate adaptation',
+        'saved_filter_id' => $savedFilter->id,
+        'view' => 'programs',
+        'property_filters_applied' => 1,
+        'properties' => ['topics', 'materials'],
+        'course_filters_applied' => 1,
+        'course_codes' => ['FRST'],
+        'course_levels' => ['300'],
+        'program_filters_applied' => 1,
+        'program_ids' => [$programId],
+    ]));
+    $response->assertSessionHas('success', 'Filter preset applied.');
+    $response->assertSessionHas('preset_applied', true);
+}
+
+public function test_authenticated_user_can_delete_saved_search_filter(): void
+{
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+
+    $savedFilter = $user->savedSearchFilters()->create([
+        'name' => 'Delete Me',
+        'filters' => [
+            'view' => 'courses',
+            'properties' => ['topics'],
+            'course_codes' => [],
+            'course_levels' => [],
+            'program_ids' => [],
+        ],
+    ]);
+
+    $otherUserFilter = $otherUser->savedSearchFilters()->create([
+        'name' => 'Keep Me',
+        'filters' => [
+            'view' => 'programs',
+            'properties' => ['materials'],
+            'course_codes' => ['CONS'],
+            'course_levels' => ['400'],
+            'program_ids' => [],
+        ],
+    ]);
+
+    $response = $this->actingAs($user)->from(route('search.index'))->delete(route('search.filters.destroy', [
+        'savedFilterId' => $savedFilter->id,
+    ]));
+
+    $response->assertRedirect(route('search.index'));
+    $response->assertSessionHas('success', 'Saved search filter deleted successfully.');
+
+    $this->assertDatabaseMissing('saved_search_filters', [
+        'id' => $savedFilter->id,
+        'user_id' => $user->id,
+    ]);
+    $this->assertDatabaseHas('saved_search_filters', [
+        'id' => $otherUserFilter->id,
+        'user_id' => $otherUser->id,
+    ]);
+}
+
 public function test_applied_saved_filter_is_shown_as_the_current_preset(): void
 {
     $user = User::factory()->create();
