@@ -70,4 +70,9 @@ class CourseMaterialFile extends Model
             'course_topic_id'
         );
     }
+
+    public function suggestedTopics()
+    {
+        return $this->hasMany(SuggestedTopic::class, 'course_material_file_id');
+    }
 }

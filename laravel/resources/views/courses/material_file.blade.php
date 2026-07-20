@@ -55,18 +55,6 @@
                         <span class="material-status material-status--failed">Failed</span>
                         @break
                 @endswitch
-                <!-- TODO: Remove this form section, it's for testing only -->
-                <form method="POST"
-                      action="{{ route('course.material.files.refresh', [$course_id, $material_id, $file->course_material_file_id]) }}"
-                      class="d-inline">
-                    @csrf
-                    <button type="submit"
-                            class="btn btn-sm btn-outline-primary ms-2"
-                            @disabled($file->status === 'INDEXING')
-                            onclick="return confirm('Re-run text and topic extraction for this file using the saved settings?');">
-                            <i class="bi bi-arrow-clockwise"></i> Refresh topics
-                    </button>
-                </form>
             </div>
         </div>
         <div class="card-body">
@@ -83,7 +71,7 @@
                     @if ($file->uploader) by {{ $file->uploader->name }} @endif
                 </dd>
 
-                <dt class="col-sm-3">Extraction engine</dt>
+                <dt class="col-sm-3">Extraction method</dt>
                 <dd class="col-sm-9">
                     @if ($file->ocr_enabled)
                         {{ $file->extraction_engine === 'textract' ? 'AWS Textract' : 'Tesseract OCR' }}
@@ -91,7 +79,7 @@
                             <span class="text-muted">(threshold: {{ $file->ocr_threshold }} chars)</span>
                         @endif
                     @else
-                        Text extraction only (no OCR)
+                        Text extraction
                     @endif
                 </dd>
 
@@ -116,6 +104,98 @@
                     <i class="bi bi-eye"></i> View PDF
                 </a>
             </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="bi bi-lightbulb me-1"></i> Suggested Topics
+                @if ($suggestedTopics->isNotEmpty())
+                    <span class="badge bg-primary ms-1">{{ $suggestedTopics->count() }}</span>
+                @endif
+            </h6>
+            <div class="d-flex align-items-center gap-2">
+                <form method="POST"
+                      action="{{ route('course.material.files.refresh', [$course_id, $material_id, $file->course_material_file_id]) }}"
+                      class="d-inline">
+                    @csrf
+                    <button type="submit"
+                            class="btn btn-sm btn-outline-primary"
+                            @disabled($file->status === 'INDEXING')
+                            onclick="return confirm('Re-run text and topic extraction for this file using the saved settings?');">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh Topics
+                    </button>
+                </form>
+                @if ($suggestedTopics->isNotEmpty())
+                    <form method="POST"
+                          action="{{ route('course.material.files.topics.accept-all', [$course_id, $material_id, $file->course_material_file_id]) }}"
+                          class="d-inline">
+                        @csrf
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-success"
+                                onclick="return confirm('Confirm all suggested topics? This will add them as course topics and associate them with this file.');">
+                                <i class="bi bi-check-all"></i> Accept All
+                        </button>
+                    </form>
+                    <form method="POST"
+                          action="{{ route('course.material.files.topics.reject-all', [$course_id, $material_id, $file->course_material_file_id]) }}"
+                          class="d-inline">
+                        @csrf
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Reject all suggested topics? They will not be suggested again for this file.');">
+                                <i class="bi bi-x-lg"></i> Reject All
+                        </button>
+                    </form>
+                    <button type="button" id="save-review-btn" class="btn btn-sm btn-success d-none">
+                        <i class="bi bi-check-lg"></i> Save
+                    </button>
+                @endif
+            </div>
+        </div>
+        <div class="card-body">
+            @if ($suggestedTopics->isEmpty())
+                <p class="text-muted mb-0"><i class="bi bi-info-circle me-1"></i>Click <strong>Refresh Topics</strong> to suggest topics based on file content.</p>
+            @else
+                <p class="text-muted small mb-3">Review the topics extracted from this file. Tick to confirm, cross to reject.</p>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0" id="suggested-topics-table">
+                        <thead>
+                            <tr>
+                                <th>Topic</th>
+                                <th style="width: 120px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="suggested-topics-tbody">
+                            @foreach ($suggestedTopics as $suggested)
+                                <tr class="suggested-topic-row" data-id="{{ $suggested->suggested_topic_id }}">
+                                    <td>
+                                        <span class="topic-text">{{ $suggested->topic }}</span>
+                                        @if ($suggested->score !== null)
+                                            <small class="text-muted ms-2">({{ number_format($suggested->score, 2) }})</small>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-success review-btn review-confirm"
+                                                data-action="confirm"
+                                                title="Confirm topic">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger review-btn review-reject"
+                                                data-action="reject"
+                                                title="Do not suggest this topic for this file again">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -242,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
             <tr id="empty-topics-row">
                 <td colspan="2" class="text-muted small">
-                    No topics were extracted from this file.
+                    No topics are associated with this file.
                 </td>
             </tr>
         `;
@@ -378,6 +458,82 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     renderTopics();
+
+    // --- Suggested topics review ---
+    const suggestedTbody = document.getElementById('suggested-topics-tbody');
+    const saveReviewBtn = document.getElementById('save-review-btn');
+
+    if (suggestedTbody && saveReviewBtn) {
+        const reviewDecisions = {};
+
+        suggestedTbody.addEventListener('click', e => {
+            const btn = e.target.closest('.review-btn');
+            if (!btn) return;
+
+            const row = btn.closest('.suggested-topic-row');
+            const id = parseInt(row.dataset.id, 10);
+            const action = btn.dataset.action;
+
+            if (reviewDecisions[id] === action) {
+                // Deselect: clicking the same button again
+                delete reviewDecisions[id];
+                btn.classList.remove('btn-success', 'btn-danger');
+                btn.classList.add(action === 'confirm' ? 'btn-outline-success' : 'btn-outline-danger');
+                row.style.opacity = '1';
+            } else {
+                // Select or switch: clear previous state for this topic
+                if (reviewDecisions[id]) {
+                    const prevBtn = row.querySelector(`.review-btn[data-action="${reviewDecisions[id]}"]`);
+                    if (prevBtn) {
+                        prevBtn.classList.remove('btn-success', 'btn-danger');
+                        prevBtn.classList.add(prevBtn.dataset.action === 'confirm' ? 'btn-outline-success' : 'btn-outline-danger');
+                    }
+                }
+                reviewDecisions[id] = action;
+                btn.classList.remove('btn-outline-success', 'btn-outline-danger');
+                btn.classList.add(action === 'confirm' ? 'btn-success' : 'btn-danger');
+                row.style.opacity = '0.6';
+            }
+
+            saveReviewBtn.classList.toggle('d-none', Object.keys(reviewDecisions).length === 0);
+        });
+
+        saveReviewBtn.addEventListener('click', () => {
+            const decisions = Object.entries(reviewDecisions).map(([id, action]) => ({
+                id: parseInt(id, 10),
+                action,
+            }));
+
+            if (decisions.length === 0) return;
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route("course.material.files.topics.review", [$course_id, $material_id, $file->course_material_file_id]) }}';
+
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = '_token';
+            csrf.value = '{{ csrf_token() }}';
+            form.appendChild(csrf);
+
+            decisions.forEach((d, i) => {
+                const idInput = document.createElement('input');
+                idInput.type = 'hidden';
+                idInput.name = `decisions[${i}][id]`;
+                idInput.value = d.id;
+                form.appendChild(idInput);
+
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = `decisions[${i}][action]`;
+                actionInput.value = d.action;
+                form.appendChild(actionInput);
+            });
+
+            document.body.appendChild(form);
+            form.submit();
+        });
+    }
 });
 </script>
 

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\CourseMaterialChunk;
 use App\Models\CourseMaterialFile;
 use App\Models\CourseTopic;
+use App\Models\SuggestedTopic;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -106,6 +107,8 @@ class IndexCourseMaterial implements ShouldQueue
 
     private function saveTextChunks(CourseMaterialFile $file, array $rows): void
     {
+        // The array can be really long for articles/textbooks,
+        // so insert chunks of 100 at a time
         foreach (array_chunk($rows, 100) as $batch) {
             CourseMaterialChunk::insert($batch);
         }
@@ -115,24 +118,32 @@ class IndexCourseMaterial implements ShouldQueue
 
     private function saveExtractedTopics(CourseMaterialFile $file, array $topics): void
     {
-        $topicIds = [];
-        $position = 0;
+        // Delete non-rejected suggested topics from any previous extraction for this file
+        $file->suggestedTopics()
+            ->where('status', '!=', SuggestedTopic::STATUS_REJECTED)
+            ->delete();
+
+        $rejectedTopics = $file->suggestedTopics()
+            ->where('status', SuggestedTopic::STATUS_REJECTED)
+            ->pluck('topic')
+            ->flip();
+
+        $rows = [];
         foreach ($topics as $topic) {
             $text = trim($topic['topic'] ?? '');
-            if ($text === '') {
+            if ($text === '' || $rejectedTopics->has($text)) {
                 continue;
             }
-            $position++;
-            $courseTopic = CourseTopic::firstOrCreate(
-                ['course_id' => $file->course_id, 'topic' => $text],
-                ['description' => null, 'position' => $position]
-            );
-            $topicIds[] = $courseTopic->course_topic_id;
+            $rows[] = [
+                'course_material_file_id' => $file->course_material_file_id,
+                'topic' => $text,
+                'score' => $topic['score'] ?? null,
+                'status' => SuggestedTopic::STATUS_PENDING,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
         }
 
-        // Replace this file's topic links
-        // Frontend shouldn't allow repeated topic extraction, but just in case
-        // TODO: Frontend should prevent repeated topic extraction
-        $file->topics()->sync($topicIds);
+        SuggestedTopic::insert($rows);
     }
 }
