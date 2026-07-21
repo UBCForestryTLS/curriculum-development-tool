@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\SearchFilterOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,14 +15,7 @@ class SavedSearchFilterController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $userId = $request->user()->id;
-        $availableProperties = [
-            'course',
-            'topics',
-            'learning_outcomes',
-            'assessments',
-            'descriptions',
-            'materials',
-        ];
+        $availableProperties = SearchFilterOptions::propertyKeys();
 
         $validated = $request->validate([
             //these are all the validation rules so laravel can check the req against every rule
@@ -35,7 +29,7 @@ class SavedSearchFilterController extends Controller
             'view' => ['nullable', 'in:courses,programs'],
             'property_filters_applied' => ['nullable', 'boolean'],
             'properties' => ['nullable', 'array'],
-            'properties.*' => ['in:' . implode(',', $availableProperties)],
+            'properties.*' => [SearchFilterOptions::propertyValidationRule()],
             'course_codes' => ['nullable', 'array'],
             'course_codes.*' => ['nullable', 'string', 'max:10'],
             'course_levels' => ['nullable', 'array'],

@@ -297,17 +297,6 @@
 
                     <div class="search-filter-heading mt-2">Properties</div>
 
-                    @php
-                        $propertyOptions = [
-                            'course' => 'Course Identity',
-                            'topics' => 'Topics',
-                            'learning_outcomes' => 'Learning Objectives',
-                            'assessments' => 'Assessments',
-                            'descriptions' => 'Descriptions',
-                            'materials' => 'Materials',
-                        ];
-                    @endphp
-
                     <div class="search-property-grid">
                         <div class="form-check">
                             <input

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\SearchFilterOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
@@ -28,7 +29,7 @@ class SearchController extends Controller
             'property_filters_applied' => ['nullable', 'boolean'],
             'properties' => ['nullable', 'array'],
             'properties.*' => [
-                'in:course,topics,learning_outcomes,assessments,descriptions,materials',
+                SearchFilterOptions::propertyValidationRule(),
             ],
             'course_filters_applied' => ['nullable', 'boolean'],
             'course_codes' => ['nullable', 'array'],
@@ -47,14 +48,8 @@ class SearchController extends Controller
         $searchTerm = preg_replace('/\s+/', ' ', $searchTerm); #for normalizing internal whitepace
         $selectedView = $validated['view'] ?? 'courses';
 
-        $availableProperties = [
-            'course',
-            'topics',
-            'learning_outcomes',
-            'assessments',
-            'descriptions',
-            'materials',
-        ];
+        $propertyOptions = SearchFilterOptions::properties();
+        $availableProperties = SearchFilterOptions::propertyKeys();
 
         $propertyFiltersApplied = (bool) ($validated['property_filters_applied'] ?? false);
         $selectedProperties = $propertyFiltersApplied ? ($validated['properties'] ?? []) : $availableProperties;
@@ -181,6 +176,7 @@ class SearchController extends Controller
             'courseQuickLinks' => $courseQuickLinks,
             'programQuickLinks' => $programQuickLinks,
             'selectedProperties' => $selectedProperties,
+            'propertyOptions' => $propertyOptions,
             'availableCourseCodes' => $availableCourseCodes,
             'selectedCourseCodes' => $selectedCourseCodes,
             'selectedCourseLevels' => $selectedCourseLevels,
