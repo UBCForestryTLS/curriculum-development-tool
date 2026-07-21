@@ -10,6 +10,7 @@ This feature is implemented primarily under:
 
 - [`laravel/app/Http/Controllers/SearchController.php`](../laravel/app/Http/Controllers/SearchController.php)
 - [`laravel/app/Http/Controllers/SavedSearchFilterController.php`](../laravel/app/Http/Controllers/SavedSearchFilterController.php)
+- [`laravel/app/Helpers/SearchFilterOptions.php`](../laravel/app/Helpers/SearchFilterOptions.php)
 - [`laravel/resources/views/search/index.blade.php`](../laravel/resources/views/search/index.blade.php)
 - [`laravel/resources/views/search/partials/highlighted-snippet.blade.php`](../laravel/resources/views/search/partials/highlighted-snippet.blade.php)
 - [`laravel/tests/Feature/SearchTest.php`](../laravel/tests/Feature/SearchTest.php)
@@ -63,6 +64,8 @@ Search uses PostgreSQL full-text search across these fields:
 | `materials` | Materials | `course_materials.name`, `course_materials.type`, `course_materials.description` |
 
 Program names are searched directly from `programs.program`.
+
+The filter values and UI labels are defined in `SearchFilterOptions`, which is used by both search controllers and the Blade view. This keeps property validation, defaults, and display labels in one place.
 
 ## Request Flow
 
@@ -218,4 +221,4 @@ Few constraints that might be important to consider for this feature:
 - search result links go to existing course and program wizard routes
 - PHP-side grouping and pagination is fine for a small dataset, but may need refactoring if the database grows extremely large, which is unlikely
 - empty-query listing is not currently implemented
-- if new searchable fields are added, update the property list, migrations, controller search methods, tests, and this doc
+- if new searchable fields are added, update `SearchFilterOptions`, migrations, controller search methods, tests, and this doc
