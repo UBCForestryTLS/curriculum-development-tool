@@ -50,10 +50,11 @@ def extract(text: str, min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
     max_df = max_df_pct if doc_count > 10 else 1.0 
 
     vectorizer_model = CountVectorizer(
-                            stop_words=list(ENGLISH_STOP_WORDS.union(list(map(str.lower, CUSTOM_STOP_WORDS)))), 
-                            ngram_range=(1, 3), 
+                            stop_words=list(ENGLISH_STOP_WORDS.union(list(map(str.lower, CUSTOM_STOP_WORDS)))),
+                            ngram_range=(1, 3),
                             min_df=min_df,
                             max_df=max_df,
+                            lowercase=False, # This is useful to keep abbreviations in UPPERCASE, but can cause duplication
                         )
     # TODO: Add a local copy of the model in case the HF repo is taken down
     embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")

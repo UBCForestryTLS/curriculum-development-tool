@@ -305,21 +305,28 @@ class CourseMaterialFileController extends Controller
             return;
         }
 
-        $lowercaseTopics = array_unique(array_map('strtolower', $topicTexts));
+        $originalByLower = [];
+        foreach ($topicTexts as $text) {
+            $key = strtolower($text);
+            if (!isset($originalByLower[$key])) {
+                $originalByLower[$key] = $text;
+            }
+        }
+        $lowerKeys = array_keys($originalByLower);
 
         $existingTopics = CourseTopic::where('course_id', $file->course_id)
-            ->whereIn(DB::raw('LOWER(topic)'), $lowercaseTopics)
+            ->whereIn(DB::raw('LOWER(topic)'), $lowerKeys)
             ->get()
             ->keyBy(fn($t) => strtolower($t->topic));
 
         $existingIds = [];
         $newNames = [];
 
-        foreach ($lowercaseTopics as $name) {
-            if ($existingTopics->has($name)) {
-                $existingIds[] = $existingTopics->get($name)->course_topic_id;
+        foreach ($lowerKeys as $key) {
+            if ($existingTopics->has($key)) {
+                $existingIds[] = $existingTopics->get($key)->course_topic_id;
             } else {
-                $newNames[] = $name;
+                $newNames[] = $originalByLower[$key];
             }
         }
 
@@ -341,8 +348,9 @@ class CourseMaterialFileController extends Controller
 
             DB::table('course_topics')->insert($rows);
 
+            $newLowerNames = array_map('strtolower', $newNames);
             $newIds = CourseTopic::where('course_id', $file->course_id)
-                ->whereIn(DB::raw('LOWER(topic)'), $newNames)
+                ->whereIn(DB::raw('LOWER(topic)'), $newLowerNames)
                 ->pluck('course_topic_id')
                 ->all();
         }
@@ -355,7 +363,7 @@ class CourseMaterialFileController extends Controller
 
         SuggestedTopic::where('course_material_file_id', $file->course_material_file_id)
             ->where('status', SuggestedTopic::STATUS_PENDING)
-            ->whereIn(DB::raw('LOWER(topic)'), $lowercaseTopics)
+            ->whereIn(DB::raw('LOWER(topic)'), $lowerKeys)
             ->delete();
     }
 
