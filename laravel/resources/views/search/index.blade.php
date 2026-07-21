@@ -230,10 +230,47 @@
         mark {
             padding: 0.1rem 0.2rem;
         }
+
+        .search-info-button {
+            width: 1.85rem;
+            height: 1.85rem;
+            line-height: 1;
+        }
+
+        .search-info-button .bi {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .search-info-modal-title {
+            margin-bottom: 0.1rem;
+            line-height: 1.2;
+        }
+
+        .search-info-modal-list {
+            margin-top: 0;
+            padding-left: 1.25rem;
+        }
+
+        .search-info-modal-list::before {
+            content: none;
+        }
     </style>
 
     <div class="search-page-header text-center">
-        <h1 class="mb-3">Course Search</h1>
+        <div class="d-inline-flex align-items-center gap-2 mb-3">
+            <h1 class="mb-0">Course Search</h1>
+            <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm rounded-circle p-0 search-info-button"
+                data-bs-toggle="modal"
+                data-bs-target="#searchInfoModal"
+                aria-label="About course search"
+                title="About course search"
+            >
+                <i class="bi bi-info-lg"></i>
+            </button>
+        </div>
 
         <form method="GET" action="{{ route('search.index') }}" id="courseSearchForm">
             <input type="hidden" name="property_filters_applied" value="1">
@@ -420,6 +457,54 @@
             @enderror
 
         </form>
+
+        <div
+            id="searchInfoModal"
+            class="modal fade text-start"
+            tabindex="-1"
+            aria-labelledby="searchInfoModalLabel"
+            aria-hidden="true"
+        >
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="searchInfoModalLabel">About Course Search</h5>
+                        <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"
+                        ></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <p>
+                            Course Search looks across course identity, topics, learning objectives,
+                            assessments, descriptions, materials, and program names. Use the settings
+                            menu to choose the result view and narrow results by property, course code,
+                            course level, or program.
+                        </p>
+
+                        <h6 class="fw-semibold search-info-modal-title">Query Tips</h6>
+                        <ul class="search-info-modal-list mb-3">
+                            <li>Use <code>AND</code> when results should include both terms: <code>climate AND policy</code>.</li>
+                            <li>Use <code>OR</code> when results can include either term: <code>climate OR wildfire</code>.</li>
+                            <li>Use quotes when words should appear together as a phrase: <code>"forest management"</code>.</li>
+                            <li>Use a minus sign to leave out a term: <code>climate -policy</code>.</li>
+                        </ul>
+
+                        <h6 class="fw-semibold search-info-modal-title">Notes</h6>
+                        <ul class="search-info-modal-list mb-0">
+                            <li>Results are ranked by where the query matched and how many useful matches were found across the course content.</li>
+                            <li>You can save filter presets from the settings menu and reuse them later.</li>
+                            <li>Search handles normal word forms, but it does not guarantee partial-word matching.</li>
+                            <li>Empty searches show the search page and filters, but do not list every course.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         @auth
             <div
                 id="saveFilterModal"
