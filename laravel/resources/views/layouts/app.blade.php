@@ -97,6 +97,10 @@
                             @else
 
                                 <li class="nav-item">
+                                    <a class="nav-link text-white" href="{{ route('search.index') }}">Course Search</a>
+                                </li>
+
+                                <li class="nav-item">
                                     <a class="nav-link text-white" href="{{ route('home')}}">My Dashboard</a>
                                 </li>
 
