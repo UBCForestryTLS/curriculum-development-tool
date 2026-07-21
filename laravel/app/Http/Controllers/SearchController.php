@@ -139,7 +139,7 @@ class SearchController extends Controller
             );
             $results = $resultsAndStats['results'];
             $stats = $resultsAndStats['stats'];
-            $programMatches = $this->searchProgramNames($searchTerm);
+            $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels);
             $programResults = $this->groupCourseResultsByProgram($results,$programMatches,$selectedProgramIds);
 
             $stats['programs'] = $programResults->count();
@@ -597,12 +597,27 @@ class SearchController extends Controller
      *
      * @return Collection The matching programs with highlighted name snippets.
      */
-    public function searchProgramNames(string $searchTerm){
-        $results = DB::table('programs')
+    public function searchProgramNames(string $searchTerm, array $selectedCourseCodes, array $selectedCourseLevels){
+        $query = DB::table('programs')
             ->whereRaw(
                 "programs.search_vector @@ websearch_to_tsquery('english', ?)",
                 [$searchTerm]
-            )
+            );
+
+        // If course filters are active, a direct program-name match should only remain
+        // if the program has at least one course that matches those selected course filters.
+        if (!empty($selectedCourseCodes) || !empty($selectedCourseLevels)) {
+            $query->whereExists(function (Builder $courseFilterQuery) use ($selectedCourseCodes, $selectedCourseLevels) {
+                $courseFilterQuery->select(DB::raw(1))
+                    ->from('course_programs')
+                    ->join('courses', 'courses.course_id', '=', 'course_programs.course_id')
+                    ->whereColumn('course_programs.program_id', 'programs.program_id');
+
+                $this->applyCourseFilters($courseFilterQuery, $selectedCourseCodes, $selectedCourseLevels);
+            });
+        }
+
+        $results = $query
             ->selectRaw("
                 programs.program_id,
                 programs.program,

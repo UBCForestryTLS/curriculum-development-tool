@@ -1859,9 +1859,9 @@ public function test_applied_course_filters_show_correct_programs_in_program_vie
 
     $programResponse->assertStatus(200);
     $this->assertCount(1, $programResults);
+    $this->assertSame($selectedProgramId, $programResults->first()->program_id);
+    $this->assertSame('Terraria Program', $programResults->first()->program);
     $this->assertCount(0, $programResults->first()->courses);
-    $programResponse->assertSee('Terraria Program');
-    $programResponse->assertDontSee('Different terraria program');
     
 
 }
