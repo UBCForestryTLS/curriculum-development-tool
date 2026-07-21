@@ -1796,4 +1796,74 @@ public function test_applied_saved_filter_is_shown_as_the_current_preset(): void
     $response->assertDontSee('No matches found.');
 }
 
+public function test_applied_course_filters_show_correct_programs_in_program_view(){
+
+    $selectedProgramId = DB::table('programs')->insertGetId([
+        'program' => 'Terraria Program',
+        'level' => 'Bachelors',
+        'status' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ], 'program_id');
+
+    $otherProgramId = DB::table('programs')->insertGetId([
+        'program' => 'Different terraria program',
+        'level' => 'Bachelors',
+        'status' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ], 'program_id');
+
+    $matchingFilterCourse = Course::factory()->create([
+        'course_code' => 'FRST',
+        'course_num' => 303,
+        'course_title' => 'Climate Resilient',
+    ]);
+
+    DB::table('course_programs')->insert([
+        [
+            'course_id' => $matchingFilterCourse->course_id,
+            'program_id' => $selectedProgramId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    $excludedFilterCourse = Course::factory()->create([
+        'course_code' => 'CONS',
+        'course_num' => 303,
+        'course_title' => 'Climate Resilient',
+    ]);
+
+    DB::table('course_programs')->insert([
+        [
+            'course_id' => $excludedFilterCourse->course_id,
+            'program_id' => $otherProgramId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    $parameters = [
+        'view' => 'courses',
+        'query' => 'terraria',
+        'course_filters_applied' => 1,
+        'course_codes' => ['FRST'],
+    ];
+
+    $programResponse = $this->get(route('search.index', [
+        ...$parameters,
+        'view' => 'programs',
+    ]));
+    $programResults = $programResponse->viewData('programResults');
+
+    $programResponse->assertStatus(200);
+    $this->assertCount(1, $programResults);
+    $this->assertCount(0, $programResults->first()->courses);
+    $programResponse->assertSee('Terraria Program');
+    $programResponse->assertDontSee('Different terraria program');
+    
+
+}
+
 }
