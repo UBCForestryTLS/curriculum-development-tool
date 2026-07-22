@@ -88,7 +88,7 @@ class SlidesHandler(MaterialTypeHandler):
             lines = [line for line in page.get("lines", []) if line.get("text", "").strip()]
             if not lines:
                 continue
-            biggest = max(lines, key=lambda line: line.get("size", 0.0))
+            biggest = max(lines, key=lambda line: line.get("size") or 0.0)
             title = biggest["text"].strip()
             if title and len(title.split()) <= self.MAX_TITLE_WORDS:
                 titles.append(title)
@@ -152,7 +152,7 @@ class ArticleHandler(MaterialTypeHandler):
         bold = line.get("bold")
         # bold is None for OCR, but require bold if non-OCR
         # Note: Tesseract does have a way to estimate bold text with some math, but results are decent as-is already.
-        if line.get("size", 0.0) >= self.MIN_HEADING_SIZE and (bold or bold is None):
+        if (line.get("size") or 0.0) >= self.MIN_HEADING_SIZE and (bold or bold is None):
             return True
         else:
             return False
