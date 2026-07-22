@@ -16,7 +16,7 @@ class MaterialTypeHandler:
         for topic in topics:
             pattern = re.compile(rf'(?<!\S){re.escape(topic)}(?!\S)', re.IGNORECASE | re.UNICODE)
             if len(pattern.findall(text)) >= min_count:
-                matched.append(Topic(topic=topic, score=0.0))
+                matched.append(Topic(topic=topic, score=0.0, source="match"))
         return matched
 
     def preprocess(self, text: str) -> str:
@@ -43,7 +43,13 @@ class MaterialTypeHandler:
 
         return matched_topics
 
-def _to_topics(texts) -> list[Topic]:
+    def refresh_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
+        """Extract match-based and keyword-based topics without font-based topics.
+        For the default Material handler, this is the same because only matched topics are used"""
+        # TODO: Check with Fabian if we should run BERTopic keyword extraction on default material types too
+        return self.extract_topics(pages, existing_topics)
+
+def _to_topics(texts, source) -> list[Topic]:
     """De-duplicate (case-insensitive) and wrap heading texts as topics."""
     seen: set[str] = set()
     topics: list[Topic] = []
@@ -52,7 +58,7 @@ def _to_topics(texts) -> list[Topic]:
         key = text.lower()
         if text and key not in seen:
             seen.add(key)
-            topics.append(Topic(topic=text, score=0.0))
+            topics.append(Topic(topic=text, score=0.0, source=source))
     return topics
 
 
@@ -68,15 +74,19 @@ class SlidesHandler(MaterialTypeHandler):
         text = re.sub(r'(?<=\n)[•-]\s+', '', text)
         return text
 
-    def extract_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
+    def extract_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = [], refresh_only : bool = False) -> list[Topic]:
         title_topics = self._title_topics(pages)
-        keyword_topics = self._keyword_topics(pages)
+        keyword_topics = self._keyword_topics(pages) if not refresh_only else []
         matched_topics = self._matched_topics(pages, existing_topics)
         return postprocessor.process(
                         postprocessor.union(title_topics, keyword_topics, matched_topics), 
                         filterLowerCaseSingleWords = False,
-                        scoreThreshold = 0.8 # Higher score is better
+                        scoreThreshold = 0.2
                     )
+
+    def refresh_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
+        """Extract topics without text extraction (for refresh). Runs BERTopic and matching only."""
+        return self.extract_topics(pages, existing_topics, refresh_only=True)
         
     def _matched_topics(self, pages: list[ExtractedPage], existing_topics: list[str]):
         text = self.pages_to_text(pages)
@@ -98,7 +108,7 @@ class SlidesHandler(MaterialTypeHandler):
             title = biggest.text.strip()
             if title and len(title.split()) <= self.MAX_TITLE_WORDS:
                 titles.append(title)
-        return _to_topics(titles)
+        return _to_topics(titles, source="font")
 
 
 class ArticleHandler(MaterialTypeHandler):
@@ -114,12 +124,9 @@ class ArticleHandler(MaterialTypeHandler):
         else:
             return text
     
-    def extract_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
-        print("Page count:", len(pages))
+    def extract_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = [], refresh_only: bool = False) -> list[Topic]:
         text = self.pages_to_text(pages)
-        print("Preprocessed pages count:", len(text))
-        print("Extracting topics from preprocessed_text...")
-        keyword_topics = extractor.extract(text)
+        keyword_topics = extractor.extract(text) if not refresh_only else []
         heading_topics = self._heading_topics(pages)
         matched_topics = self._matched_topics(pages, existing_topics)
         topics = postprocessor.union(heading_topics, keyword_topics, matched_topics)
@@ -127,10 +134,14 @@ class ArticleHandler(MaterialTypeHandler):
             topics, 
             minTopicCharCount = 4, 
             filterLowerCaseSingleWords = False, 
-            scoreThreshold = 1 # BERTopic
+            scoreThreshold = 0.2 # BERTopic
         )
         # return postprocessor.union(self._heading_topics(pages), keyword_topics)
         return postprocessed_topics
+
+    def refresh_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
+        """Extract topics without text extraction (for refresh). Runs BERTopic and matching only."""
+        return self.extract_topics(pages, existing_topics, refresh_only=True)
     
     def _matched_topics(self, pages: list[ExtractedPage], existing_topics: list[str]):
         text = self.pages_to_text(pages)
@@ -145,7 +156,7 @@ class ArticleHandler(MaterialTypeHandler):
             for line in page.lines
             if line.text.strip() and self._is_heading(line)
         ]
-        return _to_topics(headings)
+        return _to_topics(headings, source="font")
 
     def _is_heading(self, line: ExtractedLine) -> bool:
         # bold is None for OCR, but require bold if non-OCR
@@ -165,8 +176,6 @@ DEFAULT_HANDLER = MaterialTypeHandler()
 
 
 def get_handler(material_type: str | None) -> MaterialTypeHandler:
-    # TODO: Make frontend dropdown to limit to known types 
-    #       with an 'other' option for free text, for which we'll use the default handler
     print("getting handler for material_type: ", (material_type or "").lower())
     if (material_type or "").lower() not in handlers:
         print("No specific handler found for material_type: ", (material_type or "").lower())

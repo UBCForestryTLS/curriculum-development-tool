@@ -89,25 +89,18 @@ class CourseMaterialFileController extends Controller
             ->where('course_id', $course_id)
             ->firstOrFail();
 
-        DB::transaction(function () use ($file) {
-            $file->chunks()->delete();
-            $file->suggestedTopics()
-                ->where('status', '!=', SuggestedTopic::STATUS_REJECTED)
-                ->delete();
+        $file->update([
+            'status' => CourseMaterialFile::STATUS_PENDING,
+            'error_message' => null,
+            'processing_time_seconds' => null,
+        ]);
 
-            $file->update([
-                'status' => CourseMaterialFile::STATUS_PENDING,
-                'error_message' => null,
-                'page_count' => null,
-                'processing_time_seconds' => null,
-            ]);
-        });
-
-        IndexCourseMaterial::dispatch($file->course_material_file_id);
+        $refreshingTopicsOnly = $file->chunks()->exists();
+        IndexCourseMaterial::dispatch($file->course_material_file_id, $refreshingTopicsOnly);
 
         return redirect()
             ->back()
-            ->with('success', 'Refreshing extracted text and topics.');
+            ->with('success', $refreshingTopicsOnly ? 'Refreshing topics.' : 'Refreshing extracted text and topics.');
     }
 
     public function download($course_id, $material_id, $file_id): StreamedResponse

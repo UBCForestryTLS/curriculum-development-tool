@@ -5,7 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.schemas import ExtractRequest, ExtractResponse, PageContent
+from app.schemas import (
+    ExtractRequest,
+    ExtractResponse,
+    RefreshTopicsRequest,
+    PageContent,
+    ExtractedPage,
+    ExtractedLine,
+)
 from app.services.text_readers import document_extractor
 from app.services.topic_extraction import type_specific_handlers
 
@@ -35,6 +42,7 @@ async def health_check() -> dict[str, str]:
 def extract(request: ExtractRequest) -> ExtractResponse:
     """Extract per-page text and topics from a PDF in a single pass."""
     try:
+        handler = type_specific_handlers.get_handler(request.material_type)
         file_bytes = base64.b64decode(request.file)
         pages, page_count = document_extractor.extract(
             file_bytes,
@@ -42,8 +50,6 @@ def extract(request: ExtractRequest) -> ExtractResponse:
             request.extraction_engine,
             request.ocr_threshold,
         )
-        # TODO: See how best to handle text-only input from Textract here
-        handler = type_specific_handlers.get_handler(request.material_type)
         topics = handler.extract_topics(pages, request.existing_topics)
 
         return ExtractResponse(
@@ -57,4 +63,28 @@ def extract(request: ExtractRequest) -> ExtractResponse:
         )
     except Exception as e:
         logger.error(f"Extraction failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/refresh-topics", response_model=ExtractResponse)
+def refresh_topics(request: RefreshTopicsRequest) -> ExtractResponse:
+    """Re-extract topics from existing page content, skipping text extraction."""
+    try:
+        handler = type_specific_handlers.get_handler(request.material_type)
+        pages = [
+            ExtractedPage(
+                page_number=p.page_number,
+                lines=[ExtractedLine(text=line) for line in p.content.split("\n") if line.strip()],
+            )
+            for p in request.pages
+        ]
+        topics = handler.refresh_topics(pages, request.existing_topics)
+
+        return ExtractResponse(
+            pages=request.pages,
+            page_count=len(request.pages),
+            topics=topics,
+        )
+    except Exception as e:
+        logger.error(f"Topic refresh failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

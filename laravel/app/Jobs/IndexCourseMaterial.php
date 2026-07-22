@@ -27,10 +27,12 @@ class IndexCourseMaterial implements ShouldQueue
     public int $tries = 1;
 
     public int $courseMaterialFileId;
+    public bool $refreshingTopicsOnly; // Only refreshing keyword/matched topics, not re-indexing text
 
-    public function __construct(int $courseMaterialFileId)
+    public function __construct(int $courseMaterialFileId, bool $refreshingTopicsOnly = false)
     {
         $this->courseMaterialFileId = $courseMaterialFileId;
+        $this->refreshingTopicsOnly = $refreshingTopicsOnly;
     }
 
     public function handle(): void
@@ -47,39 +49,56 @@ class IndexCourseMaterial implements ShouldQueue
         try {
             $startTime = microtime(true);
 
-            $absolutePath = Storage::disk('local')->path($file->file_path);
-            $fileBytes = file_get_contents($absolutePath);
-
             $existingTopics = CourseTopic::where('course_id', $file->course_id)
                 ->pluck('topic')
                 ->all();
 
-            $response = Http::timeout($this->timeout)
-                ->post(config('services.text_extraction.base_url') . '/extract', [
-                    'file' => base64_encode($fileBytes),
-                    'ocr_enabled' => $file->ocr_enabled,
-                    'extraction_engine' => $file->extraction_engine,
-                    'ocr_threshold' => $file->ocr_threshold,
-                    'material_type' => $file->courseMaterial?->type,
-                    'existing_topics' => $existingTopics,
-                ]);
+            if ($this->refreshingTopicsOnly) {
+                $pages = $file->chunks()
+                    ->orderBy('page_number')
+                    ->get()
+                    ->map(fn($chunk) => ['page_number' => $chunk->page_number, 'content' => $chunk->content])
+                    ->all();
+
+                $response = Http::timeout($this->timeout)
+                    ->post(config('services.text_extraction.base_url') . '/refresh-topics', [
+                        'pages' => $pages,
+                        'material_type' => $file->courseMaterial?->type,
+                        'existing_topics' => $existingTopics,
+                    ]);
+            } else {
+                $absolutePath = Storage::disk('local')->path($file->file_path);
+                $fileBytes = file_get_contents($absolutePath);
+
+                $response = Http::timeout($this->timeout)
+                    ->post(config('services.text_extraction.base_url') . '/extract', [
+                        'file' => base64_encode($fileBytes),
+                        'ocr_enabled' => $file->ocr_enabled,
+                        'extraction_engine' => $file->extraction_engine,
+                        'ocr_threshold' => $file->ocr_threshold,
+                        'material_type' => $file->courseMaterial?->type,
+                        'existing_topics' => $existingTopics,
+                    ]);
+            }
 
             $response->throw();
             $data = $response->json();
-            $pages = $data['pages'] ?? [];
 
-            $file->update(['page_count' => $data['page_count'] ?? count($pages)]);
+            if (!$this->refreshingTopicsOnly) {
+                $pages = $data['pages'] ?? [];
+                $file->update(['page_count' => $data['page_count'] ?? count($pages)]);
 
-            $rows = [];
-            foreach ($pages as $page) {
-                if (!empty($page['content'])) {
-                    $rows[] = $this->chunkDBRow($file, $page['page_number'], $page['content']);
+                $rows = [];
+                foreach ($pages as $page) {
+                    if (!empty($page['content'])) {
+                        $rows[] = $this->chunkDBRow($file, $page['page_number'], $page['content']);
+                    }
                 }
+
+                $this->saveTextChunks($file, $rows);
             }
 
-            $this->saveTextChunks($file, $rows);
-
-            $this->saveExtractedTopics($file, $data['topics'] ?? []);
+            $this->saveExtractedTopics($file, $data['topics'] ?? [], $this->refreshingTopicsOnly);
 
             $processingTime = (int) round(microtime(true) - $startTime);
             $file->update(['processing_time_seconds' => $processingTime]);
@@ -116,12 +135,20 @@ class IndexCourseMaterial implements ShouldQueue
         $file->update(['status' => CourseMaterialFile::STATUS_INDEXED]);
     }
 
-    private function saveExtractedTopics(CourseMaterialFile $file, array $topics): void
+    private function saveExtractedTopics(CourseMaterialFile $file, array $topics, bool $refreshingTopicsOnly = false): void
     {
-        // Delete non-rejected suggested topics from any previous extraction for this file
-        $file->suggestedTopics()
-            ->where('status', '!=', SuggestedTopic::STATUS_REJECTED)
-            ->delete();
+        if ($refreshingTopicsOnly) {
+            // Only delete topics that can be re-extracted (keyword and match)
+            $file->suggestedTopics()
+                ->where('status', '!=', SuggestedTopic::STATUS_REJECTED)
+                ->whereIn('source', ['keyword', 'match'])
+                ->delete();
+        } else {
+            // Full extraction: delete all non-rejected topics
+            $file->suggestedTopics()
+                ->where('status', '!=', SuggestedTopic::STATUS_REJECTED)
+                ->delete();
+        }
 
         $rejectedTopics = $file->suggestedTopics()
             ->where('status', SuggestedTopic::STATUS_REJECTED)
@@ -138,6 +165,7 @@ class IndexCourseMaterial implements ShouldQueue
                 'course_material_file_id' => $file->course_material_file_id,
                 'topic' => $text,
                 'score' => $topic['score'] ?? null,
+                'source' => $topic['source'] ?? 'keyword',
                 'status' => SuggestedTopic::STATUS_PENDING,
                 'created_at' => now(),
                 'updated_at' => now(),

@@ -13,7 +13,7 @@ class SuggestedTopic extends Model
 
     protected $primaryKey = 'suggested_topic_id';
 
-    protected $fillable = ['course_material_file_id', 'topic', 'score', 'status'];
+    protected $fillable = ['course_material_file_id', 'topic', 'score', 'status', 'source'];
 
     protected $casts = [
         'score' => 'float',

@@ -13,6 +13,7 @@ return new class extends Migration
             $table->unsignedBigInteger('course_material_file_id');
             $table->text('topic');
             $table->float('score')->nullable();
+            $table->string('source')->default('keyword');
             $table->unsignedTinyInteger('status')->default(0); // 0=pending, 1=confirmed, 2=rejected
             $table->timestamps();
 

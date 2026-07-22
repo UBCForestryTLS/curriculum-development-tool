@@ -123,7 +123,7 @@
                     <button type="submit"
                             class="btn btn-sm btn-outline-primary"
                             @disabled($file->status === 'INDEXING')
-                            onclick="return confirm('Re-run text and topic extraction for this file using the saved settings?');">
+                            onclick="return confirm('{{ $file->chunks->isNotEmpty() ? 'Re-run topic extraction for this file?' : 'Re-run text and topic extraction for this file using the saved settings?' }}');">
                             <i class="bi bi-arrow-clockwise"></i> Refresh Topics
                     </button>
                 </form>
