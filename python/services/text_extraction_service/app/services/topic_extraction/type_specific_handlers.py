@@ -1,6 +1,6 @@
 import regex as re
 
-from app.schemas import Topic
+from app.schemas import ExtractedLine, ExtractedPage, Topic
 from app.services.topic_extraction import postprocessor
 from app.services.topic_extraction import bertopic_extractor as extractor
 
@@ -26,8 +26,16 @@ class MaterialTypeHandler:
         text = re.sub(r'\b(?:jpg|jpeg|png|gif|bmp|svg|webp)\b', '', text)
         return text
 
-    def extract_topics(self, pages: list[dict], existing_topics: list[str] = []) -> list[Topic]:
-        text = ". \f".join("\n".join(line["text"] for line in page["lines"]) for page in pages if page["lines"])
+    def pages_to_text(self, pages: list[ExtractedPage]) -> str:
+        """Join all lines across pages into a single string."""
+        def _page_text(page: ExtractedPage) -> str:
+            text = ". ".join(line.text for line in page.lines)
+            return self.preprocess(text)
+
+        return "\f".join(_page_text(page) for page in pages if page.lines)
+
+    def extract_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
+        text = self.pages_to_text(pages)
         preprocessed_text = self.preprocess(text)
         print("Extracting topics from preprocessed_text...")
         
@@ -60,36 +68,34 @@ class SlidesHandler(MaterialTypeHandler):
         text = re.sub(r'(?<=\n)[•-]\s+', '', text)
         return text
 
-    def extract_topics(self, pages: list[dict], existing_topics: list[str] = []) -> list[Topic]:
+    def extract_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
         title_topics = self._title_topics(pages)
         keyword_topics = self._keyword_topics(pages)
         matched_topics = self._matched_topics(pages, existing_topics)
         return postprocessor.process(
                         postprocessor.union(title_topics, keyword_topics, matched_topics), 
                         filterLowerCaseSingleWords = False,
-                        # TODO: Remove 1 - score to revert to higher is better everywhere
-                        scoreThreshold = 0.8 # Lower score is better
+                        scoreThreshold = 0.8 # Higher score is better
                     )
         
-    def _matched_topics(self, pages: list[dict], existing_topics: list[str]):
-        text = ". \f".join([self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages])
+    def _matched_topics(self, pages: list[ExtractedPage], existing_topics: list[str]):
+        text = self.pages_to_text(pages)
         matched_topics = self.match_topics(text, existing_topics)
         return matched_topics
 
-    def _keyword_topics(self, pages: list[dict]) -> list[Topic]:
-        # text = ". \f".join(self.preprocess(" ".join(line["text"] for line in page["lines"])) for page in pages if page["lines"])
-        text = ". \f".join([self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages])
+    def _keyword_topics(self, pages: list[ExtractedPage]) -> list[Topic]:
+        text = self.pages_to_text(pages)
         return extractor.extract(text, min_topic_size=3)
 
-    def _title_topics(self, pages: list[dict]) -> list[Topic]:
+    def _title_topics(self, pages: list[ExtractedPage]) -> list[Topic]:
         # A slide's title is simply the largest-font line on the slide.
         titles = []
         for page in pages:
-            lines = [line for line in page.get("lines", []) if line.get("text", "").strip()]
+            lines = [line for line in page.lines if line.text.strip()]
             if not lines:
                 continue
-            biggest = max(lines, key=lambda line: line.get("size") or 0.0)
-            title = biggest["text"].strip()
+            biggest = max(lines, key=lambda line: line.size or 0.0)
+            title = biggest.text.strip()
             if title and len(title.split()) <= self.MAX_TITLE_WORDS:
                 titles.append(title)
         return _to_topics(titles)
@@ -108,10 +114,9 @@ class ArticleHandler(MaterialTypeHandler):
         else:
             return text
     
-    def extract_topics(self, pages: list[dict], existing_topics: list[str] = []) -> list[Topic]:
+    def extract_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
         print("Page count:", len(pages))
-        # TODO: Gotta make this a model of some sort to avoid the confusing dict operations
-        text = ". \f".join([self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages])
+        text = self.pages_to_text(pages)
         print("Preprocessed pages count:", len(text))
         print("Extracting topics from preprocessed_text...")
         keyword_topics = extractor.extract(text)
@@ -123,36 +128,29 @@ class ArticleHandler(MaterialTypeHandler):
             minTopicCharCount = 4, 
             filterLowerCaseSingleWords = False, 
             scoreThreshold = 1 # BERTopic
-            # TODO: Can we scale the score threshold inversely by text length?
-            # Reasoning: Longer texts should produce more topics, and better selected topics too.
-            #            The higher (worse) scored topics would then probably be less relevant
-            # TODO: Another point. Do we even need a score check here? Maybe for articles we do,
-            #                      but for slides, important terms may only appear once. We should still keep them.
-            #                      Could apply to articles too, especially if it's divided by section.
         )
         # return postprocessor.union(self._heading_topics(pages), keyword_topics)
         return postprocessed_topics
     
-    def _matched_topics(self, pages: list[dict], existing_topics: list[str]):
-        text = ". \f".join([self.preprocess(". ".join([line["text"] for line in page["lines"]])) for page in pages])
+    def _matched_topics(self, pages: list[ExtractedPage], existing_topics: list[str]):
+        text = self.pages_to_text(pages)
         # We can potentially scale min_count by the number of pages or text size
         matched_topics = self.match_topics(text, existing_topics, min_count=2)
         return matched_topics
 
-    def _heading_topics(self, pages: list[dict]) -> list[Topic]:
+    def _heading_topics(self, pages: list[ExtractedPage]) -> list[Topic]:
         headings = [
-            line["text"]
+            line.text
             for page in pages
-            for line in page.get("lines", [])
-            if line.get("text", "").strip() and self._is_heading(line)
+            for line in page.lines
+            if line.text.strip() and self._is_heading(line)
         ]
         return _to_topics(headings)
 
-    def _is_heading(self, line: dict) -> bool:
-        bold = line.get("bold")
+    def _is_heading(self, line: ExtractedLine) -> bool:
         # bold is None for OCR, but require bold if non-OCR
         # Note: Tesseract does have a way to estimate bold text with some math, but results are decent as-is already.
-        if (line.get("size") or 0.0) >= self.MIN_HEADING_SIZE and (bold or bold is None):
+        if (line.size or 0.0) >= self.MIN_HEADING_SIZE and (line.bold or line.bold is None):
             return True
         else:
             return False

@@ -3,6 +3,17 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
+class ExtractedLine(BaseModel):
+    text: str
+    size: float | None = None
+    bold: bool | None = None
+
+
+class ExtractedPage(BaseModel):
+    page_number: int
+    lines: list[ExtractedLine]
+
+
 class PageContent(BaseModel):
     page_number: int
     content: str
@@ -23,6 +34,6 @@ class ExtractRequest(BaseModel):
 
 
 class ExtractResponse(BaseModel):
-    pages: List[PageContent]
+    pages: list[PageContent]
     page_count: int
-    topics: List[Topic]
+    topics: list[Topic]

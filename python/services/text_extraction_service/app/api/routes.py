@@ -48,9 +48,9 @@ def extract(request: ExtractRequest) -> ExtractResponse:
 
         return ExtractResponse(
             pages=[
-                PageContent(page_number=page["page_number"], content="\n".join(line["text"] for line in page["lines"]))
+                PageContent(page_number=page.page_number, content="\n".join(line.text for line in page.lines))
                 for page in pages
-                if page["lines"]
+                if page.lines
             ],
             page_count=page_count,
             topics=topics,

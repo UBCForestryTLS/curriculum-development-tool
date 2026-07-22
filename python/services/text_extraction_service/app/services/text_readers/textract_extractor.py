@@ -5,6 +5,7 @@ import boto3
 
 from app.core.config import Settings
 from app.core.logging_config import logger
+from app.schemas import ExtractedLine, ExtractedPage
 
 POLLING_INTERVAL_SECONDS = 2
 MAX_WAIT_SECONDS = 600
@@ -16,15 +17,15 @@ class TextractClient:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or Settings()
 
-    def extract_text(self, file_bytes: bytes, page_count: int) -> tuple[list[dict], int]:
+    def extract_text(self, file_bytes: bytes, page_count: int) -> tuple[list[ExtractedPage], int]:
         """Extract text from a PDF document using AWS Textract.
 
         For single-page documents, uses direct synchronous Textract call.
         For multi-page documents, uploads to S3 and uses async Textract job.
 
-        Returns (pages, page_count), where each page is a dict with
-        {page_number, lines}. Lines contain {text, size, bold}; size and bold
-        are None for Textract since it does not provide font metadata.
+        Returns (pages, page_count), where each page is an ExtractedPage with
+        page_number and lines. Lines are ExtractedLine objects with size=None
+        and bold=None since Textract does not provide font metadata.
         """
         self._validate_settings()
         session = self._create_boto_session()
@@ -37,12 +38,12 @@ class TextractClient:
         else:
             return self._extract_async(session, file_bytes), page_count
 
-    def _extract_sync(self, session: boto3.Session, file_bytes: bytes) -> list[dict]:
+    def _extract_sync(self, session: boto3.Session, file_bytes: bytes) -> list[ExtractedPage]:
         """Single-page extraction using the synchronous detect_document_text API."""
         response = session.client("textract").detect_document_text(Document={"Bytes": file_bytes})
         return _parse_textract_response(response)
 
-    def _extract_async(self, session: boto3.Session, file_bytes: bytes) -> list[dict]:
+    def _extract_async(self, session: boto3.Session, file_bytes: bytes) -> list[ExtractedPage]:
         """Multi-page extraction using async start/get document text detection via S3."""
         textract = session.client("textract")
         s3 = session.client("s3")
@@ -57,7 +58,7 @@ class TextractClient:
 
         return self._poll_job(textract, job_id)
 
-    def _poll_job(self, textract, job_id: str) -> list[dict]:
+    def _poll_job(self, textract, job_id: str) -> list[ExtractedPage]:
         """Poll Textract until the job succeeds, fails, or times out."""
         start = time.time()
         while time.time() - start < MAX_WAIT_SECONDS:
@@ -74,7 +75,7 @@ class TextractClient:
 
         raise TimeoutError("Textract job %s did not complete within %ss", job_id, MAX_WAIT_SECONDS)
 
-    def _collect_results(self, textract, job_id: str, initial_response: dict) -> list[dict]:
+    def _collect_results(self, textract, job_id: str, initial_response: dict) -> list[ExtractedPage]:
         """Paginate through all Textract results and parse into pages."""
         all_blocks = initial_response["Blocks"]
         next_token = initial_response.get("NextToken")
@@ -104,8 +105,8 @@ class TextractClient:
         )
 
 
-def _parse_textract_response(response: dict) -> list[dict]:
-    """Parse a Textract response into a list of page dicts."""
+def _parse_textract_response(response: dict) -> list[ExtractedPage]:
+    """Parse a Textract response into a list of ExtractedPage objects."""
     blocks = response.get("Blocks", [])
     pages_by_number: dict[int, list[str]] = {}
     for block in blocks:
@@ -115,13 +116,13 @@ def _parse_textract_response(response: dict) -> list[dict]:
         elif block["BlockType"] == "LINE" and page_num in pages_by_number:
             pages_by_number[page_num].append(block["Text"])
 
-    pages: list[dict] = []
+    pages: list[ExtractedPage] = []
     for page_num in sorted(pages_by_number):
         lines = [
-            {"text": line.strip(), "size": None, "bold": None}
+            ExtractedLine(text=line.strip())
             for line in pages_by_number[page_num]
             if line.strip()
         ]
-        pages.append({"page_number": page_num, "lines": lines})
+        pages.append(ExtractedPage(page_number=page_num, lines=lines))
 
     return pages

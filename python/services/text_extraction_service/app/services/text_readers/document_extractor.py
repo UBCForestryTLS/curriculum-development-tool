@@ -7,6 +7,7 @@ from PIL import Image
 
 from app.core.config import settings
 from app.core.logging_config import logger
+from app.schemas import ExtractedLine, ExtractedPage
 from app.services.text_readers.textract_extractor import TextractClient
 
 OCR_RENDER_DPI = 300
@@ -31,15 +32,11 @@ def extract(
     ocr_enabled: bool,
     extraction_engine: str,
     ocr_threshold: int,
-) -> tuple[list[dict], int]:
-    """Extract text per page and annotate with font properties per line
+) -> tuple[list[ExtractedPage], int]:
+    """Extract text per page and annotate with font properties per line.
 
-    Returns (pages, page_count),
-    where each page is a dict with {page_number, lines},
-    and lines is a list of {text, size, bold}:
-      - for readable pages: real font size extracted with bold flag (True/False)
-      - for scanned pages (Tesseract OCR): word-box height estimates size; bold is unknown (None)
-      - for scanned pages (Textract OCR): size and bold are unknown (None)
+    Returns (pages, page_count), where each page is an ExtractedPage with
+    page_number and ExtractedLine objects.
     """
     doc: pymupdf.Document = pymupdf.open(stream=file_bytes, filetype="pdf")
     page_count = doc.page_count
@@ -50,7 +47,7 @@ def extract(
 
     logger.info(f"Extracting {page_count}-page document (ocr_enabled={ocr_enabled})")
 
-    pages: list[dict] = []
+    pages: list[ExtractedPage] = []
     try:
         for i in range(page_count):
             page: pymupdf.Page = doc[i]
@@ -58,24 +55,24 @@ def extract(
                 lines = _from_ocr(page)
             else:
                 lines = _from_text_layer(page)
-            pages.append({"page_number": i + 1, "lines": lines})
+            pages.append(ExtractedPage(page_number=i + 1, lines=lines))
     finally:
         doc.close()
 
     return pages, page_count
 
 
-def _from_text_layer(page) -> list[dict]:
-    lines: list[dict] = []
+def _from_text_layer(page) -> list[ExtractedLine]:
+    lines: list[ExtractedLine] = []
     for block in page.get_text("dict", flags=pymupdf.TEXT_COLLECT_STYLES).get("blocks", []):
         for line in block.get("lines", []):
             spans = line.get("spans", [])
             text = "".join(span.get("text", "") for span in spans).strip()
             if not text:
                 continue
-            size = max((span.get("size", 0.0) for span in spans), default=0.0) # Largest font size in line treated as line font size
+            size = max((span.get("size", 0.0) for span in spans), default=0.0)
             bold = any(_is_bold(span) for span in spans)
-            lines.append({"text": text, "size": round(size, 1), "bold": bold})
+            lines.append(ExtractedLine(text=text, size=round(size, 1), bold=bold))
     return lines
 
 
@@ -85,12 +82,11 @@ def _is_bold(span) -> bool:
     return "bold" in span.get("font", "").lower()
 
 
-def _from_ocr(page) -> list[dict]:
+def _from_ocr(page) -> list[ExtractedLine]:
     pixmap = page.get_pixmap(dpi=OCR_RENDER_DPI)
     image = Image.open(io.BytesIO(pixmap.tobytes("png")))
     data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
 
-    # Group words into lines, keeping each word's box height (approx. font size).
     grouped: dict[tuple, list[tuple[int, str]]] = {}
     for i, raw_word in enumerate(data["text"]):
         word = raw_word.strip()
@@ -105,7 +101,7 @@ def _from_ocr(page) -> list[dict]:
         key = (data["block_num"][i], data["par_num"][i], data["line_num"][i])
         grouped.setdefault(key, []).append((data["height"][i], word))
 
-    lines: list[dict] = []
+    lines: list[ExtractedLine] = []
     for _, words in sorted(grouped.items()):
         text = " ".join(word for _, word in words).strip()
         if not text:
