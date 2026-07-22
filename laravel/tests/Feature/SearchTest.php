@@ -1650,7 +1650,8 @@ public function test_authenticated_user_can_save_search_filter(): void{
 
     ]);
 
-    $response->assertRedirect(route('search.index'));
+    $response->assertStatus(302);
+    $this->assertStringStartsWith(route('search.index'), $response->headers->get('Location'));
     $response->assertSessionHas('success');
 
     $this->assertDatabaseHas('saved_search_filters', [

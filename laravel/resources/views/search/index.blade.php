@@ -1044,6 +1044,8 @@
                 savedFilterValues.innerHTML = '';
 
                 const selectedView = document.querySelector('input[name="view"]:checked');
+                const searchInput = searchForm.querySelector('input[name="query"]');
+                addSavedFilterValue('query', searchInput ? searchInput.value : '');
                 addSavedFilterValue('view', selectedView ? selectedView.value : 'courses');
                 addSavedFilterValue('property_filters_applied', '1');
 
@@ -1244,9 +1246,6 @@
                 updatePropertyControls();
                 renderSelectedCourseCodes();
                 renderSelectedPrograms();
-                propertyOptions.forEach(function (option) {
-                    option.disabled = false;
-                });
                 if (currentSavedFilterInput) {
                     currentSavedFilterInput.disabled = true;
                 }

@@ -26,6 +26,7 @@ class SavedSearchFilterController extends Controller
                 Rule::unique('saved_search_filters', 'name')//only allow unique names per user
                     ->where(fn ($query) => $query->where('user_id', $userId)),
             ],
+            'query' => ['nullable', 'string', 'max:200'],
             'view' => ['nullable', 'in:courses,programs'],
             'property_filters_applied' => ['nullable', 'boolean'],
             'properties' => ['nullable', 'array'],
@@ -71,12 +72,23 @@ class SavedSearchFilterController extends Controller
                 ->all(),
         ];
 
-        $request->user()->savedSearchFilters()->create([
+        $savedFilter = $request->user()->savedSearchFilters()->create([
             'name' => trim($validated['name']),
             'filters' => $filters,
         ]);
 
-        return redirect()->back()->with('success', 'Search filter saved successfully.');
+        return redirect()->route('search.index', [
+            'query' => trim($validated['query'] ?? ''),
+            'saved_filter_id' => $savedFilter->id,
+            'view' => $filters['view'],
+            'property_filters_applied' => 1,
+            'properties' => $filters['properties'],
+            'course_filters_applied' => 1,
+            'course_codes' => $filters['course_codes'],
+            'course_levels' => $filters['course_levels'],
+            'program_filters_applied' => 1,
+            'program_ids' => $filters['program_ids'],
+        ])->with('success', 'Search filter saved successfully.');
     }
 
     /**
