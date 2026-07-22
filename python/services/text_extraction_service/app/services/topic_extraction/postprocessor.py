@@ -60,7 +60,7 @@ def process(topics: list[Topic], filterLowerCaseSingleWords = False, minTopicCha
             unique_topics.append(t)
     
     # Remove less relevant topics
-    relevant_topics = [t for t in unique_topics if t.score < scoreThreshold]
+    relevant_topics = [t for t in unique_topics if t.score > scoreThreshold]
     
     return relevant_topics
 

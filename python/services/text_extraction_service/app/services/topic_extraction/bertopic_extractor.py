@@ -91,7 +91,7 @@ def extract(text: str, min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
             key = word.strip().lower()
             if key and key not in seen:
                 seen.add(key)
-                topics.append(Topic(topic = word.strip(), score = 1 - round(float(score), 4)))
+                topics.append(Topic(topic = word.strip(), score = round(float(score), 4)))
     return topics[:TOPICS_COUNT]
 
 def _dedupe_plurals(text: str) -> str:
