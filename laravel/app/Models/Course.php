@@ -120,10 +120,6 @@ class Course extends Model
         return $this->hasMany(CourseMaterial::class, 'course_id', 'course_id');
     }
 
-    public function courseMaterialFiles(){
-        return $this->hasMany(CourseMaterialFile::class, 'course_id', 'course_id');
-    }
-
     //these are for the tables of child records on the course crud controller
     public function getCLOtableAttribute()
     {

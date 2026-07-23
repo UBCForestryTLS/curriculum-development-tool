@@ -43,7 +43,6 @@ class CourseMaterialFileController extends Controller
 
         $file = CourseMaterialFile::create([
             'course_material_id' => $material_id,
-            'course_id' => $course_id,
             'uploaded_by' => Auth::id(),
             'file_name' => $uploaded->getClientOriginalName(),
             'file_path' => $diskPath,
@@ -67,7 +66,6 @@ class CourseMaterialFileController extends Controller
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
-            ->where('course_id', $course_id)
             ->firstOrFail();
 
         if (Storage::disk('local')->exists($file->file_path)) {
@@ -86,7 +84,6 @@ class CourseMaterialFileController extends Controller
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
-            ->where('course_id', $course_id)
             ->firstOrFail();
 
         $file->update([
@@ -107,7 +104,6 @@ class CourseMaterialFileController extends Controller
     {
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
-            ->where('course_id', $course_id)
             ->firstOrFail();
 
         abort_unless(Storage::disk('local')->exists($file->file_path), 404);
@@ -119,7 +115,6 @@ class CourseMaterialFileController extends Controller
     {
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
-            ->where('course_id', $course_id)
             ->firstOrFail();
 
         abort_unless(Storage::disk('local')->exists($file->file_path), 404);
@@ -131,7 +126,6 @@ class CourseMaterialFileController extends Controller
     {
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
-            ->where('course_id', $course_id)
             ->firstOrFail();
 
         $absolutePath = Storage::disk('local')->path($file->file_path);
@@ -152,7 +146,6 @@ class CourseMaterialFileController extends Controller
     {
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
-            ->where('course_id', $course_id)
             ->with([
                 'courseMaterial',
                 'uploader',
@@ -189,7 +182,6 @@ class CourseMaterialFileController extends Controller
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
-            ->where('course_id', $course_id)
             ->firstOrFail();
 
         $request->validate([
@@ -220,7 +212,6 @@ class CourseMaterialFileController extends Controller
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
-            ->where('course_id', $course_id)
             ->firstOrFail();
 
         $request->validate([
@@ -261,7 +252,6 @@ class CourseMaterialFileController extends Controller
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
-            ->where('course_id', $course_id)
             ->firstOrFail();
 
         DB::transaction(function () use ($file) {
@@ -282,7 +272,6 @@ class CourseMaterialFileController extends Controller
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
-            ->where('course_id', $course_id)
             ->firstOrFail();
 
         $file->suggestedTopics()
@@ -307,7 +296,7 @@ class CourseMaterialFileController extends Controller
         }
         $lowerKeys = array_keys($originalByLower);
 
-        $existingTopics = CourseTopic::where('course_id', $file->course_id)
+        $existingTopics = CourseTopic::where('course_id', $file->courseMaterial->course_id)
             ->whereIn(DB::raw('LOWER(topic)'), $lowerKeys)
             ->get()
             ->keyBy(fn($t) => strtolower($t->topic));
@@ -325,11 +314,11 @@ class CourseMaterialFileController extends Controller
 
         $newIds = [];
         if ($newNames) {
-            $maxPosition = CourseTopic::where('course_id', $file->course_id)->max('position') ?? 0;
+            $maxPosition = CourseTopic::where('course_id', $file->courseMaterial->course_id)->max('position') ?? 0;
 
             $rows = array_map(
                 fn($i, $name) => [
-                    'course_id'  => $file->course_id,
+                    'course_id'  => $file->courseMaterial->course_id,
                     'topic'      => $name,
                     'position'   => $maxPosition + $i + 1,
                     'created_at' => now(),
@@ -342,7 +331,7 @@ class CourseMaterialFileController extends Controller
             DB::table('course_topics')->insert($rows);
 
             $newLowerNames = array_map('strtolower', $newNames);
-            $newIds = CourseTopic::where('course_id', $file->course_id)
+            $newIds = CourseTopic::where('course_id', $file->courseMaterial->course_id)
                 ->whereIn(DB::raw('LOWER(topic)'), $newLowerNames)
                 ->pluck('course_topic_id')
                 ->all();

@@ -49,7 +49,7 @@ class IndexCourseMaterial implements ShouldQueue
         try {
             $startTime = microtime(true);
 
-            $existingTopics = CourseTopic::where('course_id', $file->course_id)
+            $existingTopics = CourseTopic::where('course_id', $file->courseMaterial->course_id)
                 ->pluck('topic')
                 ->all();
 
@@ -155,10 +155,14 @@ class IndexCourseMaterial implements ShouldQueue
             ->pluck('topic')
             ->flip();
 
+        $existingTopics = $file->suggestedTopics()
+            ->pluck('topic')
+            ->flip();
+
         $rows = [];
         foreach ($topics as $topic) {
             $text = trim($topic['topic'] ?? '');
-            if ($text === '' || $rejectedTopics->has($text)) {
+            if ($text === '' || $rejectedTopics->has($text) || $existingTopics->has($text)) {
                 continue;
             }
             $rows[] = [

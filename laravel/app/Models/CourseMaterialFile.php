@@ -15,9 +15,6 @@ class CourseMaterialFile extends Model
 
     protected $fillable = [
         'course_material_id',
-        // course_id is denormalised here for direct queries; consider removing
-        // once all queries go through the course_material relationship instead.
-        'course_id',
         'uploaded_by',
         'file_name',
         'file_path',
@@ -44,11 +41,6 @@ class CourseMaterialFile extends Model
     public function courseMaterial()
     {
         return $this->belongsTo(CourseMaterial::class, 'course_material_id', 'course_material_id');
-    }
-
-    public function course()
-    {
-        return $this->belongsTo(Course::class, 'course_id', 'course_id');
     }
 
     public function uploader()

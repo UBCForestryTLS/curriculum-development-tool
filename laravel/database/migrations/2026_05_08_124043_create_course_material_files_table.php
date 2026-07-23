@@ -17,11 +17,6 @@ return new class extends Migration
                 ->on('course_materials')
                 ->onDelete('cascade');
 
-            // course_id is denormalised here for direct queries; consider removing
-            // once all queries go through the course_material relationship instead.
-            $table->unsignedBigInteger('course_id');
-            $table->foreign('course_id')->references('course_id')->on('courses')->onDelete('cascade');
-
             $table->unsignedBigInteger('uploaded_by')->nullable();
             $table->foreign('uploaded_by')->references('id')->on('users')->onDelete('set null');
 
