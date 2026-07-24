@@ -9,14 +9,11 @@ class MaterialTypeHandler:
     """Base handler - extracts keywords from text only"""
 
     def match_topics(self, text: str, topics: list[str], min_count: int = 1) -> list[Topic]:
-        from app.services.topic_extraction.faiss_topic_matcher import FaissTopicMatcher  # noqa: F401
-        # return FaissTopicMatcher().match(text, topics, min_count=min_count)
-
         matched: list[Topic] = []
         for topic in topics:
-            pattern = re.compile(rf'(?<!\S){re.escape(topic)}(?!\S)', re.IGNORECASE | re.UNICODE)
+            pattern = re.compile(rf'\b{re.escape(topic)}\b', re.IGNORECASE | re.UNICODE)
             if len(pattern.findall(text)) >= min_count:
-                matched.append(Topic(topic=topic, score=0.0, source="match"))
+                matched.append(Topic(topic=topic, score=1.0, source="match"))
         return matched
 
     def preprocess(self, text: str) -> str:
@@ -50,7 +47,8 @@ class MaterialTypeHandler:
         return self.extract_topics(pages, existing_topics)
 
 def _to_topics(texts, source) -> list[Topic]:
-    """De-duplicate (case-insensitive) and wrap heading texts as topics."""
+    # Convert unique (case-insensitive) strings with a fixed source to list of Topics.
+    # All scores are 1.0
     seen: set[str] = set()
     topics: list[Topic] = []
     for text in texts:
@@ -58,7 +56,7 @@ def _to_topics(texts, source) -> list[Topic]:
         key = text.lower()
         if text and key not in seen:
             seen.add(key)
-            topics.append(Topic(topic=text, score=0.0, source=source))
+            topics.append(Topic(topic=text, score=1.0, source=source))
     return topics
 
 
@@ -75,13 +73,13 @@ class SlidesHandler(MaterialTypeHandler):
         return text
 
     def extract_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = [], refresh_only : bool = False) -> list[Topic]:
-        title_topics = self._title_topics(pages)
-        keyword_topics = self._keyword_topics(pages) if not refresh_only else []
+        title_topics = self._title_topics(pages) if not refresh_only else []
+        keyword_topics = self._keyword_topics(pages)
         matched_topics = self._matched_topics(pages, existing_topics)
         return postprocessor.process(
                         postprocessor.union(title_topics, keyword_topics, matched_topics), 
                         filterLowerCaseSingleWords = False,
-                        scoreThreshold = 0.2
+                        scoreThreshold = 0.01
                     )
 
     def refresh_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
@@ -117,8 +115,12 @@ class ArticleHandler(MaterialTypeHandler):
     def preprocess(self, text: str) -> str:
         text = super().preprocess(text)
         
-        # Find the final occurrence of 'Citations' or 'References'
-        match = re.search(r'\b(?:Citations|References)\b', text, flags=re.IGNORECASE)
+        # Find the final occurrence of 'Citations' or 'References',
+        # and only keep the text before that point
+        match = None
+        for m in re.finditer(r'\b(?:Citations|References)\b', text):
+            match = m
+
         if match:
             return text[:match.start()]
         else:
@@ -126,15 +128,15 @@ class ArticleHandler(MaterialTypeHandler):
     
     def extract_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = [], refresh_only: bool = False) -> list[Topic]:
         text = self.pages_to_text(pages)
-        keyword_topics = extractor.extract(text) if not refresh_only else []
-        heading_topics = self._heading_topics(pages)
+        keyword_topics = extractor.extract(text)
+        heading_topics = self._heading_topics(pages) if not refresh_only else []
         matched_topics = self._matched_topics(pages, existing_topics)
         topics = postprocessor.union(heading_topics, keyword_topics, matched_topics)
         postprocessed_topics = postprocessor.process(
             topics, 
             minTopicCharCount = 4, 
             filterLowerCaseSingleWords = False, 
-            scoreThreshold = 0.2 # BERTopic
+            scoreThreshold = 0.01
         )
         # return postprocessor.union(self._heading_topics(pages), keyword_topics)
         return postprocessed_topics
@@ -176,9 +178,4 @@ DEFAULT_HANDLER = MaterialTypeHandler()
 
 
 def get_handler(material_type: str | None) -> MaterialTypeHandler:
-    print("getting handler for material_type: ", (material_type or "").lower())
-    if (material_type or "").lower() not in handlers:
-        print("No specific handler found for material_type: ", (material_type or "").lower())
-    else:
-        print("Found handlers: ", handlers.get((material_type or "").lower(), DEFAULT_HANDLER))
     return handlers.get((material_type or "").lower(), DEFAULT_HANDLER)

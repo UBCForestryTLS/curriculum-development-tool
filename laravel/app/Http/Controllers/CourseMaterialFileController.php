@@ -162,7 +162,7 @@ class CourseMaterialFileController extends Controller
 
         $suggestedTopics = $file->suggestedTopics()
             ->where('status', SuggestedTopic::STATUS_PENDING)
-            ->orderBy('created_at')
+            ->orderBy('score', 'desc')
             ->get()
             // TODO: Should this be filtered out somewhere else instead?
             ->filter(fn($s) => !in_array(strtolower($s->topic), $fileTopicTexts));

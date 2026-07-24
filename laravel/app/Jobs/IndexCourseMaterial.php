@@ -101,7 +101,7 @@ class IndexCourseMaterial implements ShouldQueue
             $this->saveExtractedTopics($file, $data['topics'] ?? [], $this->refreshingTopicsOnly);
 
             $processingTime = (int) round(microtime(true) - $startTime);
-            $file->update(['processing_time_seconds' => $processingTime]);
+            $file->update(['status' => CourseMaterialFile::STATUS_INDEXED, 'processing_time_seconds' => $processingTime]);
         } catch (Throwable $exception) {
             Log::error("IndexCourseMaterial failed for file {$file->course_material_file_id}: " . $exception->getMessage());
             $file->update([
@@ -131,8 +131,6 @@ class IndexCourseMaterial implements ShouldQueue
         foreach (array_chunk($rows, 100) as $batch) {
             CourseMaterialChunk::insert($batch);
         }
-
-        $file->update(['status' => CourseMaterialFile::STATUS_INDEXED]);
     }
 
     private function saveExtractedTopics(CourseMaterialFile $file, array $topics, bool $refreshingTopicsOnly = false): void

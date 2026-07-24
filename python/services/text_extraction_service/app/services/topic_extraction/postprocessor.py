@@ -7,7 +7,9 @@ def process(topics: list[Topic], filterLowerCaseSingleWords = False, minTopicCha
     """Postprocess extracted topics"""
 
     # Remove topics that are empty or too long
-    trimmed_topics = [t for t in topics if 1 <= len(t.topic.split()) <= 8]
+    MIN_TOPIC_WORD_COUNT = 1
+    MAX_TOPIC_WORD_COUNT = 8
+    trimmed_topics = [t for t in topics if MIN_TOPIC_WORD_COUNT <= len(t.topic.split()) <= MAX_TOPIC_WORD_COUNT]
     
     # For 1-word topics, check their length and optionally their case
     word_filtered_topics = []
@@ -53,14 +55,26 @@ def process(topics: list[Topic], filterLowerCaseSingleWords = False, minTopicCha
         if doc[-1].pos_ in ["NOUN", "PROPN"] or (doc[-1].pos_ == "VERB" and doc[-1].text.endswith("ing")):
             noun_filtered_topics.append(t)
             
+    # Remove stop words from initial or final position in multi-word topics
+    stop_words = set(spacy.lang.en.stop_words.STOP_WORDS)
+    stop_word_filtered_topics = []
+    for t in noun_filtered_topics:
+        words = t.topic.split()
+        if len(words) > 1:
+            if words[0].lower() in stop_words or words[-1].lower() in stop_words:
+                continue
+        stop_word_filtered_topics.append(t)
+            
     # Remove topics already contained in other topics
     unique_topics = []
-    for t in noun_filtered_topics:
+    for t in stop_word_filtered_topics:
         if not any(t.topic.lower() in other.topic.lower() and t.topic.lower() != other.topic.lower() for other in deduped_topics):
+            unique_topics.append(t)
+        elif t.source == "match":  # Keep match-based topics even if they are contained in other topics
             unique_topics.append(t)
     
     # Remove less relevant topics
-    relevant_topics = [t for t in unique_topics if t.score > scoreThreshold]
+    relevant_topics = [t for t in unique_topics if t.score >= scoreThreshold]
     
     return relevant_topics
 

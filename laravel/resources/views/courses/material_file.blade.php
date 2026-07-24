@@ -83,10 +83,10 @@
                     @endif
                 </dd>
 
-                @if ($file->processing_time_seconds !== null)
+                <!-- @if ($file->processing_time_seconds !== null)
                     <dt class="col-sm-3">Processing time</dt>
                     <dd class="col-sm-9">{{ $file->processing_time_seconds }}s</dd>
-                @endif
+                @endif -->
 
                 @if ($file->status === 'FAILED' && $file->error_message)
                     <dt class="col-sm-3">Error</dt>
@@ -122,7 +122,7 @@
                     @csrf
                     <button type="submit"
                             class="btn btn-sm btn-outline-primary"
-                            @disabled($file->status === 'INDEXING')
+                            @disabled(in_array($file->status, ['PENDING', 'INDEXING']))
                             onclick="return confirm('{{ $file->chunks->isNotEmpty() ? 'Re-run topic extraction for this file?' : 'Re-run text and topic extraction for this file using the saved settings?' }}');">
                             <i class="bi bi-arrow-clockwise"></i> Refresh Topics
                     </button>
@@ -172,9 +172,9 @@
                                 <tr class="suggested-topic-row" data-id="{{ $suggested->suggested_topic_id }}">
                                     <td>
                                         <span class="topic-text">{{ $suggested->topic }}</span>
-                                        @if ($suggested->score !== null)
+                                        <!-- @if ($suggested->score !== null)
                                             <small class="text-muted ms-2">({{ number_format($suggested->score, 2) }})</small>
-                                        @endif
+                                        @endif -->
                                     </td>
                                     <td>
                                         <button type="button"

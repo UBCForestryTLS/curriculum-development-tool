@@ -9,7 +9,7 @@ import spacy
 
 from sentence_transformers import SentenceTransformer
 
-TOPICS_COUNT = 100          # max topics returned overall
+TOPICS_COUNT = 100          # max topics returned - we will likely never get so many, just prevents DB overloading
 TOPICS_PER_CLUSTER = 10     # top words taken from each cluster
 MIN_TOPIC_SIZE = 5         # min sentences to form a cluster (small docs need a low value)
 
@@ -42,12 +42,10 @@ def extract(text: str, min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
     print(f"Split text into {doc_count} documents for topic extraction")
     print("Extracting topics from text...")
 
-    min_df_pct = 0.01  # Word must appear in at least 1% of the windows
-    max_df_pct = 0.5  # Word must not appear in more than 50% of the windows
-
-    min_df = max(2, round(doc_count * min_df_pct)) 
-
-    max_df = max_df_pct if doc_count > 10 else 1.0 
+    # min_df is an integer count of documents, while max_df is a proportion of the total number of documents
+    min_df = min(2, round(doc_count * 0.01, 1))
+    max_df = 1.0
+    print(f"Using min_df={min_df} and max_df={max_df} with {doc_count} docs for CountVectorizer")
 
     vectorizer_model = CountVectorizer(
                             stop_words=list(ENGLISH_STOP_WORDS.union(list(map(str.lower, CUSTOM_STOP_WORDS)))),
@@ -75,10 +73,10 @@ def extract(text: str, min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
     
     try:
         topic_model.fit_transform(docs)
+        print("Points:", topic_model.get_document_info(docs).shape[0], len(docs))
     except Exception as e:
         print(f"BERTopic extraction failed: {e}")
-    finally:
-        print("Points:", topic_model.get_document_info(docs).shape[0], len(docs))
+        return []
 
     topics: list[Topic] = []
     seen: set[str] = set()
@@ -86,8 +84,8 @@ def extract(text: str, min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
     print("Extracting topics from fitted model...")
     
     for topic_id in topic_model.get_topic_info()["Topic"]:
-        print("")
         for word, score in topic_model.get_topic(topic_id)[:TOPICS_PER_CLUSTER]:
+            print(f"Topic {topic_id}: {word} ({score})")
             key = word.strip().lower()
             if key and key not in seen:
                 seen.add(key)

@@ -24,6 +24,8 @@ class Topic(BaseModel):
     score: float
     source: str = "match"  # Either "match", "keyword", or "font"
 
+    model_config = {"frozen": True} # Used for checking equality in tests
+
 
 class ExtractRequest(BaseModel):
     # Called initially when you want to extract text and topics from a PDF
