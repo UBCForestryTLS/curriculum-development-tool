@@ -58,7 +58,7 @@ class SearchController extends Controller
         $selectedProperties = $propertyFiltersApplied ? ($validated['properties'] ?? []) : $availableProperties;
 
         $availableCourseCodesQuery = DB::table('courses');
-        $availableCourseCodes = SearchCourseAccess::applyDirectCourseAccess($availableCourseCodesQuery, $user)
+        $availableCourseCodes = SearchCourseAccess::applyCourseAccess($availableCourseCodesQuery, $user)
             //instead of having fixed course codes, we take avaialble courses from what is already in the DB,
             //since only those need to be searchable
             ->whereNotNull('course_code')
@@ -92,7 +92,7 @@ class SearchController extends Controller
 
         $availableProgramsQuery = DB::table('programs')
             ->select('program_id', 'program');
-        $availablePrograms = SearchCourseAccess::applyDirectProgramAccess($availableProgramsQuery, $user)
+        $availablePrograms = SearchCourseAccess::applyProgramAccess($availableProgramsQuery, $user)
             ->orderBy('program')
             ->get();
 
@@ -375,7 +375,7 @@ class SearchController extends Controller
         $query = DB::table('course_topics')
             ->join('courses', 'courses.course_id', '=', 'course_topics.course_id');
 
-        $query = SearchCourseAccess::applyDirectCourseAccess($query, $user);
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
@@ -417,7 +417,7 @@ class SearchController extends Controller
         $query = DB::table('learning_outcomes')
             ->join('courses', 'courses.course_id', '=', 'learning_outcomes.course_id');
 
-        $query = SearchCourseAccess::applyDirectCourseAccess($query, $user);
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
@@ -457,7 +457,7 @@ class SearchController extends Controller
         $query = DB::table('course_description')
             ->join('courses', 'courses.course_id', '=', 'course_description.course_id');
 
-        $query = SearchCourseAccess::applyDirectCourseAccess($query, $user);
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
@@ -497,7 +497,7 @@ class SearchController extends Controller
         $query = DB::table('course_materials')
             ->join('courses', 'courses.course_id', '=', 'course_materials.course_id');
 
-        $query = SearchCourseAccess::applyDirectCourseAccess($query, $user);
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
@@ -537,7 +537,7 @@ class SearchController extends Controller
         $query = DB::table('assessment_methods')
             ->join('courses', 'courses.course_id', '=', 'assessment_methods.course_id');
 
-        $query = SearchCourseAccess::applyDirectCourseAccess($query, $user);
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
@@ -579,7 +579,7 @@ class SearchController extends Controller
 
         $query = DB::table('courses');
 
-        $query = SearchCourseAccess::applyDirectCourseAccess($query, $user);
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->applyProgramFilters($query, $selectedProgramIds);
 
@@ -623,7 +623,7 @@ class SearchController extends Controller
                 [$searchTerm]
             );
 
-        // Non-admin users need at least one directly accessible course in the program.
+        // Non-admin users need at least one accessible course in the program.
         // Course filters also require a matching course, even for admins.
         if (!$user->hasRole('administrator') || !empty($selectedCourseCodes) || !empty($selectedCourseLevels)) {
             $query->whereExists(function (Builder $courseFilterQuery) use ($selectedCourseCodes, $selectedCourseLevels, $user) {
@@ -632,7 +632,7 @@ class SearchController extends Controller
                     ->join('courses', 'courses.course_id', '=', 'course_programs.course_id')
                     ->whereColumn('course_programs.program_id', 'programs.program_id');
 
-                SearchCourseAccess::applyDirectCourseAccess($courseFilterQuery, $user);
+                SearchCourseAccess::applyCourseAccess($courseFilterQuery, $user);
                 $this->applyCourseFilters($courseFilterQuery, $selectedCourseCodes, $selectedCourseLevels);
             });
         }
