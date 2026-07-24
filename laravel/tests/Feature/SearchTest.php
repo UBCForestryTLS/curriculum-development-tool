@@ -26,7 +26,10 @@ class SearchTest extends TestCase
         // After merging dev's package updates, tests need this so they do not look for built Vite files
         $this->withoutVite();
 
+        // Existing search tests focus on ranking/filter behavior, so they use admin access.
+        // The regular-user access rules are covered separately below.
         $this->searchUser = User::factory()->create();
+        $this->assignRoleToUser($this->searchUser, 'administrator');
         $this->actingAs($this->searchUser);
     }
 
@@ -57,6 +60,56 @@ class SearchTest extends TestCase
         $response = $this->get(route('search.index'));
 
         $response->assertRedirect(route('login'));
+    }
+
+    public function test_regular_user_only_sees_directly_accessible_courses()
+    {
+        $this->createCourseScaleCategory();
+
+        $regularUser = User::factory()->create();
+        $this->actingAs($regularUser);
+
+        $accessibleCourse = Course::factory()->create([
+            'course_code' => 'OPEN',
+            'course_num' => 101,
+            'course_title' => 'Accessium Visible Course',
+        ]);
+
+        Course::factory()->create([
+            'course_code' => 'HIDE',
+            'course_num' => 202,
+            'course_title' => 'Accessium Hidden Course',
+        ]);
+
+        $this->giveUserDirectCourseAccess($regularUser, $accessibleCourse, 3);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'accessium',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertSee('Accessium Visible Course');
+        $response->assertDontSee('Accessium Hidden Course');
+        $response->assertSee('Courses: 1');
+        $this->assertSame(['OPEN'], $response->viewData('availableCourseCodes'));
+    }
+
+    public function test_admin_can_search_courses_without_direct_access()
+    {
+        $this->createCourseScaleCategory();
+
+        Course::factory()->create([
+            'course_code' => 'ADMN',
+            'course_num' => 303,
+            'course_title' => 'Adminium Visible Course',
+        ]);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'adminium',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertSee('Adminium Visible Course');
     }
 
     public function test_program_view_selection_is_preserved(){
@@ -209,6 +262,41 @@ class SearchTest extends TestCase
         DB::table('standards_scale_categories')->updateOrInsert(
             ['scale_category_id' => 1],
             ['name' => 'Test Scale Category']
+        );
+    }
+
+    private function assignRoleToUser(User $user, string $roleName): void
+    {
+        $roleId = DB::table('roles')->where('role', $roleName)->value('id');
+
+        if (!$roleId) {
+            $roleId = DB::table('roles')->insertGetId([
+                'role' => $roleName,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        DB::table('role_user')->insertOrIgnore([
+            'role_id' => $roleId,
+            'user_id' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function giveUserDirectCourseAccess(User $user, Course $course, int $permission): void
+    {
+        DB::table('course_users')->updateOrInsert(
+            [
+                'course_id' => $course->course_id,
+                'user_id' => $user->id,
+            ],
+            [
+                'permission' => $permission,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
         );
     }
 
