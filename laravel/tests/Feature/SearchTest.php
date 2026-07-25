@@ -112,6 +112,124 @@ class SearchTest extends TestCase
         $response->assertSee('Adminium Visible Course');
     }
 
+    public function test_program_director_can_search_courses_in_directed_program()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->assignRoleToUser($programDirector, 'program director');
+        $this->actingAs($programDirector);
+
+        $directedProgramId = DB::table('programs')->insertGetId([
+            'program' => 'Visible Director Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], 'program_id');
+
+        $otherProgramId = DB::table('programs')->insertGetId([
+            'program' => 'Hidden Director Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], 'program_id');
+
+        $visibleCourse = Course::factory()->create([
+            'course_code' => 'PDIR',
+            'course_num' => 301,
+            'course_title' => 'Directorium Visible Course',
+        ]);
+
+        $hiddenCourse = Course::factory()->create([
+            'course_code' => 'HIDE',
+            'course_num' => 302,
+            'course_title' => 'Directorium Hidden Course',
+        ]);
+
+        DB::table('course_programs')->insert([
+            [
+                'course_id' => $visibleCourse->course_id,
+                'program_id' => $directedProgramId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'course_id' => $hiddenCourse->course_id,
+                'program_id' => $otherProgramId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'directorium',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertSee('Directorium Visible Course');
+        $response->assertDontSee('Directorium Hidden Course');
+        $response->assertSee('Courses: 1');
+    }
+
+    public function test_program_director_keeps_direct_course_access_outside_directed_program()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->assignRoleToUser($programDirector, 'program director');
+        $this->actingAs($programDirector);
+
+        $directedProgramId = DB::table('programs')->insertGetId([
+            'program' => 'Director Access Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], 'program_id');
+
+        $programCourse = Course::factory()->create([
+            'course_code' => 'PDIR',
+            'course_num' => 401,
+            'course_title' => 'Accessblend Program Course',
+        ]);
+
+        $directCourse = Course::factory()->create([
+            'course_code' => 'OPEN',
+            'course_num' => 402,
+            'course_title' => 'Accessblend Direct Course',
+        ]);
+
+        Course::factory()->create([
+            'course_code' => 'HIDE',
+            'course_num' => 403,
+            'course_title' => 'Accessblend Hidden Course',
+        ]);
+
+        DB::table('course_programs')->insert([
+            'course_id' => $programCourse->course_id,
+            'program_id' => $directedProgramId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
+        $this->giveUserDirectCourseAccess($programDirector, $directCourse, 3);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'accessblend',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertSee('Accessblend Program Course');
+        $response->assertSee('Accessblend Direct Course');
+        $response->assertDontSee('Accessblend Hidden Course');
+        $response->assertSee('Courses: 2');
+    }
+
     public function test_program_view_selection_is_preserved(){
         $response = $this->get(route('search.index', [
             'view' => 'programs',
@@ -265,7 +383,7 @@ class SearchTest extends TestCase
         );
     }
 
-    private function assignRoleToUser(User $user, string $roleName): void
+    private function assignRoleToUser(User $user, string $roleName): int
     {
         $roleId = DB::table('roles')->where('role', $roleName)->value('id');
 
@@ -283,6 +401,8 @@ class SearchTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        return $roleId;
     }
 
     private function giveUserDirectCourseAccess(User $user, Course $course, int $permission): void
@@ -294,6 +414,23 @@ class SearchTest extends TestCase
             ],
             [
                 'permission' => $permission,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+    }
+
+    private function giveUserProgramDirectorAccess(User $user, int $programId): void
+    {
+        $programDirectorRoleId = $this->assignRoleToUser($user, 'program director');
+
+        DB::table('program_user_role')->updateOrInsert(
+            [
+                'program_id' => $programId,
+                'user_id' => $user->id,
+                'role_id' => $programDirectorRoleId,
+            ],
+            [
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
