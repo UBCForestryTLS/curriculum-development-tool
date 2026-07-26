@@ -58,8 +58,10 @@
             "Tests\\": "tests/"
         },
         "files": [
+            "tests/Helpers/Shared/Fixtures.php",
             "tests/Helpers/AiSuggestionsE2E/Fixtures.php",
-            "tests/Helpers/AiSuggestionsE2E/LOMappingServiceCheck.php"
+            "tests/Helpers/AiSuggestionsE2E/LOMappingServiceCheck.php",
+            "tests/Helpers/TextExtractionE2E/Fixtures.php"
         ]
     },
     "minimum-stability": "stable",
@@ -81,7 +83,7 @@
         "test": [
             "php scripts/check-test-db.php",
             "php artisan migrate:fresh --seed --env=testing",
-            "php artisan test --exclude-group=ai-suggestions-e2e"
+            "php artisan test --exclude-group=ai-suggestions-e2e --exclude-group=text-extraction-e2e"
         ],
         "test:ai-suggestions-e2e": [
             "Composer\\Config::disableProcessTimeout",
@@ -102,6 +104,26 @@
             "php scripts/check-test-db.php",
             "php artisan migrate:fresh --seed --env=testing",
             "php artisan test --group=ai-suggestions-e2e --debug"
+        ],
+        "test:text-extraction-e2e": [
+            "Composer\\Config::disableProcessTimeout",
+            "php scripts/check-test-db.php",
+            "php artisan migrate:fresh --seed --env=testing",
+            "php artisan test --group=text-extraction-e2e"
+        ],
+        "test:text-extraction-e2e:debug": [
+            "Composer\\Config::disableProcessTimeout",
+            "@putenv PWDEBUG=1",
+            "php scripts/check-test-db.php",
+            "php artisan migrate:fresh --seed --env=testing",
+            "php artisan test --group=text-extraction-e2e --debug"
+        ],
+        "test:text-extraction-e2e:visual": [
+            "Composer\\Config::disableProcessTimeout",
+            "@putenv PWDEBUG=0",
+            "php scripts/check-test-db.php",
+            "php artisan migrate:fresh --seed --env=testing",
+            "php artisan test --group=text-extraction-e2e --debug"
         ]
     }
 }
