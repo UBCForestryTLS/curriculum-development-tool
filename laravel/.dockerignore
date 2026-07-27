@@ -17,7 +17,6 @@ LICENSE*
 README*
 
 # project-specific
-.dockerenv
 .editorconfig
 .styleci.yml
 

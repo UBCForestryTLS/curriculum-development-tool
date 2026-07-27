@@ -7,6 +7,5 @@ services:
   laravel:
     build:
       context: laravel/
-    env_file: laravel/.dockerenv
     ports:
       - 9000:80

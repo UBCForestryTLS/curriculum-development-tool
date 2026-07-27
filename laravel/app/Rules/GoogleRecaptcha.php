@@ -5,7 +5,6 @@ namespace App\Rules;
 use Closure;
 use GuzzleHttp\Client;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Support\Facades\Config;
 
 class GoogleRecaptcha implements ValidationRule
 {
@@ -27,10 +26,10 @@ class GoogleRecaptcha implements ValidationRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         $client = new Client();
-        $response = $client->post('https://www.google.com/recaptcha/api/siteverify',
+        $response = $client->post('https://www.recaptcha.net/recaptcha/api/siteverify',
             [
                 'form_params' => [
-                    'secret' => Config::get('app.captcha_private_key'),
+                    'secret' => config('app.captcha_private_key'),
                     'remoteip' => request()->getClientIp(),
                     'response' => $value,
                 ],

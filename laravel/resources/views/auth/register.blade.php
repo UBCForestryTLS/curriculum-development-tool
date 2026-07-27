@@ -1,6 +1,5 @@
 @extends('layouts.app')
 @section('content')
-@use('Illuminate\Support\Facades\Config')
 
 <div class="container" style="padding-bottom:60px;">
     <div class="row justify-content-center">
@@ -79,7 +78,7 @@
 
                         <div class="mb-3 row">
                             <div class="col-md-6 offset-md-4">
-                                <div class="g-recaptcha" data-sitekey="{{ Config::get('app.captcha_public_key') }}"></div>
+                                <div class="g-recaptcha" data-sitekey="{{ config('app.captcha_public_key') }}"></div>
                             </div>
                         </div>
 
