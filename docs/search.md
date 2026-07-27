@@ -10,6 +10,7 @@ This feature is implemented primarily under:
 
 - [`laravel/app/Http/Controllers/SearchController.php`](../laravel/app/Http/Controllers/SearchController.php)
 - [`laravel/app/Http/Controllers/SavedSearchFilterController.php`](../laravel/app/Http/Controllers/SavedSearchFilterController.php)
+- [`laravel/app/Helpers/SearchCourseAccess.php`](../laravel/app/Helpers/SearchCourseAccess.php)
 - [`laravel/app/Helpers/SearchFilterOptions.php`](../laravel/app/Helpers/SearchFilterOptions.php)
 - [`laravel/resources/views/search/index.blade.php`](../laravel/resources/views/search/index.blade.php)
 - [`laravel/resources/views/search/partials/highlighted-snippet.blade.php`](../laravel/resources/views/search/partials/highlighted-snippet.blade.php)
@@ -66,6 +67,20 @@ Search uses PostgreSQL full-text search across these fields:
 Program names are searched directly from `programs.program`.
 
 The filter values and UI labels are defined in `SearchFilterOptions`, which is used by both search controllers and the Blade view. This keeps property validation, defaults, and display labels in one place.
+
+## Search Access
+
+Search results are scoped to the logged-in user's course access. The access rule is applied in the database query before results, stats, filter options, and Program view groups are returned.
+
+Current supported access:
+
+- administrators can search all courses
+- regular users can search courses they have direct access to through `course_users`
+- program directors can search courses attached to programs they direct through `program_user_role` and `course_programs`
+
+The search access logic lives in `SearchCourseAccess`. It uses `whereExists` subqueries so inaccessible courses are filtered out before the controller combines matches or paginates results.
+
+Department Head access is not implemented in search yet. That still needs a separate decision on whether to use existing role access rows or calculate access from department/course-code ownership tables.
 
 ## Request Flow
 
@@ -198,6 +213,7 @@ The tests cover:
 - query validation and whitespace normalization
 - searching each course property
 - direct course and direct program matches
+- direct course access and Program Director access
 - ranking behavior
 - safe highlighted snippets
 - search stats
