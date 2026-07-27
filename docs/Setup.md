@@ -32,7 +32,7 @@ npm install
 cp .env.example .env
 ```
 
-The committed `.env.example` is the template every developer starts from. Its relevant database section is:
+Use `.env.example` as a template for `.env`, and modify values as required.
 
 ```
 DB_CONNECTION=pgsql
@@ -76,13 +76,13 @@ If you see `psql: command not found`, PostgreSQL is not installed; install it fi
 
 #### Create the `root` role
 
-`initdb` creates the `postgres` superuser but not `root`. Since `.env.example` ships with `DB_USERNAME=root`, create that role once:
+Create the root role:
 
 ```
 psql -U postgres -h 127.0.0.1 -c "CREATE ROLE root LOGIN PASSWORD '';"
 ```
 
-The empty password matches `DB_PASSWORD=` in the template. // TODO Check this
+The above command has a blank password. If setting a password, also set it in `.env`, under `DB_PASSWORD=`
 
 #### Create the application database
 
@@ -97,9 +97,9 @@ psql -U postgres -h 127.0.0.1 -c "CREATE DATABASE laravel OWNER root;"
 php artisan storage:link
 ```
 
-### PHP upload limits (required for Course Materials uploads)
+### Optional: PHP upload limits (required for Course Material File uploads)
 
-The Coverage Analysis feature lets users upload PDF course materials. Laravel allows up to 50 MB per file, but PHP itself defaults to much smaller limits, so PHP rejects oversized uploads before Laravel ever sees them. Set these values in your active `php.ini`:
+The Course Material File extraction feature lets users upload PDF course materials. PHP's default limits are small, so set these larger values in your active `php.ini`:
 
 ```ini
 upload_max_filesize = 50M
@@ -107,32 +107,17 @@ post_max_size = 60M
 memory_limit = 256M
 ```
 
-Find the active `php.ini` with:
+Your active `php.ini` is the file listed as **"Loaded Configuration File"** when you run
 
 ```
 php --ini
 ```
 
-Edit the file printed as **"Loaded Configuration File"**. After saving, kill and restart `php artisan serve` if already running.
+### Optional: PDF Thumbnails for Materials Search
 
-### Optional: OCR Feature for PDFs
+Rendering thumbnails requires `pdftoppm` from `poppler-utils`. Install via package manager or from [Poppler releases page](https://poppler.freedesktop.org/) and ensure `pdftoppm` is on your `PATH`.
 
-If you aren't using OCR, skip to the next section
-
-OCR requires two dependencies:
-
-- **Tesseract** -- the OCR engine. Install from the [official Tesseract page](https://tesseract-ocr.github.io/tessdoc/Installation.html) and ensure `tesseract` is on your `PATH`. English language data (`eng`) must be included.
-- **pdftoppm** (from Poppler) -- renders PDF pages to images before OCR. Install from the [Poppler releases page](https://poppler.freedesktop.org/) and ensure `pdftoppm` is on your `PATH`.
-
-Verify both are reachable and Tesseract has English data:
-
-```
-pdftoppm -v
-tesseract --version
-tesseract --list-langs
-```
-
-`eng` must appear in the `--list-langs` output. If it doesn't, the OCR job will fail at preflight with a clear error message pointing back here.
+Verify with `pdftoppm -v`.
 
 ### Run migrations and seeders
 
@@ -269,6 +254,7 @@ python -m venv env
 ``` 
 pip install -r requirements.txt
 ```
+Also check the service's documentation under `docs/` for additional specific setup steps.
 
 ### Run the Service
 
