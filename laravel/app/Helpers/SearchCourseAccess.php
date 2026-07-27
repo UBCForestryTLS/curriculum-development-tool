@@ -10,7 +10,7 @@ class SearchCourseAccess
 {
     /**
      * Applies search access rules: admins can search all courses, while other
-     * users need either direct course access or program director access.
+     * users need direct course access, program director access, or department head access.
      */
     public static function applyCourseAccess(Builder $query, User $user): Builder
     {
@@ -21,6 +21,7 @@ class SearchCourseAccess
         return $query->where(function (Builder $accessQuery) use ($user) {
             self::whereHasDirectCourseAccess($accessQuery, $user);
             self::orWhereHasProgramDirectorCourseAccess($accessQuery, $user);
+            self::orWhereHasDepartmentHeadCourseAccess($accessQuery, $user);
         });
     }
 
@@ -57,7 +58,7 @@ class SearchCourseAccess
 
     /**
      * Limits program lists to programs that contain at least one directly accessible course.
-     * (Keeping direct only access for now as it may be useful for strict direect-only checks;
+     * (Keeping direct only access for now as it may be useful for strict direct-only checks;
      * can be removed during a later cleanup commit)
      */
     public static function applyDirectProgramAccess(Builder $query, User $user): Builder
@@ -103,6 +104,22 @@ class SearchCourseAccess
                 ->whereColumn('access_course_programs.course_id', 'courses.course_id')
                 ->where('access_program_user_role.user_id', $user->id)
                 ->where('access_roles.role', 'program director');
+        });
+    }
+
+    /**
+     * Adds the department head course access check from course_user_role.
+     */
+    private static function orWhereHasDepartmentHeadCourseAccess(Builder $query, User $user): Builder
+    {
+        return $query->orWhereExists(function (Builder $departmentHeadQuery) use ($user) {
+            // Department head access is already materialized into course_user_role by the role flows.
+            $departmentHeadQuery->select(DB::raw(1))
+                ->from('course_user_role as access_course_user_role')
+                ->join('roles as access_department_roles', 'access_department_roles.id', '=', 'access_course_user_role.role_id')
+                ->whereColumn('access_course_user_role.course_id', 'courses.course_id')
+                ->where('access_course_user_role.user_id', $user->id)
+                ->where('access_department_roles.role', 'department head');
         });
     }
 }
