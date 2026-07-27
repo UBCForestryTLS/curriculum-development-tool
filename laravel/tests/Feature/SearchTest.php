@@ -230,6 +230,77 @@ class SearchTest extends TestCase
         $response->assertSee('Courses: 2');
     }
 
+    public function test_program_director_filter_options_only_show_accessible_courses_and_programs()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->actingAs($programDirector);
+
+        $directedProgramId = $this->createProgram('Visible Filter Program');
+        $otherProgramId = $this->createProgram('Hidden Filter Program');
+
+        $visibleCourse = Course::factory()->create([
+            'course_code' => 'PDIR',
+            'course_num' => 301,
+            'course_title' => 'Filter Option Visible Course',
+        ]);
+        $hiddenCourse = Course::factory()->create([
+            'course_code' => 'HIDE',
+            'course_num' => 302,
+            'course_title' => 'Filter Option Hidden Course',
+        ]);
+
+        $this->attachCourseToProgram($visibleCourse, $directedProgramId);
+        $this->attachCourseToProgram($hiddenCourse, $otherProgramId);
+        $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
+
+        $response = $this->get(route('search.index'));
+        $availablePrograms = $response->viewData('availablePrograms')->pluck('program')->all();
+
+        $response->assertStatus(200);
+        $this->assertSame(['PDIR'], $response->viewData('availableCourseCodes'));
+        $this->assertSame(['Visible Filter Program'], $availablePrograms);
+    }
+
+    public function test_program_director_direct_program_match_requires_accessible_course()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->actingAs($programDirector);
+
+        $directedProgramId = $this->createProgram('Terraria Visible Program');
+        $otherProgramId = $this->createProgram('Terraria Hidden Program');
+
+        $visibleCourse = Course::factory()->create([
+            'course_code' => 'PDIR',
+            'course_num' => 401,
+            'course_title' => 'Program Match Visible Course',
+        ]);
+        $hiddenCourse = Course::factory()->create([
+            'course_code' => 'HIDE',
+            'course_num' => 402,
+            'course_title' => 'Program Match Hidden Course',
+        ]);
+
+        $this->attachCourseToProgram($visibleCourse, $directedProgramId);
+        $this->attachCourseToProgram($hiddenCourse, $otherProgramId);
+        $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'terraria',
+            'view' => 'programs',
+        ]));
+        $programResults = $response->viewData('programResults');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $programResults);
+        $this->assertSame($directedProgramId, $programResults->first()->program_id);
+        $response->assertSee('Terraria Visible Program');
+        $response->assertDontSee('Terraria Hidden Program');
+    }
+
     public function test_program_view_selection_is_preserved(){
         $response = $this->get(route('search.index', [
             'view' => 'programs',
@@ -435,6 +506,27 @@ class SearchTest extends TestCase
                 'updated_at' => now(),
             ]
         );
+    }
+
+    private function createProgram(string $programName): int
+    {
+        return DB::table('programs')->insertGetId([
+            'program' => $programName,
+            'level' => 'Bachelors',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], 'program_id');
+    }
+
+    private function attachCourseToProgram(Course $course, int $programId): void
+    {
+        DB::table('course_programs')->insert([
+            'course_id' => $course->course_id,
+            'program_id' => $programId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
 
