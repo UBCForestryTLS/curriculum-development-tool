@@ -301,6 +301,75 @@ class SearchTest extends TestCase
         $response->assertDontSee('Terraria Hidden Program');
     }
 
+    public function test_department_head_can_search_courses_with_role_access()
+    {
+        $this->createCourseScaleCategory();
+
+        $departmentHead = User::factory()->create();
+        $this->actingAs($departmentHead);
+
+        $accessibleCourse = Course::factory()->create([
+            'course_code' => 'DHED',
+            'course_num' => 301,
+            'course_title' => 'Headium Visible Course',
+        ]);
+        Course::factory()->create([
+            'course_code' => 'HIDE',
+            'course_num' => 302,
+            'course_title' => 'Headium Hidden Course',
+        ]);
+
+        $this->giveUserDepartmentHeadCourseAccess($departmentHead, $accessibleCourse);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'headium',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertSee('Headium Visible Course');
+        $response->assertDontSee('Headium Hidden Course');
+        $response->assertSee('Courses: 1');
+        $this->assertSame(['DHED'], $response->viewData('availableCourseCodes'));
+    }
+
+    public function test_department_head_direct_program_match_requires_accessible_course()
+    {
+        $this->createCourseScaleCategory();
+
+        $departmentHead = User::factory()->create();
+        $this->actingAs($departmentHead);
+
+        $visibleProgramId = $this->createProgram('Terraria Department Program');
+        $hiddenProgramId = $this->createProgram('Terraria Hidden Department Program');
+
+        $accessibleCourse = Course::factory()->create([
+            'course_code' => 'DHED',
+            'course_num' => 401,
+            'course_title' => 'Department Program Visible Course',
+        ]);
+        $hiddenCourse = Course::factory()->create([
+            'course_code' => 'HIDE',
+            'course_num' => 402,
+            'course_title' => 'Department Program Hidden Course',
+        ]);
+
+        $this->attachCourseToProgram($accessibleCourse, $visibleProgramId);
+        $this->attachCourseToProgram($hiddenCourse, $hiddenProgramId);
+        $this->giveUserDepartmentHeadCourseAccess($departmentHead, $accessibleCourse);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'terraria',
+            'view' => 'programs',
+        ]));
+        $programResults = $response->viewData('programResults');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $programResults);
+        $this->assertSame($visibleProgramId, $programResults->first()->program_id);
+        $response->assertSee('Terraria Department Program');
+        $response->assertDontSee('Terraria Hidden Department Program');
+    }
+
     public function test_program_view_selection_is_preserved(){
         $response = $this->get(route('search.index', [
             'view' => 'programs',
@@ -500,6 +569,23 @@ class SearchTest extends TestCase
                 'program_id' => $programId,
                 'user_id' => $user->id,
                 'role_id' => $programDirectorRoleId,
+            ],
+            [
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+    }
+
+    private function giveUserDepartmentHeadCourseAccess(User $user, Course $course): void
+    {
+        $departmentHeadRoleId = $this->assignRoleToUser($user, 'department head');
+
+        DB::table('course_user_role')->updateOrInsert(
+            [
+                'course_id' => $course->course_id,
+                'user_id' => $user->id,
+                'role_id' => $departmentHeadRoleId,
             ],
             [
                 'created_at' => now(),
