@@ -301,7 +301,7 @@ class SearchTest extends TestCase
         $response->assertDontSee('Terraria Hidden Program');
     }
 
-    public function test_department_head_can_search_courses_with_role_access()
+    public function test_department_head_can_search_courses_with_role_and_direct_access()
     {
         $this->createCourseScaleCategory();
 
@@ -313,13 +313,19 @@ class SearchTest extends TestCase
             'course_num' => 301,
             'course_title' => 'Headium Visible Course',
         ]);
+        $directCourse = Course::factory()->create([
+            'course_code' => 'OPEN',
+            'course_num' => 302,
+            'course_title' => 'Headium Direct Course',
+        ]);
         Course::factory()->create([
             'course_code' => 'HIDE',
-            'course_num' => 302,
+            'course_num' => 303,
             'course_title' => 'Headium Hidden Course',
         ]);
 
         $this->giveUserDepartmentHeadCourseAccess($departmentHead, $accessibleCourse);
+        $this->giveUserDirectCourseAccess($departmentHead, $directCourse, 3);
 
         $response = $this->get(route('search.index', [
             'query' => 'headium',
@@ -327,9 +333,10 @@ class SearchTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Headium Visible Course');
+        $response->assertSee('Headium Direct Course');
         $response->assertDontSee('Headium Hidden Course');
-        $response->assertSee('Courses: 1');
-        $this->assertSame(['DHED'], $response->viewData('availableCourseCodes'));
+        $response->assertSee('Courses: 2');
+        $this->assertSame(['DHED', 'OPEN'], $response->viewData('availableCourseCodes'));
     }
 
     public function test_department_head_direct_program_match_requires_accessible_course()
