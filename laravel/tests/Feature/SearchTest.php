@@ -69,22 +69,9 @@ class SearchTest extends TestCase
         $regularUser = User::factory()->create();
         $this->actingAs($regularUser);
 
-        $accessibleCourse = Course::factory()->create([
-            'course_code' => 'OPEN',
-            'course_num' => 101,
-            'course_title' => 'Accessium Visible Course',
-        ]);
-        $otherAccessibleCourse = Course::factory()->create([
-            'course_code' => 'EDIT',
-            'course_num' => 102,
-            'course_title' => 'Accessium Editor Course',
-        ]);
-
-        Course::factory()->create([
-            'course_code' => 'HIDE',
-            'course_num' => 202,
-            'course_title' => 'Accessium Hidden Course',
-        ]);
+        $accessibleCourse = $this->createSearchCourse('OPEN', 101, 'Accessium Visible Course');
+        $otherAccessibleCourse = $this->createSearchCourse('EDIT', 102, 'Accessium Editor Course');
+        $this->createSearchCourse('HIDE', 202, 'Accessium Hidden Course');
 
         $this->giveUserDirectCourseAccess($regularUser, $accessibleCourse, 3);
         $this->giveUserDirectCourseAccess($regularUser, $otherAccessibleCourse, 2);
@@ -94,9 +81,12 @@ class SearchTest extends TestCase
         ]));
 
         $response->assertStatus(200);
-        $response->assertSee('Accessium Visible Course');
-        $response->assertSee('Accessium Editor Course');
-        $response->assertDontSee('Accessium Hidden Course');
+        $this->assertSearchVisibility($response, [
+            'Accessium Visible Course',
+            'Accessium Editor Course',
+        ], [
+            'Accessium Hidden Course',
+        ]);
         $response->assertSee('Courses: 2');
         $this->assertSame(['EDIT', 'OPEN'], $response->viewData('availableCourseCodes'));
     }
@@ -105,11 +95,7 @@ class SearchTest extends TestCase
     {
         $this->createCourseScaleCategory();
 
-        Course::factory()->create([
-            'course_code' => 'ADMN',
-            'course_num' => 303,
-            'course_title' => 'Adminium Visible Course',
-        ]);
+        $this->createSearchCourse('ADMN', 303, 'Adminium Visible Course');
 
         $response = $this->get(route('search.index', [
             'query' => 'adminium',
@@ -127,48 +113,14 @@ class SearchTest extends TestCase
         $this->assignRoleToUser($programDirector, 'program director');
         $this->actingAs($programDirector);
 
-        $directedProgramId = DB::table('programs')->insertGetId([
-            'program' => 'Visible Director Program',
-            'level' => 'Bachelors',
-            'status' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ], 'program_id');
+        $directedProgramId = $this->createProgram('Visible Director Program');
+        $otherProgramId = $this->createProgram('Hidden Director Program');
 
-        $otherProgramId = DB::table('programs')->insertGetId([
-            'program' => 'Hidden Director Program',
-            'level' => 'Bachelors',
-            'status' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ], 'program_id');
+        $visibleCourse = $this->createSearchCourse('PDIR', 301, 'Directorium Visible Course');
+        $hiddenCourse = $this->createSearchCourse('HIDE', 302, 'Directorium Hidden Course');
 
-        $visibleCourse = Course::factory()->create([
-            'course_code' => 'PDIR',
-            'course_num' => 301,
-            'course_title' => 'Directorium Visible Course',
-        ]);
-
-        $hiddenCourse = Course::factory()->create([
-            'course_code' => 'HIDE',
-            'course_num' => 302,
-            'course_title' => 'Directorium Hidden Course',
-        ]);
-
-        DB::table('course_programs')->insert([
-            [
-                'course_id' => $visibleCourse->course_id,
-                'program_id' => $directedProgramId,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'course_id' => $hiddenCourse->course_id,
-                'program_id' => $otherProgramId,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        $this->attachCourseToProgram($visibleCourse, $directedProgramId);
+        $this->attachCourseToProgram($hiddenCourse, $otherProgramId);
 
         $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
 
@@ -177,8 +129,11 @@ class SearchTest extends TestCase
         ]));
 
         $response->assertStatus(200);
-        $response->assertSee('Directorium Visible Course');
-        $response->assertDontSee('Directorium Hidden Course');
+        $this->assertSearchVisibility($response, [
+            'Directorium Visible Course',
+        ], [
+            'Directorium Hidden Course',
+        ]);
         $response->assertSee('Courses: 1');
     }
 
@@ -190,38 +145,13 @@ class SearchTest extends TestCase
         $this->assignRoleToUser($programDirector, 'program director');
         $this->actingAs($programDirector);
 
-        $directedProgramId = DB::table('programs')->insertGetId([
-            'program' => 'Director Access Program',
-            'level' => 'Bachelors',
-            'status' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ], 'program_id');
+        $directedProgramId = $this->createProgram('Director Access Program');
 
-        $programCourse = Course::factory()->create([
-            'course_code' => 'PDIR',
-            'course_num' => 401,
-            'course_title' => 'Accessblend Program Course',
-        ]);
+        $programCourse = $this->createSearchCourse('PDIR', 401, 'Accessblend Program Course');
+        $directCourse = $this->createSearchCourse('OPEN', 402, 'Accessblend Direct Course');
+        $this->createSearchCourse('HIDE', 403, 'Accessblend Hidden Course');
 
-        $directCourse = Course::factory()->create([
-            'course_code' => 'OPEN',
-            'course_num' => 402,
-            'course_title' => 'Accessblend Direct Course',
-        ]);
-
-        Course::factory()->create([
-            'course_code' => 'HIDE',
-            'course_num' => 403,
-            'course_title' => 'Accessblend Hidden Course',
-        ]);
-
-        DB::table('course_programs')->insert([
-            'course_id' => $programCourse->course_id,
-            'program_id' => $directedProgramId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $this->attachCourseToProgram($programCourse, $directedProgramId);
 
         $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
         $this->giveUserDirectCourseAccess($programDirector, $directCourse, 3);
@@ -231,9 +161,12 @@ class SearchTest extends TestCase
         ]));
 
         $response->assertStatus(200);
-        $response->assertSee('Accessblend Program Course');
-        $response->assertSee('Accessblend Direct Course');
-        $response->assertDontSee('Accessblend Hidden Course');
+        $this->assertSearchVisibility($response, [
+            'Accessblend Program Course',
+            'Accessblend Direct Course',
+        ], [
+            'Accessblend Hidden Course',
+        ]);
         $response->assertSee('Courses: 2');
     }
 
@@ -247,16 +180,8 @@ class SearchTest extends TestCase
         $directedProgramId = $this->createProgram('Visible Filter Program');
         $otherProgramId = $this->createProgram('Hidden Filter Program');
 
-        $visibleCourse = Course::factory()->create([
-            'course_code' => 'PDIR',
-            'course_num' => 301,
-            'course_title' => 'Filter Option Visible Course',
-        ]);
-        $hiddenCourse = Course::factory()->create([
-            'course_code' => 'HIDE',
-            'course_num' => 302,
-            'course_title' => 'Filter Option Hidden Course',
-        ]);
+        $visibleCourse = $this->createSearchCourse('PDIR', 301, 'Filter Option Visible Course');
+        $hiddenCourse = $this->createSearchCourse('HIDE', 302, 'Filter Option Hidden Course');
 
         $this->attachCourseToProgram($visibleCourse, $directedProgramId);
         $this->attachCourseToProgram($hiddenCourse, $otherProgramId);
@@ -280,16 +205,8 @@ class SearchTest extends TestCase
         $directedProgramId = $this->createProgram('Terraria Visible Program');
         $otherProgramId = $this->createProgram('Terraria Hidden Program');
 
-        $visibleCourse = Course::factory()->create([
-            'course_code' => 'PDIR',
-            'course_num' => 401,
-            'course_title' => 'Program Match Visible Course',
-        ]);
-        $hiddenCourse = Course::factory()->create([
-            'course_code' => 'HIDE',
-            'course_num' => 402,
-            'course_title' => 'Program Match Hidden Course',
-        ]);
+        $visibleCourse = $this->createSearchCourse('PDIR', 401, 'Program Match Visible Course');
+        $hiddenCourse = $this->createSearchCourse('HIDE', 402, 'Program Match Hidden Course');
 
         $this->attachCourseToProgram($visibleCourse, $directedProgramId);
         $this->attachCourseToProgram($hiddenCourse, $otherProgramId);
@@ -304,8 +221,11 @@ class SearchTest extends TestCase
         $response->assertStatus(200);
         $this->assertCount(1, $programResults);
         $this->assertSame($directedProgramId, $programResults->first()->program_id);
-        $response->assertSee('Terraria Visible Program');
-        $response->assertDontSee('Terraria Hidden Program');
+        $this->assertSearchVisibility($response, [
+            'Terraria Visible Program',
+        ], [
+            'Terraria Hidden Program',
+        ]);
     }
 
     public function test_department_head_can_search_courses_with_role_and_direct_access()
@@ -315,21 +235,9 @@ class SearchTest extends TestCase
         $departmentHead = User::factory()->create();
         $this->actingAs($departmentHead);
 
-        $accessibleCourse = Course::factory()->create([
-            'course_code' => 'DHED',
-            'course_num' => 301,
-            'course_title' => 'Headium Visible Course',
-        ]);
-        $directCourse = Course::factory()->create([
-            'course_code' => 'OPEN',
-            'course_num' => 302,
-            'course_title' => 'Headium Direct Course',
-        ]);
-        Course::factory()->create([
-            'course_code' => 'HIDE',
-            'course_num' => 303,
-            'course_title' => 'Headium Hidden Course',
-        ]);
+        $accessibleCourse = $this->createSearchCourse('DHED', 301, 'Headium Visible Course');
+        $directCourse = $this->createSearchCourse('OPEN', 302, 'Headium Direct Course');
+        $this->createSearchCourse('HIDE', 303, 'Headium Hidden Course');
 
         $this->giveUserDepartmentHeadCourseAccess($departmentHead, $accessibleCourse);
         $this->giveUserDirectCourseAccess($departmentHead, $directCourse, 3);
@@ -339,9 +247,12 @@ class SearchTest extends TestCase
         ]));
 
         $response->assertStatus(200);
-        $response->assertSee('Headium Visible Course');
-        $response->assertSee('Headium Direct Course');
-        $response->assertDontSee('Headium Hidden Course');
+        $this->assertSearchVisibility($response, [
+            'Headium Visible Course',
+            'Headium Direct Course',
+        ], [
+            'Headium Hidden Course',
+        ]);
         $response->assertSee('Courses: 2');
         $this->assertSame(['DHED', 'OPEN'], $response->viewData('availableCourseCodes'));
     }
@@ -356,16 +267,8 @@ class SearchTest extends TestCase
         $visibleProgramId = $this->createProgram('Terraria Department Program');
         $hiddenProgramId = $this->createProgram('Terraria Hidden Department Program');
 
-        $accessibleCourse = Course::factory()->create([
-            'course_code' => 'DHED',
-            'course_num' => 401,
-            'course_title' => 'Department Program Visible Course',
-        ]);
-        $hiddenCourse = Course::factory()->create([
-            'course_code' => 'HIDE',
-            'course_num' => 402,
-            'course_title' => 'Department Program Hidden Course',
-        ]);
+        $accessibleCourse = $this->createSearchCourse('DHED', 401, 'Department Program Visible Course');
+        $hiddenCourse = $this->createSearchCourse('HIDE', 402, 'Department Program Hidden Course');
 
         $this->attachCourseToProgram($accessibleCourse, $visibleProgramId);
         $this->attachCourseToProgram($hiddenCourse, $hiddenProgramId);
@@ -380,8 +283,11 @@ class SearchTest extends TestCase
         $response->assertStatus(200);
         $this->assertCount(1, $programResults);
         $this->assertSame($visibleProgramId, $programResults->first()->program_id);
-        $response->assertSee('Terraria Department Program');
-        $response->assertDontSee('Terraria Hidden Department Program');
+        $this->assertSearchVisibility($response, [
+            'Terraria Department Program',
+        ], [
+            'Terraria Hidden Department Program',
+        ]);
     }
 
     public function test_program_view_selection_is_preserved(){
@@ -608,6 +514,15 @@ class SearchTest extends TestCase
         );
     }
 
+    private function createSearchCourse(string $courseCode, int $courseNumber, string $courseTitle): Course
+    {
+        return Course::factory()->create([
+            'course_code' => $courseCode,
+            'course_num' => $courseNumber,
+            'course_title' => $courseTitle,
+        ]);
+    }
+
     private function createProgram(string $programName): int
     {
         return DB::table('programs')->insertGetId([
@@ -627,6 +542,17 @@ class SearchTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function assertSearchVisibility($response, array $visibleText, array $hiddenText): void
+    {
+        foreach ($visibleText as $text) {
+            $response->assertSee($text);
+        }
+
+        foreach ($hiddenText as $text) {
+            $response->assertDontSee($text);
+        }
     }
 
 
