@@ -81,6 +81,8 @@ Current supported access:
 
 The search access logic lives in `SearchCourseAccess`. It uses `whereExists` subqueries so inaccessible courses are filtered out before the controller combines matches or paginates results.
 
+Direct course access only checks whether the `course_users` row exists. It does not enforce owner, editor, or viewer permissions because search only controls whether a course can be discovered. Course action permissions are handled by the existing course pages after a user opens a result.
+
 Department Head access currently uses the existing role access rows in `course_user_role`. This keeps search consistent with the app's role assignment flows, but it depends on those rows being kept up to date when roles, courses, programs, or course ownership details change.
 
 ## Request Flow
@@ -214,7 +216,7 @@ The tests cover:
 - query validation and whitespace normalization
 - searching each course property
 - direct course and direct program matches
-- direct course access and Program Director access
+- direct course access, Program Director access, and Department Head access
 - ranking behavior
 - safe highlighted snippets
 - search stats

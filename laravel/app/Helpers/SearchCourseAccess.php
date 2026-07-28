@@ -26,18 +26,6 @@ class SearchCourseAccess
     }
 
     /**
-     * Applies only the direct course access rule.
-     */
-    public static function applyDirectCourseAccess(Builder $query, User $user): Builder
-    {
-        if ($user->hasRole('administrator')) {
-            return $query;
-        }
-
-        return self::whereHasDirectCourseAccess($query, $user);
-    }
-
-    /**
      * Limits program lists to programs that contain at least one accessible course.
      */
     public static function applyProgramAccess(Builder $query, User $user): Builder
@@ -53,27 +41,6 @@ class SearchCourseAccess
                 ->whereColumn('access_program_courses.program_id', 'programs.program_id');
 
             self::applyCourseAccess($programAccessQuery, $user);
-        });
-    }
-
-    /**
-     * Limits program lists to programs that contain at least one directly accessible course.
-     * (Keeping direct only access for now as it may be useful for strict direct-only checks;
-     * can be removed during a later cleanup commit)
-     */
-    public static function applyDirectProgramAccess(Builder $query, User $user): Builder
-    {
-        if ($user->hasRole('administrator')) {
-            return $query;
-        }
-
-        return $query->whereExists(function (Builder $programAccessQuery) use ($user) {
-            $programAccessQuery->select(DB::raw(1))
-                ->from('course_programs')
-                ->join('courses', 'courses.course_id', '=', 'course_programs.course_id')
-                ->whereColumn('course_programs.program_id', 'programs.program_id');
-
-            self::applyDirectCourseAccess($programAccessQuery, $user);
         });
     }
 
