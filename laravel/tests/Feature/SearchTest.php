@@ -74,6 +74,11 @@ class SearchTest extends TestCase
             'course_num' => 101,
             'course_title' => 'Accessium Visible Course',
         ]);
+        $otherAccessibleCourse = Course::factory()->create([
+            'course_code' => 'EDIT',
+            'course_num' => 102,
+            'course_title' => 'Accessium Editor Course',
+        ]);
 
         Course::factory()->create([
             'course_code' => 'HIDE',
@@ -82,6 +87,7 @@ class SearchTest extends TestCase
         ]);
 
         $this->giveUserDirectCourseAccess($regularUser, $accessibleCourse, 3);
+        $this->giveUserDirectCourseAccess($regularUser, $otherAccessibleCourse, 2);
 
         $response = $this->get(route('search.index', [
             'query' => 'accessium',
@@ -89,9 +95,10 @@ class SearchTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Accessium Visible Course');
+        $response->assertSee('Accessium Editor Course');
         $response->assertDontSee('Accessium Hidden Course');
-        $response->assertSee('Courses: 1');
-        $this->assertSame(['OPEN'], $response->viewData('availableCourseCodes'));
+        $response->assertSee('Courses: 2');
+        $this->assertSame(['EDIT', 'OPEN'], $response->viewData('availableCourseCodes'));
     }
 
     public function test_admin_can_search_courses_without_direct_access()
