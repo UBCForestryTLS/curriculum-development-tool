@@ -112,6 +112,25 @@ def register_test_routes(app) -> None:
         )
         return {"status": "ok", "request_id": record["request_id"], "output_s3_path": output_s3_path}
 
+    @app.post("/test/mock-capacity-failure/{course_id}/{program_id}")
+    def mock_capacity_failure(course_id: int, program_id: int) -> dict:
+        """Create an AWAITING_COMPLETION_FAILED record to test the failure UI flow."""
+        now = datetime.datetime.now(datetime.timezone.utc)
+        request_id = now.strftime("%Y%m%d-%H%M%S-") + str(uuid4())
+        _store._get_table().put_item(Item={
+            "request_id":        request_id,
+            "course_id":         course_id,
+            "program_id":        program_id,
+            "status":            "AWAITING_COMPLETION_FAILED",
+            "transform_job_name": f"mock-capacity-failure-{now.strftime('%Y%m%d%H%M%S')}",
+            "input_s3_path":     "s3://mock/input.jsonl",
+            "output_s3_path":    "s3://mock/output.jsonl.out",
+            "created_at":        now.isoformat(),
+            "updated_at":        now.isoformat(),
+        })
+        logger.info("Mock capacity failure: created record '%s' for course=%s program=%s", request_id, course_id, program_id)
+        return {"status": "ok", "request_id": request_id}
+
     @app.post("/test/clear-dynamodb-aisuggestions")
     def clear_dynamodb() -> dict:
         """Empty the DynamoDB AI Suggestions requests table 

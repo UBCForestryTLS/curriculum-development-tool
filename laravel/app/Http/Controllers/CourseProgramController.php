@@ -327,6 +327,13 @@ class CourseProgramController extends Controller
             return response()->json(['status' => 'complete']);
         }
 
+        if ($courseProgram && $courseProgram->ai_suggestion_error) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => $courseProgram->ai_suggestion_error,
+            ]);
+        }
+
         // If not yet complete according to local DB:
         // Ask FastAPI to poll for and trigger processing of any
         // ready record for this course-program pair
@@ -399,11 +406,33 @@ class CourseProgramController extends Controller
         Log::info("Receiving AI suggestions: course_id=$courseId program_id=$programId status=$status results_count=" . count($results));
 
         if ($status !== 'AWAITING_COMPLETION') {
-            Log::warning("AI suggestion job did not complete successfully (status=$status). Skipping suggestion storage.");
+            Log::warning("AI suggestion job did not complete successfully (status=$status). Storing error.");
+
+            $courseProgram = CourseProgram::where(['course_id' => $courseId, 'program_id' => $programId])->first();
+            if ($courseProgram) {
+                $failureReason = $request->input('failure_reason');
+                Log::warning("AI suggestion job failed for course_id=$courseId program_id=$programId. SageMaker reason: " . ($failureReason ?? '(none)'));
+
+                if ($failureReason && str_starts_with($failureReason, 'CapacityError')) {
+                    $errorMsg = 'AWS is experiencing capacity issues in your region. Please try again later.';
+                } else {
+                    $errorMsg = 'Something went wrong. Please try again later.';
+                }
+                $courseProgram->ai_suggestion_status = false;
+                $courseProgram->ai_suggestion_error = $errorMsg;
+                $courseProgram->save();
+            }
+
             return response()->json([
-                'status'  => 'skipped',
+                'status'  => 'failed',
                 'message' => "Job status was '$status', no suggestions to store.",
             ]);
+        }
+
+        $courseProgram = CourseProgram::where(['course_id' => $courseId, 'program_id' => $programId])->first();
+        if ($courseProgram) {
+            $courseProgram->ai_suggestion_error = null;
+            $courseProgram->save();
         }
 
         $program = Program::find($programId);

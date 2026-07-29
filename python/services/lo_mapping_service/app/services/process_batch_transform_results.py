@@ -1,3 +1,4 @@
+import asyncio
 import boto3
 import httpx
 import json
@@ -15,6 +16,7 @@ boto_session = boto3.Session(
 )
 
 s3 = boto_session.client("s3")
+sagemaker = boto_session.client("sagemaker")
 
 lo_mapping_request_store = LOMappingRequestDynamoDBRecord()
 
@@ -191,7 +193,7 @@ def delete_dynamodb_record(record_id: str) -> None:
 
 
 
-async def send_results_to_external_api(record_id: str, results: list[dict], record: dict) -> None:
+async def send_results_to_external_api(record_id: str, results: list[dict], record: dict, failure_reason: str | None = None) -> None:
     """POST all extracted results for a single record to the external API"""
     # DynamoDB returns numeric attributes as Decimal, which json doesn't handle.
     course_id  = record.get("course_id")
@@ -203,6 +205,8 @@ async def send_results_to_external_api(record_id: str, results: list[dict], reco
         "status":     record.get("status"),
         "results":    results,   # list of {clo_id, plo_id, clo, accreditation_standard, explanation, map_labels, is_mapped}
     }
+    if failure_reason:
+        payload["failure_reason"] = failure_reason
 
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(settings.LARAVEL_API_URL, json=payload)
@@ -243,7 +247,19 @@ async def process_records(records: list) -> dict:
                     "Record '%s' is marked as failed; notifying external API without reading S3 output.",
                     record_id,
                 )
-                await send_results_to_external_api(record_id, [], record)
+                failure_reason = None
+                job_name = record.get("transform_job_name")
+                if job_name:
+                    try:
+                        job_desc = await asyncio.to_thread(
+                            sagemaker.describe_transform_job,
+                            TransformJobName=job_name
+                        )
+                        failure_reason = job_desc.get("FailureReason")
+                        logger.info("SageMaker failure reason for '%s': %s", job_name, failure_reason)
+                    except Exception as e:
+                        logger.warning("Could not describe transform job '%s': %s", job_name, e)
+                await send_results_to_external_api(record_id, [], record, failure_reason)
                 delete_dynamodb_record(record_id)
                 succeeded.append(record_id)
                 continue

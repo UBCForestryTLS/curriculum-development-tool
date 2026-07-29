@@ -129,6 +129,17 @@
                                                 <div id="collapseProgramAccordion{{$courseProgram->program_id}}" class="accordion-collapse collapse" aria-labelledby="programAccordionHeader{{$courseProgram->program_id}}" data-bs-parent="programAccordion{{$courseProgram->program_id}}">
                                                     <div class="accordion-body">
 
+                                                        @php
+                                                            $_aiError = $courseProgram->pivot->ai_suggestion_error ?? null;
+                                                        @endphp
+                                                        @if($_aiError)
+                                                            <div class="alert alert-danger d-flex align-items-center gap-2 py-2 pe-2 mb-0" role="alert">
+                                                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                                                <span class="flex-grow-1">{{ $_aiError }}</span>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                                            </div>
+                                                        @endif
+
                                                         @if ($courseProgram->mappingScaleLevels->count() > 0)
 
                                                             <!-- Mapping scale for this program -->
@@ -650,12 +661,29 @@
         }
     }
 
+    function sendAiFailureNotification(courseId, programId, message) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('AI Suggestion Failed', {
+                body: message,
+                icon: '/favicon.ico',
+            });
+        }
+    }
+
+    function requestNotificationPermission() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }
+
     function refreshAiSuggestions(courseId, programId) {
+        requestNotificationPermission();
         enterCheckingState(courseId, programId, AI_MSG_CHECKING);
         pollForResults(courseId, programId);
     }
 
     async function generateAiSuggestions(courseId, programId) {
+        requestNotificationPermission();
         const yesButton = event.target;
         yesButton.disabled = true;
         const originalText = yesButton.innerHTML;
@@ -758,6 +786,10 @@
                     } else {
                         window.location.reload();
                     }
+                } else if (data.status === 'failed') {
+                    clearInterval(interval);
+                    sendAiFailureNotification(courseId, programId, data.message || 'AI suggestion job failed. Please try again.');
+                    enterManualRefreshState(courseId, programId, 'AI suggestion failed: ' + (data.message || 'Unknown error. Please try again.'));
                 } else if (attempts >= AI_POLL_MAX_ATTEMPTS) {
                     clearInterval(interval);
                     enterManualRefreshState(courseId, programId);
