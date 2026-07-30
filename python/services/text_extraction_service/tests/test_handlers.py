@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import warnings
 
-from app.schemas import Topic
+from app.schemas import Topic, TopicSource
 from app.services.topic_extraction.type_specific_handlers import (
     ArticleHandler,
     MaterialTypeHandler,
@@ -43,7 +43,7 @@ class TestDefaultHandler:
 
         page2 = _make_page(["Forest ecology"])
         topics2 = handler.refresh_topics([page2], existing_topics=["Forest"])
-        assert len(topics2) == 1 and topics2[0].source == "match"
+        assert len(topics2) == 1 and topics2[0].source == TopicSource.MATCH
 
 
 
@@ -78,7 +78,7 @@ class TestSlidesHandler:
         print("Refreshed topics:")
         print([t.topic for t in topics_refreshed])
         assert any(t.topic == "forestry" for t in topics_refreshed)
-        assert not any(t.source == "font" for t in topics_refreshed)
+        assert not any(t.source == TopicSource.FONT for t in topics_refreshed)
         topics_extracted = handler.extract_topics([page], existing_topics=["forestry"])
         print("Extracted topics:")
         print([t.topic for t in topics_extracted])
@@ -111,7 +111,7 @@ class TestArticleHandler:
         topics2 = handler.refresh_topics([page2], existing_topics=[])
         for t in topics2:
             print(f"Topic: {t.topic}, Source: {t.source}")
-        assert not any(t.source == "font" for t in topics2)
+        assert not any(t.source == TopicSource.FONT for t in topics2)
 
     def test_bertopic_basic(self):
         # May be flaky
@@ -126,7 +126,7 @@ class TestArticleHandler:
         print([t.topic.lower() for t in topics])
         if not any("maple" in t.topic.lower() for t in topics):
             warnings.warn("Warning: 'maple' not among extracted topics. This could be due to randomness, or the algorithm should be improved.")
-        assert any(t.source == "keyword" for t in topics)
+        assert any(t.source == TopicSource.KEYWORD for t in topics)
 
     def test_preprocess_truncates_at_final_references(self):
         handler = ArticleHandler()

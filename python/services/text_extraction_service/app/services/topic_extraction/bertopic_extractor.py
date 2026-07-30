@@ -1,6 +1,6 @@
 import math
 
-from app.schemas import Topic
+from app.schemas import Topic, TopicSource
 
 from bertopic import BERTopic
 from bertopic.representation import MaximalMarginalRelevance
@@ -89,7 +89,7 @@ def extract(text: str, min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
             key = word.strip().lower()
             if key and key not in seen:
                 seen.add(key)
-                topics.append(Topic(topic = word.strip(), score = round(float(score), 4), source="keyword"))
+                topics.append(Topic(topic = word.strip(), score = round(float(score), 4), source=TopicSource.KEYWORD))
     topics_sorted = sorted(topics, key=lambda t: t.score, reverse=True)
     return topics_sorted[:TOPICS_COUNT]
 

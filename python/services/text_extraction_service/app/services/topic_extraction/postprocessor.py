@@ -1,6 +1,6 @@
 from itertools import chain
 
-from app.schemas import Topic
+from app.schemas import Topic, TopicSource
 import spacy
 
 def process(topics: list[Topic], filterLowerCaseSingleWords = False, minTopicCharCount = 5, scoreThreshold = 0.5) -> list[Topic]:
@@ -70,7 +70,7 @@ def process(topics: list[Topic], filterLowerCaseSingleWords = False, minTopicCha
     for t in stop_word_filtered_topics:
         if not any(t.topic.lower() in other.topic.lower() and t.topic.lower() != other.topic.lower() for other in deduped_topics):
             unique_topics.append(t)
-        elif t.source == "match":  # Keep match-based topics even if they are contained in other topics
+        elif t.source == TopicSource.MATCH:  # Keep match-based topics even if they are contained in other topics
             unique_topics.append(t)
     
     # Remove less relevant topics

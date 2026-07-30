@@ -1,6 +1,6 @@
 import regex as re
 
-from app.schemas import ExtractedLine, ExtractedPage, Topic
+from app.schemas import ExtractedLine, ExtractedPage, Topic, TopicSource
 from app.services.topic_extraction import postprocessor
 from app.services.topic_extraction import bertopic_extractor as extractor
 
@@ -9,11 +9,12 @@ class MaterialTypeHandler:
     """Base handler - extracts keywords from text only"""
 
     def match_topics(self, text: str, topics: list[str], min_count: int = 1) -> list[Topic]:
+        """ Filters `topics` for items that appear at least `min_count` times within `text` and returns them. Matching is case-insensitive. """
         matched: list[Topic] = []
         for topic in topics:
             pattern = re.compile(rf'\b{re.escape(topic)}\b', re.IGNORECASE | re.UNICODE)
             if len(pattern.findall(text)) >= min_count:
-                matched.append(Topic(topic=topic, score=1.0, source="match"))
+                matched.append(Topic(topic=topic, score=1.0, source=TopicSource.MATCH))
         return matched
 
     def preprocess(self, text: str) -> str:
@@ -45,7 +46,7 @@ class MaterialTypeHandler:
         For the default Material handler, this is the same because only matched topics are used"""
         return self.extract_topics(pages, existing_topics)
 
-    def _to_topics(texts : list[str], source : str) -> list[Topic]:
+    def _to_topics(self, texts : list[str], source : TopicSource) -> list[Topic]:
         # Convert unique (case-insensitive) strings with a fixed source to list of Topics.
         # All scores are 1.0
         seen: set[str] = set()
@@ -105,7 +106,7 @@ class SlidesHandler(MaterialTypeHandler):
             title = biggest.text.strip()
             if title and len(title.split()) <= self.MAX_TITLE_WORDS:
                 titles.append(title)
-        return self._to_topics(titles, source="font")
+        return self._to_topics(titles, source=TopicSource.FONT)
 
 
 class ArticleHandler(MaterialTypeHandler):
@@ -157,7 +158,7 @@ class ArticleHandler(MaterialTypeHandler):
             for line in page.lines
             if line.text.strip() and self._is_heading(line)
         ]
-        return self._to_topics(headings, source="font")
+        return self._to_topics(headings, source=TopicSource.FONT)
 
     def _is_heading(self, line: ExtractedLine) -> bool:
         # bold is None for OCR, but require bold if non-OCR

@@ -1,6 +1,13 @@
+from enum import Enum
 from typing import List, Optional
 
 from pydantic import BaseModel
+
+
+class TopicSource(str, Enum):
+    MATCH = "match"
+    FONT = "font"
+    KEYWORD = "keyword"
 
 
 class ExtractedLine(BaseModel):
@@ -22,7 +29,7 @@ class PageContent(BaseModel):
 class Topic(BaseModel):
     topic: str
     score: float
-    source: str = "match"  # Either "match", "keyword", or "font"
+    source: TopicSource = TopicSource.MATCH
 
     model_config = {"frozen": True} # Used for checking equality in tests
 
