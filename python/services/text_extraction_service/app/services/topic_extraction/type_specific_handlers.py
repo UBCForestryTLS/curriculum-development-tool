@@ -43,21 +43,20 @@ class MaterialTypeHandler:
     def refresh_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
         """Extract match-based and keyword-based topics without font-based topics.
         For the default Material handler, this is the same because only matched topics are used"""
-        # TODO: Check with Fabian if we should run BERTopic keyword extraction on default material types too
         return self.extract_topics(pages, existing_topics)
 
-def _to_topics(texts, source) -> list[Topic]:
-    # Convert unique (case-insensitive) strings with a fixed source to list of Topics.
-    # All scores are 1.0
-    seen: set[str] = set()
-    topics: list[Topic] = []
-    for text in texts:
-        text = text.strip()
-        key = text.lower()
-        if text and key not in seen:
-            seen.add(key)
-            topics.append(Topic(topic=text, score=1.0, source=source))
-    return topics
+    def _to_topics(texts : list[str], source : str) -> list[Topic]:
+        # Convert unique (case-insensitive) strings with a fixed source to list of Topics.
+        # All scores are 1.0
+        seen: set[str] = set()
+        topics: list[Topic] = []
+        for text in texts:
+            text = text.strip()
+            key = text.lower()
+            if text and key not in seen:
+                seen.add(key)
+                topics.append(Topic(topic=text, score=1.0, source=source))
+        return topics
 
 
 class SlidesHandler(MaterialTypeHandler):
@@ -106,7 +105,7 @@ class SlidesHandler(MaterialTypeHandler):
             title = biggest.text.strip()
             if title and len(title.split()) <= self.MAX_TITLE_WORDS:
                 titles.append(title)
-        return _to_topics(titles, source="font")
+        return self._to_topics(titles, source="font")
 
 
 class ArticleHandler(MaterialTypeHandler):
@@ -158,7 +157,7 @@ class ArticleHandler(MaterialTypeHandler):
             for line in page.lines
             if line.text.strip() and self._is_heading(line)
         ]
-        return _to_topics(headings, source="font")
+        return self._to_topics(headings, source="font")
 
     def _is_heading(self, line: ExtractedLine) -> bool:
         # bold is None for OCR, but require bold if non-OCR

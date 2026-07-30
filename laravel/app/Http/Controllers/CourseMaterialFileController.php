@@ -27,7 +27,7 @@ class CourseMaterialFileController extends Controller
 
     public function store(Request $request, $course_id, $material_id): RedirectResponse
     {
-        $this->assertIsEditor((int) $course_id);
+        $this->verifyUserIsEditor((int) $course_id);
 
         $request->validate([
             'file' => ['required', 'file', 'mimes:pdf', 'max:51200'],
@@ -62,7 +62,7 @@ class CourseMaterialFileController extends Controller
 
     public function destroy(Request $request, $course_id, $material_id, $file_id): RedirectResponse
     {
-        $this->assertIsEditor((int) $course_id);
+        $this->verifyUserIsEditor((int) $course_id);
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
@@ -80,7 +80,7 @@ class CourseMaterialFileController extends Controller
 
     public function refresh(Request $request, $course_id, $material_id, $file_id): RedirectResponse
     {
-        $this->assertIsEditor((int) $course_id);
+        $this->verifyUserIsEditor((int) $course_id);
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
@@ -178,7 +178,7 @@ class CourseMaterialFileController extends Controller
 
     public function updateTopics(Request $request, $course_id, $material_id, $file_id)
     {
-        $this->assertIsEditor((int) $course_id);
+        $this->verifyUserIsEditor((int) $course_id);
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
@@ -208,17 +208,17 @@ class CourseMaterialFileController extends Controller
 
     public function reviewTopics(Request $request, $course_id, $material_id, $file_id)
     {
-        $this->assertIsEditor((int) $course_id);
-
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->firstOrFail();
+        $this->verifyUserIsEditor((int) $course_id);
 
         $request->validate([
             'decisions' => 'required|array|min:1',
             'decisions.*.id' => 'required|integer|exists:suggested_topics,suggested_topic_id',
             'decisions.*.action' => 'required|in:confirm,reject',
         ]);
+        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
+            ->where('course_material_id', $material_id)
+            ->firstOrFail();
+
 
         $decisions = $request->input('decisions');
         $confirmIds = array_column(array_filter($decisions, fn($d) => $d['action'] === 'confirm'), 'id');
@@ -227,7 +227,7 @@ class CourseMaterialFileController extends Controller
         DB::transaction(function () use ($file, $confirmIds, $rejectIds) {
             if ($confirmIds) {
                 $topicTexts = SuggestedTopic::where('course_material_file_id', $file->course_material_file_id)
-                    ->where('suggested_topic_id', $confirmIds)
+                    ->whereIn('suggested_topic_id', $confirmIds)
                     ->where('status', SuggestedTopic::STATUS_PENDING)
                     ->pluck('topic')
                     ->all();
@@ -237,18 +237,20 @@ class CourseMaterialFileController extends Controller
 
             if ($rejectIds) {
                 SuggestedTopic::where('course_material_file_id', $file->course_material_file_id)
-                    ->where('suggested_topic_id', $rejectIds)
+                    ->whereIn('suggested_topic_id', $rejectIds)
                     ->where('status', SuggestedTopic::STATUS_PENDING)
                     ->update(['status' => SuggestedTopic::STATUS_REJECTED]);
             }
         });
 
-        return redirect()->back()->with('success', 'Topics reviewed.');
+        $accepted = count($confirmIds);
+        $rejected = count($rejectIds);
+        return redirect()->back()->with('success', "{$accepted} topics accepted, {$rejected} topics rejected.");
     }
 
     public function acceptAllTopics(Request $request, $course_id, $material_id, $file_id)
     {
-        $this->assertIsEditor((int) $course_id);
+        $this->verifyUserIsEditor((int) $course_id);
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
@@ -268,7 +270,7 @@ class CourseMaterialFileController extends Controller
 
     public function rejectAllTopics(Request $request, $course_id, $material_id, $file_id)
     {
-        $this->assertIsEditor((int) $course_id);
+        $this->verifyUserIsEditor((int) $course_id);
 
         $file = CourseMaterialFile::where('course_material_file_id', $file_id)
             ->where('course_material_id', $material_id)
@@ -350,7 +352,7 @@ class CourseMaterialFileController extends Controller
     }
 
 
-    private function assertIsEditor(int $course_id): void
+    private function verifyUserIsEditor(int $course_id): void
     {
         $permission = User::find(Auth::id())?->effectivePermissionForCourse($course_id) ?? 0;
         abort_unless(in_array($permission, [1, 2], true), 403, 'Editor access required.');

@@ -27,7 +27,9 @@ class CourseMaterialController extends Controller
         $request->validate([
             'course_id' => ['required', 'exists:courses,course_id'],
             'current_material.*.name' => ['required', 'string'],
+            'current_material.*.type' => ['required', 'string'],
             'new_material.*.name' => ['required', 'string'],
+            'new_material.*.type' => ['required', 'string'],
         ]);
 
         try {

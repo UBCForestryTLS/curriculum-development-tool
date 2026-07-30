@@ -3,20 +3,20 @@
 @section('content')
 
     @php
-    // Storing these in the DB can lead to complications if the user selects 'Other'.
-    // The main reason for this dropdown is to allow the text extraction service to
-    // handle different types (currently has special handling for Slides and Articles),
-    // and dropdown avoids free text not matching any condition due to minor differences.
-    $materialTypes = [
-        'Slides',
-        'Article',
-        'Textbook',
-        'Video',
-        'Podcast',
-        'Website',
-        'Notes',
-        'Other',
-    ];
+        // Storing these in the DB can lead to complications if the user selects 'Other'.
+        // The main reason for this dropdown is to allow the text extraction service to
+        // handle different types (currently has special handling for Slides and Articles),
+        // and dropdown avoids free text not matching any condition due to minor differences.
+        $materialTypes = [
+            'Slides',
+            'Article',
+            'Textbook',
+            'Video',
+            'Podcast',
+            'Website',
+            'Notes',
+            'Other',
+        ];
     @endphp
 
     <div>
@@ -57,7 +57,7 @@
                                             <div class="col-4">
                                                 <label for="courseMaterialName" class="form-label fs-6"><b>Name</b></label>
                                                 <input id="courseMaterialName" class="form-control"
-                                                    oninput="validateMaxlength(event)" onpaste="validateMaxlength(event)"
+                                                    oninput="validateMaxlength" onpaste="validateMaxlength"
                                                     maxlength="191" placeholder="Material name" required>
                                                 <div class="invalid-tooltip">
                                                     Please provide a material name.
@@ -66,14 +66,16 @@
                                             <div class="col-3">
                                                 <label for="courseMaterialType" class="form-label fs-6"><b>Type</b></label>
                                                 <div class="d-flex gap-1">
-                                                    <select id="courseMaterialType" class="form-control form-select flex-grow-1">
+                                                    <select id="courseMaterialType"
+                                                        class="form-control form-select flex-grow-1">
                                                         @foreach ($materialTypes as $materialType)
-                                                        <option value="{{ $materialType }}">{{ $materialType }}</option>
+                                                            <option value="{{ $materialType }}">{{ $materialType }}</option>
                                                         @endforeach
                                                     </select>
                                                     <input id="courseMaterialTypeOther" class="form-control d-none"
-                                                        oninput="validateMaxlength(event)" onpaste="validateMaxlength(event)"
-                                                        maxlength="191" placeholder="Specify type...">
+                                                        oninput="validateMaxlength(event)"
+                                                        onpaste="validateMaxlength(event)" maxlength="191"
+                                                        placeholder="Specify type...">
                                                 </div>
                                             </div>
                                             <div class="col-2">
@@ -89,7 +91,7 @@
                                                         class="form-check-input" value="1">
                                                 </div>
                                             </div>
-                                            <div class="col-2">
+                                            <div class="col-2 pt-1">
                                                 <button id="addCourseMaterialBtn" type="submit"
                                                     class="btn btn-primary col">Add</button>
                                             </div>
@@ -180,21 +182,32 @@
                                                     </h2>
                                                     <div id="ocrAdvBody" class="accordion-collapse collapse"
                                                         data-bs-parent="#ocrAdvAccordion">
-                                                        <div class="accordion-body p-2 row">
-                                                            <div class="col-md-6">
-                                                                <label class="form-label small mb-0">Extraction Engine</label>
-                                                                <select name="extraction_engine"
-                                                                    class="form-select form-select-sm"
-                                                                    onchange="toggleOcrThresholdSetting(this)">
-                                                                    <option value="tesseract">Tesseract</option>
-                                                                    <option value="textract">AWS Textract (cloud)</option>
-                                                                </select>
+                                                        <div class="accordion-body p-2">
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <label class="form-label small mb-0">Extraction Engine</label>
+                                                                     <select name="extraction_engine"
+                                                                         class="form-select form-select-sm"
+                                                                         onchange="toggleOcrThresholdSetting(this)">
+                                                                         <option value="tesseract">Tesseract</option>
+                                                                         <option value="textract">AWS Textract (cloud)</option>
+                                                                     </select>
+                                                                </div>
+                                                                <div id="ocrThresholdSetting" class="col-md-6">
+                                                                    <label class="form-label small mb-0">OCR threshold
+                                                                        (characters)</label>
+                                                                    <input type="number" name="ocr_threshold" min="0"
+                                                                        max="100000" value="0"
+                                                                        class="form-control form-control-sm">
+                                                                </div>
                                                             </div>
-                                                            <div id="ocrThresholdSetting" class="col-md-6">
-                                                                <label class="form-label small mb-0">OCR threshold (characters)</label>
-                                                                <input type="number" name="ocr_threshold" min="0"
-                                                                    max="100000" value="0"
-                                                                    class="form-control form-control-sm">
+                                                            <div>
+                                                                <small id="tesseractTip" class="form-text text-muted">
+                                                                     If a page has fewer typed characters than the threshold, then it will be scanned as an image. Set a higher threshold if you have pages that combine text and figures.
+                                                                 </small>
+                                                                 <small id="textractTip" class="form-text text-muted d-none">
+                                                                     File will be temporarily sent to AWS Textract Cloud servers.
+                                                                 </small>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -284,8 +297,8 @@
                                                 <!-- We don't really need the per-row edit button, as -->
                                                 <!-- each open the same menu as the tablewide edit button at the top -->
                                                 <!-- <button type="button" style="width:60px;" class="btn btn-secondary btn-sm m-1" data-bs-toggle="modal" data-bs-target="#addCourseMaterialsModal">
-                                                        Edit
-                                                    </button> -->
+                                                                    Edit
+                                                                </button> -->
                                                 <button type="button"
                                                     class="btn btn-outline-primary btn-sm m-1 files-toggle collapsed"
                                                     data-bs-toggle="collapse"
@@ -314,50 +327,51 @@
                                                                 </thead>
                                                                 <tbody>
                                                                     @foreach($courseMaterial->files as $file)
-                                                                                                                    <tr>
-                                                                                                                        <td class="align-middle">
-                                                                                                                            <a
-                                                                                                                                href="{{route('course.material.files.show', [$course->course_id, $courseMaterial->course_material_id, $file->course_material_file_id])}}">
-                                                                                                                                <i
-                                                                                                                                    class="bi bi-file-earmark-pdf me-1"></i>{{$file->file_name}}
-                                                                                                                            </a>
-                                                                                                                        </td>
-                                                                                                                        <td class="text-center align-middle">
-                                                                                                                            @php
-                                                                                                                                $statusClass = match ($file->status) {
-                                                                                                                                    'INDEXED' => 'material-status--indexed',
-                                                                                                                                    'INDEXING' => 'material-status--indexing',
-                                                                                                                                    'FAILED' => 'material-status--failed',
-                                                                                                                                    default => 'material-status--pending',
-                                                                                                                                };
-                                                                                                                            @endphp
-                                                                         <span
-                                                                                                                                class="material-status {{$statusClass}}">{{$file->status}}</span>
-                                                                                                                            @if($file->status === 'FAILED' && $file->error_message)
-                                                                                                                                <i class="bi bi-exclamation-circle text-danger ms-1"
-                                                                                                                                    title="{{$file->error_message}}"></i>
-                                                                                                                            @endif
-                                                                                                                        </td>
-                                                                                                                        <td class="text-center align-middle">
-                                                                                                                            {{$file->page_count ?? '-'}}</td>
-                                                                                                                        <td class="text-center align-middle">
-                                                                                                                            <a href="{{route('course.material.files.download', [$course->course_id, $courseMaterial->course_material_id, $file->course_material_file_id])}}"
-                                                                                                                                class="btn btn-outline-secondary btn-sm">
-                                                                                                                                <i class="bi bi-download"></i>
-                                                                                                                            </a>
-                                                                                                                            <form method="POST"
-                                                                                                                                action="{{route('course.material.files.destroy', [$course->course_id, $courseMaterial->course_material_id, $file->course_material_file_id])}}"
-                                                                                                                                class="d-inline"
-                                                                                                                                onsubmit="return confirm('Delete this file?')">
-                                                                                                                                @csrf
-                                                                                                                                @method('DELETE')
-                                                                                                                                <button type="submit"
-                                                                                                                                    class="btn btn-outline-danger btn-sm">
-                                                                                                                                    <i class="bi bi-trash"></i>
-                                                                                                                                </button>
-                                                                                                                            </form>
-                                                                                                                        </td>
-                                                                                                                    </tr>
+                                                                        <tr>
+                                                                            <td class="align-middle">
+                                                                                <a
+                                                                                    href="{{route('course.material.files.show', [$course->course_id, $courseMaterial->course_material_id, $file->course_material_file_id])}}">
+                                                                                    <i
+                                                                                        class="bi bi-file-earmark-pdf me-1"></i>{{$file->file_name}}
+                                                                                </a>
+                                                                            </td>
+                                                                            <td class="text-center align-middle">
+                                                                                @php
+                                                                                    $statusClass = match ($file->status) {
+                                                                                        'INDEXED' => 'material-status--indexed',
+                                                                                        'INDEXING' => 'material-status--indexing',
+                                                                                        'FAILED' => 'material-status--failed',
+                                                                                        default => 'material-status--pending',
+                                                                                    };
+                                                                                @endphp
+                                                                                <span
+                                                                                    class="material-status {{$statusClass}}">{{$file->status}}</span>
+                                                                                @if($file->status === 'FAILED' && $file->error_message)
+                                                                                    <i class="bi bi-exclamation-circle text-danger ms-1"
+                                                                                        title="{{$file->error_message}}"></i>
+                                                                                @endif
+                                                                            </td>
+                                                                            <td class="text-center align-middle">
+                                                                                {{$file->page_count ?? '-'}}
+                                                                            </td>
+                                                                            <td class="text-center align-middle">
+                                                                                <a href="{{route('course.material.files.download', [$course->course_id, $courseMaterial->course_material_id, $file->course_material_file_id])}}"
+                                                                                    class="btn btn-outline-secondary btn-sm">
+                                                                                    <i class="bi bi-download"></i>
+                                                                                </a>
+                                                                                <form method="POST"
+                                                                                    action="{{route('course.material.files.destroy', [$course->course_id, $courseMaterial->course_material_id, $file->course_material_file_id])}}"
+                                                                                    class="d-inline"
+                                                                                    onsubmit="return confirm('Delete this file?')">
+                                                                                    @csrf
+                                                                                    @method('DELETE')
+                                                                                    <button type="submit"
+                                                                                        class="btn btn-outline-danger btn-sm">
+                                                                                        <i class="bi bi-trash"></i>
+                                                                                    </button>
+                                                                                </form>
+                                                                            </td>
+                                                                        </tr>
                                                                     @endforeach
                                                                 </tbody>
                                                             </table>
@@ -408,9 +422,8 @@
                             <option value="{{ $materialType }}">{{ $materialType }}</option>
                         @endforeach
                     </select>
-                    <input class="form-control d-none material-type-other"
-                        oninput="validateMaxlength(event)" onpaste="validateMaxlength(event)"
-                        maxlength="191" placeholder="Specify type...">
+                    <input class="form-control d-none material-type-other" oninput="validateMaxlength(event)"
+                        onpaste="validateMaxlength(event)" maxlength="191" placeholder="Specify type..." required>
                 </div>
             </td>
             <td><textarea class="form-control material-desc" rows="1"></textarea></td>
@@ -427,32 +440,30 @@
 
     <script>
         const materials = [
-        @foreach($courseMaterials as $m)
-            {
+            @foreach($courseMaterials as $m)
+                {
                 id: {{ $m->course_material_id }},
                 name: @json($m->name),
                 type: @json($m->type),
                 description: @json($m->description),
                 url: @json($m->url),
                 is_required: {{ $m->is_required ? 'true' : 'false' }}
-            },
+                },
             @endforeach
-        ];
+            ];
 
         function renderMaterials() {
             const tbody = document.querySelector("#addCourseMaterialsTbl tbody");
             tbody.innerHTML = "";
 
             const fields = [
-                { cls: "material-name",     field: "name" },
+                { cls: "material-name", field: "name" },
                 // { cls: "material-type",     field: "type" },
-                { cls: "material-desc",     field: "description" },
-                { cls: "material-url",      field: "url" },
+                { cls: "material-desc", field: "description" },
+                { cls: "material-url", field: "url" },
                 { cls: "material-required", field: "is_required" },
             ];
 
-            // TODO: Should we just move materialTypes to JS here?
-            //       Kept in PHP for now in case we move it to DB later
             const materialTypes = @json($materialTypes);
 
             materials.forEach((m, idx) => {
@@ -523,15 +534,27 @@
                 // prevent default form submission handling
                 event.preventDefault();
                 event.stopPropagation();
-                // check if input fields contain data
-                if ($('#courseMaterialName').val().length != 0) {
+
+                const otherSelected = $('#courseMaterialType').val() === 'Other';
+                const otherFilled = $('#courseMaterialTypeOther').val().trim().length > 0;
+
+                if ($('#courseMaterialName').val().length != 0 && (!otherSelected || otherFilled)) {
                     addCourseMaterial();
                     // reset form
+                    const otherInput = $('#courseMaterialTypeOther')[0];
+                    if (otherInput) otherInput.setCustomValidity('');
                     $(this).trigger('reset');
                     $(this).removeClass('was-validated');
                 } else {
                     // mark form as validated
                     $(this).addClass('was-validated');
+                    if (otherSelected && !otherFilled) {
+                        $('#courseMaterialTypeOther')[0].setCustomValidity('Please specify a type.');
+                        $('#courseMaterialTypeOther')[0].reportValidity();
+                    } else if ($('#courseMaterialName').val().length === 0) {
+                        $('#courseMaterialName')[0].setCustomValidity('Please provide a material name.');
+                        $('#courseMaterialName')[0].reportValidity();
+                    }
                 }
                 // readjust modal's position
                 $('#addCourseMaterialsModal').modal('handleUpdate');
@@ -541,14 +564,14 @@
             $('#cancel').click(() => {
                 materials.length = 0;
                 @foreach($courseMaterials as $m)
-                materials.push({
-                    id: {{ $m->course_material_id }},
-                    name: @json($m->name),
-                    type: @json($m->type),
-                    description: @json($m->description),
-                    url: @json($m->url),
-                    is_required: {{ $m->is_required ? 'true' : 'false' }}
-                });
+                    materials.push({
+                        id: {{ $m->course_material_id }},
+                        name: @json($m->name),
+                        type: @json($m->type),
+                        description: @json($m->description),
+                        url: @json($m->url),
+                        is_required: {{ $m->is_required ? 'true' : 'false' }}
+                        });
                 @endforeach
                 renderMaterials();
             });
@@ -596,6 +619,10 @@
         function toggleOcrThresholdSetting(select) {
             const row = document.getElementById('ocrThresholdSetting');
             if (row) row.classList.toggle('d-none', select.value !== 'tesseract');
+            const ocrInfo = document.getElementById('tesseractTip');
+            if (ocrInfo) ocrInfo.classList.toggle('d-none', select.value !== 'tesseract');
+            const textractInfo = document.getElementById('textractTip');
+            if (textractInfo) textractInfo.classList.toggle('d-none', select.value !== 'textract');
         }
 
         function validateFileSize(input) {
@@ -613,10 +640,14 @@
         }
 
         function addCourseMaterial() {
+            const otherInput = $('#courseMaterialTypeOther')[0];
+            if (otherInput) otherInput.setCustomValidity('');
+            const nameInput = $('#courseMaterialName')[0];
+            if (nameInput) nameInput.setCustomValidity('');
+
             materials.push({
                 id: null,
                 name: $('#courseMaterialName').val(),
-                // TODO: What should we do if they leave the input blank after choosing 'Other'? Just store blank?
                 type: $('#courseMaterialType').val() === 'Other'
                     ? $('#courseMaterialTypeOther').val()
                     : $('#courseMaterialType').val(),

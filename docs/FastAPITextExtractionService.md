@@ -36,9 +36,11 @@ The main endpoint. Accepts an [`ExtractRequest`](../python/services/text_extract
 - `file` (string, required): base64-encoded PDF content
 - `ocr_enabled` (boolean, default `false`): whether to apply OCR on low-text pages
 - `extraction_engine` (string, default `"tesseract"`): `"tesseract"` or `"textract"`
-- `ocr_threshold` (integer, default `0`): page text length below which OCR is triggered
+- `ocr_threshold` (integer, default `0`): page text length below which OCR is triggered (see note below)
 - `material_type` (string, optional): `"slides"`, `"article"`, or `null` for default handling
 - `existing_topics` (list of strings, default `[]`): course topics to match against extracted text
+
+Note on `ocr_threshold`: When using `tesseract`, we first count the number of non-whitespace characters on the page that are already text-readable without OCR. If the count is *greater* than `ocr_threshold`, then we simply take the already readable text as that page's text. If the count is equal to or less than `ocr_threshold`, then we convert the page to an image and perform OCR on it. If `ocr_threshold` is set to `0`, then we will only perform OCR if the page has no encoded text (for example, a scanned page). This threshold especially saves resouces when dealing with slides, as there are some pages that have figures and charts that need OCR, but others with text.
 
 Note (TODO): Having both `ocr_enabled` and `extraction_engine` is slightly redundant - we could have a third `extraction_engine` option be `"text-only"` or similar to cover both. However, this set up allows us to easily remove textract if we need to, as that was discussed to help simplify the set up but later retained as the service was modularized further. A potential improvement is having an `int` field with `0` correspond to text-only, and `1, 2, ...` correspond to OCR engines.
 
@@ -111,7 +113,7 @@ The BERTopic extractor in [`bertopic_extractor.py`](../python/services/text_extr
 2. Splits text into overlapping windows
 3. Fits BERTopic with the `all-mpnet-base-v2` embedding model.
 4. Extracts top keywords from each cluster
-5. Returns up to `TOPICS_COUNT` (currently 100) topics, then sorts by relevance. This limit should ideally never be reached, and is only there to prevent the database exploding with topics. We can increase the limit any time.
+5. Returns the `TOPICS_COUNT` (currently 20) best-scoring topics. This limit should ideally never be reached, and is only there to prevent the database exploding with topics. We can increase the limit any time.
 
 ## Runtime Dependencies
 

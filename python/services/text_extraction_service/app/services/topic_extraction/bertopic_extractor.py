@@ -9,7 +9,7 @@ import spacy
 
 from sentence_transformers import SentenceTransformer
 
-TOPICS_COUNT = 100          # max topics returned - we will likely never get so many, just prevents DB overloading
+TOPICS_COUNT = 20          # max topics returned - we will likely never get so many, just prevents DB overloading
 TOPICS_PER_CLUSTER = 10     # top words taken from each cluster
 MIN_TOPIC_SIZE = 5         # min sentences to form a cluster (small docs need a low value)
 
@@ -90,7 +90,8 @@ def extract(text: str, min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
             if key and key not in seen:
                 seen.add(key)
                 topics.append(Topic(topic = word.strip(), score = round(float(score), 4), source="keyword"))
-    return topics[:TOPICS_COUNT]
+    topics_sorted = sorted(topics, key=lambda t: t.score, reverse=True)
+    return topics_sorted[:TOPICS_COUNT]
 
 def _dedupe_plurals(text: str) -> str:
     """Lemmatize tokens to group plurals and other variants of the same word together"""
