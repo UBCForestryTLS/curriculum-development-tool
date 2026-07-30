@@ -170,6 +170,71 @@ class SearchTest extends TestCase
         $response->assertSee('Courses: 2');
     }
 
+    public function test_department_head_with_faculty_access_can_search_faculty_course_codes()
+    {
+        $this->createCourseScaleCategory();
+
+        $departmentHead = User::factory()->create();
+        $this->actingAs($departmentHead);
+
+        $campusId = DB::table('campuses')->max('campus_id') + 1;
+        $facultyId = DB::table('faculties')->max('faculty_id') + 1;
+        $departmentId = DB::table('departments')->max('department_id') + 1;
+
+        DB::table('campuses')->insert([
+            'campus_id' => $campusId,
+            'campus' => 'Faculty Access Campus',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('faculties')->insert([
+            'faculty_id' => $facultyId,
+            'campus_id' => $campusId,
+            'faculty' => 'Faculty Access Faculty',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('departments')->insert([
+            'department_id' => $departmentId,
+            'faculty_id' => $facultyId,
+            'department' => 'Faculty Access Department',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('department_head')->insert([
+            'department_id' => $departmentId,
+            'user_id' => $departmentHead->id,
+            'has_access_to_all_courses_in_faculty' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->assignRoleToUser($departmentHead, 'department head');
+        $this->createSearchCourse('FACC', 411, 'Facultium Faculty Course');
+        $this->createSearchCourse('HIDE', 412, 'Facultium Hidden Course');
+
+        DB::table('faculty_course_codes')->insert([
+            'faculty_id' => $facultyId,
+            'course_code' => 'FACC',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'facultium',
+        ]));
+
+        $response->assertStatus(200);
+        $this->assertSearchVisibility($response, [
+            'Facultium Faculty Course',
+        ], [
+            'Facultium Hidden Course',
+        ]);
+    }
+
     public function test_program_director_filter_options_only_show_accessible_courses_and_programs()
     {
         $this->createCourseScaleCategory();
@@ -498,13 +563,13 @@ class SearchTest extends TestCase
         );
     }
 
-    private function createSearchCourse(string $courseCode, int $courseNumber, string $courseTitle): Course
+    private function createSearchCourse(string $courseCode, int $courseNumber, string $courseTitle, array $attributes = []): Course
     {
-        return Course::factory()->create([
+        return Course::factory()->create(array_merge([
             'course_code' => $courseCode,
             'course_num' => $courseNumber,
             'course_title' => $courseTitle,
-        ]);
+        ], $attributes));
     }
 
     private function createCourseTopic(Course $course, string $topic): CourseTopic
@@ -515,15 +580,15 @@ class SearchTest extends TestCase
         ]);
     }
 
-    private function createProgram(string $programName): int
+    private function createProgram(string $programName, array $attributes = []): int
     {
-        return DB::table('programs')->insertGetId([
+        return DB::table('programs')->insertGetId(array_merge([
             'program' => $programName,
             'level' => 'Bachelors',
             'status' => 1,
             'created_at' => now(),
             'updated_at' => now(),
-        ], 'program_id');
+        ], $attributes), 'program_id');
     }
 
     private function attachCourseToProgram(Course $course, int $programId): void
