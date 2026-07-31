@@ -295,11 +295,12 @@
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
 
-    const tbody = document.getElementById('topics-tbody');
-    const editBtn = document.getElementById('edit-topics-btn');
-    const saveBtn = document.getElementById('save-topics-btn');
-    const cancelBtn = document.getElementById('cancel-topics-btn');
-    const addBtn = document.getElementById('add-topic-btn');
+    // These elements manage the 'confirmed' (not suggested) topics associated with the file
+    const tbodyFileTopics = document.getElementById('topics-tbody');
+    const editTopicsBtn = document.getElementById('edit-topics-btn');
+    const saveTopicsBtn = document.getElementById('save-topics-btn');
+    const cancelTopicsBtn = document.getElementById('cancel-topics-btn');
+    const addTopicBtn = document.getElementById('add-topic-btn');
 
     const updateUrl = '{{ route("course.material.files.topics.update", [$course_id, $material_id, $file->course_material_file_id]) }}';
     const csrfToken = '{{ csrf_token() }}';
@@ -312,9 +313,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let editMode = false;
 
-    let topics = [
+    let fileTopicIds = [
         @foreach ($file->topics as $topic)
-            { id: {{ $topic->course_topic_id }} },
+            {{ $topic->course_topic_id }},
         @endforeach
     ];
 
@@ -329,9 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function buildTopicSelect(selectedId, index) {
-        const selectedIds = topics
-            .filter((t, i) => t.id !== null)
-            .map(t => t.id);
+        const selectedIds = fileTopicIds.filter(id => id !== null);
 
         let options = '<option value="">-- Select a topic --</option>';
         courseTopics.forEach(ct => {
@@ -345,25 +344,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderTopics() {
-        tbody.innerHTML = '';
+        tbodyFileTopics.innerHTML = '';
 
-        if (topics.length === 0) {
-            tbody.innerHTML = renderNoTopics();
+        if (fileTopicIds.length === 0) {
+            tbodyFileTopics.innerHTML = renderNoTopics();
             return;
         }
 
-        topics.forEach((t, index) => {
+        fileTopicIds.forEach((t, index) => {
             const row = document.createElement('tr');
             row.className = 'topic-row';
             row.dataset.index = index;
 
-            const topicObj = courseTopics.find(ct => ct.id === t.id);
+            const topicObj = courseTopics.find(ct => ct.id === t);
             const topicText = topicObj ? topicObj.text : '';
 
             row.innerHTML = `
                 <td>
                     <span class="topic-display ${editMode ? 'd-none' : ''}">${topicText}</span>
-                    ${editMode ? buildTopicSelect(t.id, index) : ''}
+                    ${editMode ? buildTopicSelect(t, index) : ''}
                 </td>
                 <td class="topic-actions-col ${editMode ? '' : 'd-none'}">
                     <button type="button" class="btn btn-sm btn-outline-danger topic-delete-btn">
@@ -372,64 +371,56 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             `;
 
-            tbody.appendChild(row);
+            tbodyFileTopics.appendChild(row);
         });
     }
 
     function setEditMode(enabled) {
         editMode = enabled;
 
-        editBtn.classList.toggle('d-none', enabled);
-        addBtn.classList.toggle('d-none', !enabled);
-        saveBtn.classList.toggle('d-none', !enabled);
-        cancelBtn.classList.toggle('d-none', !enabled);
+        editTopicsBtn.classList.toggle('d-none', enabled);
+        addTopicBtn.classList.toggle('d-none', !enabled);
+        saveTopicsBtn.classList.toggle('d-none', !enabled);
+        cancelTopicsBtn.classList.toggle('d-none', !enabled);
 
         renderTopics();
     }
 
-    tbody.addEventListener('click', e => {
+    tbodyFileTopics.addEventListener('click', e => {
         const btn = e.target.closest('.topic-delete-btn');
         if (!btn) return;
 
         const row = btn.closest('.topic-row');
         const index = parseInt(row.dataset.index, 10);
 
-        topics.splice(index, 1);
+        fileTopicIds.splice(index, 1);
         renderTopics();
     });
 
-    tbody.addEventListener('change', e => {
+    tbodyFileTopics.addEventListener('change', e => {
         const select = e.target.closest('.topic-select');
         if (!select) return;
 
         const index = parseInt(select.dataset.index, 10);
         const val = select.value;
-        topics[index].id = val === '' ? null : parseInt(val, 10);
+        fileTopicIds[index] = val === '' ? null : parseInt(val, 10);
         renderTopics();
     });
 
-    editBtn.addEventListener('click', () => {
+    editTopicsBtn.addEventListener('click', () => {
         setEditMode(true);
     });
 
-    addBtn.addEventListener('click', () => {
-        topics.unshift({ id: null });
+    addTopicBtn.addEventListener('click', () => {
+        fileTopicIds.unshift(null);
         setEditMode(true);
 
-        const firstSelect = tbody.querySelector('.topic-select');
+        const firstSelect = tbodyFileTopics.querySelector('.topic-select');
         if (firstSelect) firstSelect.focus();
     });
 
-    saveBtn.addEventListener('click', () => {
-        const selected = topics
-            .filter(t => t.id !== null)
-            .map(t => t.id);
-
-        if (selected.length === 0) {
-            topics = [];
-        } else {
-            topics = selected.map(id => ({ id }));
-        }
+    saveTopicsBtn.addEventListener('click', () => {
+        fileTopicIds = fileTopicIds.filter(id => id !== null);
 
         const form = document.createElement('form');
         form.method = 'POST';
@@ -441,11 +432,11 @@ document.addEventListener('DOMContentLoaded', () => {
         csrf.value = csrfToken;
         form.appendChild(csrf);
 
-        topics.forEach((topic, index) => {
+        fileTopicIds.forEach((topic, index) => {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = `topic_ids[${index}]`;
-            input.value = topic.id;
+            input.value = topic;
             form.appendChild(input);
         });
 
@@ -453,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.submit();
     });
 
-    cancelBtn.addEventListener('click', () => {
+    cancelTopicsBtn.addEventListener('click', () => {
         location.reload();
     });
 

@@ -37,9 +37,15 @@ class CourseMaterialFileController extends Controller
         ]);
 
         $uploaded = $request->file('file');
-        $diskPath = 'course-materials/' . $course_id . '/' . Str::uuid()->toString() . '.pdf';
+        $diskPath = $uploaded->storeAs(
+            'course-materials/' . $course_id,
+            Str::uuid()->toString() . '.pdf',
+            'local'
+        );
 
-        Storage::disk('local')->put($diskPath, file_get_contents($uploaded->getRealPath()));
+        if ($diskPath === false) {
+            return redirect()->back()->with('error', 'Failed to store the uploaded file.');
+        }
 
         $file = CourseMaterialFile::create([
             'course_material_id' => $material_id,
@@ -341,9 +347,7 @@ class CourseMaterialFileController extends Controller
 
         $allTopicIds = array_unique(array_merge($existingIds, $newIds));
 
-        if ($allTopicIds) {
-            $file->topics()->syncWithoutDetaching($allTopicIds);
-        }
+        $file->topics()->syncWithoutDetaching($allTopicIds);
 
         SuggestedTopic::where('course_material_file_id', $file->course_material_file_id)
             ->where('status', SuggestedTopic::STATUS_PENDING)

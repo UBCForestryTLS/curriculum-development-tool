@@ -88,6 +88,11 @@ class SuggestedTopicTest extends TestCase
             'course_id' => $course->course_id,
             'topic' => 'Forest Ecology',
         ]);
+
+        $this->assertDatabaseMissing('suggested_topics', [
+            'course_material_file_id' => $file->course_material_file_id,
+            'topic' => 'Forest Ecology',
+        ]);
     }
 
     public function test_confirm_topic_no_duplication(): void

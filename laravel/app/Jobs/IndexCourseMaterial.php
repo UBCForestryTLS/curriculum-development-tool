@@ -148,11 +148,6 @@ class IndexCourseMaterial implements ShouldQueue
                 ->delete();
         }
 
-        $rejectedTopics = $file->suggestedTopics()
-            ->where('status', SuggestedTopic::STATUS_REJECTED)
-            ->pluck('topic')
-            ->flip();
-
         $existingTopics = $file->suggestedTopics()
             ->pluck('topic')
             ->flip();
@@ -160,7 +155,7 @@ class IndexCourseMaterial implements ShouldQueue
         $rows = [];
         foreach ($topics as $topic) {
             $text = trim($topic['topic'] ?? '');
-            if ($text === '' || $rejectedTopics->has($text) || $existingTopics->has($text)) {
+            if ($text === '' || $existingTopics->has($text)) {
                 continue;
             }
             $rows[] = [
