@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libzip-dev \
     libpq-dev \
+    postgresql-client-17 \
 && rm -rf /var/lib/apt/lists/* \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) calendar gd pdo_pgsql exif zip \
@@ -33,8 +34,8 @@ RUN --mount=type=bind,source=.dockerenv,target=.env \
     composer dump-autoload --no-dev --optimize \
     && php artisan optimize
 
-
-# use the development configuration file 
+# TODO: Make necessary changes to php.ini (particularly for file uploads, see docs)
+# use the production configuration file 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 COPY .docker/apache/vhost.conf /etc/apache2/sites-available/000-default.conf
@@ -55,3 +56,10 @@ RUN chown -R www-data bootstrap/cache/ storage/
 RUN chmod -R 700 bootstrap/cache/ storage/
 
 USER www-data
+
+# run migrations and start the apache process
+CMD php artisan migrate --isolated \
+    && php artisan db:seed \
+        --force \
+        --class=ProductionSeeder \
+    && apache2-foreground
