@@ -482,7 +482,7 @@
                             Course Search looks across course identity, topics, learning objectives,
                             assessments, descriptions, materials, and program names. Use the settings
                             menu to choose the result view and narrow results by property, course code,
-                            course level, or program.
+                            course level, or program. Results only include courses you have access to.
                         </p>
 
                         <h6 class="fw-semibold search-info-modal-title">Query Tips</h6>

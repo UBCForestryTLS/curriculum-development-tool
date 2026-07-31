@@ -91,6 +91,25 @@ class SearchTest extends TestCase
         $this->assertSame(['EDIT', 'OPEN'], $response->viewData('availableCourseCodes'));
     }
 
+    public function test_regular_user_without_access_does_not_see_courses()
+    {
+        $this->createCourseScaleCategory();
+
+        $regularUser = User::factory()->create();
+        $this->actingAs($regularUser);
+
+        $this->createSearchCourse('HIDE', 202, 'Noaccessium Hidden Course');
+
+        $response = $this->get(route('search.index', [
+            'query' => 'noaccessium',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertDontSee('Noaccessium Hidden Course');
+        $this->assertSame(0, $response->viewData('results')->total());
+        $this->assertSame([], $response->viewData('availableCourseCodes'));
+    }
+
     public function test_admin_can_search_courses_without_direct_access()
     {
         $this->createCourseScaleCategory();
