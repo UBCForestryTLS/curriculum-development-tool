@@ -1,12 +1,10 @@
-import base64
-
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging_config import logger
 from app.schemas import (
-    ExtractRequest,
+    ExtractRequestMetadata,
     ExtractResponse,
     RefreshTopicsRequest,
     PageContent,
@@ -39,23 +37,34 @@ async def health_check() -> dict[str, str]:
 
 
 @app.post("/extract", response_model=ExtractResponse)
-def extract(request: ExtractRequest) -> ExtractResponse:
-    """Extract per-page text and topics from a PDF in a single pass."""
-    if request.extraction_engine == "textract" and (settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY):
+async def extract(
+    file: UploadFile = File(...),
+    metadata: str = Form("{}"),
+) -> ExtractResponse:
+    """Extract per-page text and topics from a PDF in a single pass using multipart form-data."""
+    try:
+        request_metadata = ExtractRequestMetadata.model_validate_json(metadata)
+    except Exception as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid metadata JSON format: {e}",
+        )
+
+    if request_metadata.extraction_engine == "textract" and (settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY):
         raise HTTPException(
             status_code=501,
             detail="Textract extraction requires AWS credentials; configure AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.",
         )
     try:
-        handler = type_specific_handlers.get_handler(request.material_type)
-        file_bytes = base64.b64decode(request.file)
+        handler = type_specific_handlers.get_handler(request_metadata.material_type)
+        file_bytes = await file.read()
         pages, page_count = document_extractor.extract(
             file_bytes,
-            request.ocr_enabled,
-            request.extraction_engine,
-            request.ocr_threshold,
+            request_metadata.ocr_enabled,
+            request_metadata.extraction_engine,
+            request_metadata.ocr_threshold,
         )
-        topics = handler.extract_topics(pages, request.existing_topics)
+        topics = handler.extract_topics(pages, request_metadata.existing_topics)
 
         return ExtractResponse(
             pages=[

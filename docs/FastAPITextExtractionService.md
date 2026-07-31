@@ -31,24 +31,26 @@ Returns a simple response:
 
 ### `POST /extract`
 
-The main endpoint. Accepts an [`ExtractRequest`](../python/services/text_extraction_service/app/schemas.py) with:
+The main endpoint. Accepts `multipart/form-data` with:
 
-- `file` (string, required): base64-encoded PDF content
-- `ocr_enabled` (boolean, default `false`): whether to apply OCR on low-text pages
-- `extraction_engine` (string, default `"tesseract"`): `"tesseract"` or `"textract"`
-- `ocr_threshold` (integer, default `0`): page text length below which OCR is triggered (see note below)
-- `material_type` (string, optional): `"slides"`, `"article"`, or `null` for default handling
-- `existing_topics` (list of strings, default `[]`): course topics to match against extracted text
+- `file` (file upload stream, required): binary PDF file content
+- `metadata` (JSON string, optional): JSON payload matching [`ExtractRequest`](../python/services/text_extraction_service/app/schemas.py):
+  - `ocr_enabled` (boolean, default `false`): whether to apply OCR on low-text pages
+  - `extraction_engine` (string, default `"tesseract"`): `"tesseract"` or `"textract"`
+  - `ocr_threshold` (integer, default `0`): page text length below which OCR is triggered (see note below)
+  - `material_type` (string, optional): `"slides"`, `"article"`, or `null` for default handling
+  - `existing_topics` (list of strings, default `[]`): course topics to match against extracted text
 
 Note on `ocr_threshold`: When using `tesseract`, we first count the number of non-whitespace characters on the page that are already text-readable without OCR. If the count is *greater* than `ocr_threshold`, then we simply take the already readable text as that page's text. If the count is equal to or less than `ocr_threshold`, then we convert the page to an image and perform OCR on it. If `ocr_threshold` is set to `0`, then we will only perform OCR if the page has no encoded text (for example, a scanned page). This threshold especially saves resouces when dealing with slides, as there are some pages that have figures and charts that need OCR, but others with text.
 
 Note (TODO): Having both `ocr_enabled` and `extraction_engine` is slightly redundant - we could have a third `extraction_engine` option be `"text-only"` or similar to cover both. However, this set up allows us to easily remove textract if we need to, as that was discussed to help simplify the set up but later retained as the service was modularized further. A potential improvement is having an `int` field with `0` correspond to text-only, and `1, 2, ...` correspond to OCR engines.
 
-Example request:
+Example request (multipart/form-data):
 
+Form Field `file`: `[binary stream of document.pdf]`
+Form Field `metadata`:
 ```json
 {
-  "file": "JVBERi0xLjQK...",
   "ocr_enabled": true,
   "extraction_engine": "tesseract",
   "ocr_threshold": 50,

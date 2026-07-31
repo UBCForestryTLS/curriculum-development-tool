@@ -34,11 +34,12 @@ class Topic(BaseModel):
     model_config = {"frozen": True} # Used for checking equality in tests
 
 
-class ExtractRequest(BaseModel):
+class ExtractRequestMetadata(BaseModel):
     # Called initially when you want to extract text and topics from a PDF
     # Text extraction gives us useful font properties that are used by topic extraction in the same pass
     # Also used if text extraction failed and needs to be retried
-    file: str  # base64-encoded PDF
+    # The actual file is sent as multipart form-data 
+    # and this metadata is sent as a JSON string
     ocr_enabled: bool = False
     extraction_engine: str = "tesseract"
     ocr_threshold: int = 0

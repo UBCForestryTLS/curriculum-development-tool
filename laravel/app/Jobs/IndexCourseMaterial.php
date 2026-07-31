@@ -66,18 +66,19 @@ class IndexCourseMaterial implements ShouldQueue
                         'material_type' => $file->courseMaterial?->type,
                         'existing_topics' => $existingTopics,
                     ]);
-            } else {
                 $absolutePath = Storage::disk('local')->path($file->file_path);
-                $fileBytes = file_get_contents($absolutePath);
+                $metadata = json_encode([
+                    'ocr_enabled' => (bool) $file->ocr_enabled,
+                    'extraction_engine' => $file->extraction_engine,
+                    'ocr_threshold' => (int) $file->ocr_threshold,
+                    'material_type' => $file->courseMaterial?->type,
+                    'existing_topics' => $existingTopics,
+                ]);
 
                 $response = Http::timeout($this->timeout)
+                    ->attach('file', fopen($absolutePath, 'r'), basename($absolutePath))
                     ->post(config('services.text_extraction.base_url') . '/extract', [
-                        'file' => base64_encode($fileBytes),
-                        'ocr_enabled' => $file->ocr_enabled,
-                        'extraction_engine' => $file->extraction_engine,
-                        'ocr_threshold' => $file->ocr_threshold,
-                        'material_type' => $file->courseMaterial?->type,
-                        'existing_topics' => $existingTopics,
+                        'metadata' => $metadata,
                     ]);
             }
 
