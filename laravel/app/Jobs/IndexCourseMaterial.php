@@ -66,6 +66,7 @@ class IndexCourseMaterial implements ShouldQueue
                         'material_type' => $file->courseMaterial?->type,
                         'existing_topics' => $existingTopics,
                     ]);
+            } else {
                 $absolutePath = Storage::disk('local')->path($file->file_path);
                 $metadata = json_encode([
                     'ocr_enabled' => (bool) $file->ocr_enabled,
