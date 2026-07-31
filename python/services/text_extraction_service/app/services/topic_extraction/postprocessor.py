@@ -35,7 +35,7 @@ def process(topics: list[Topic], filterLowerCaseSingleWords = False, minTopicCha
     number_filtered_topics = []
     for t in deduped_topics:
         # TODO: Should this be not all instead of not any? Can any topics actually have numbers?
-        if not any(char.isdigit() for char in t.topic):
+        if not all(char.isdigit() or char.isspace() for char in t.topic):
             number_filtered_topics.append(t)
             
     # Remove topics containing file or web URL elements

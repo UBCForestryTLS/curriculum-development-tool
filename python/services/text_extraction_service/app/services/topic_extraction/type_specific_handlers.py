@@ -10,6 +10,7 @@ class MaterialTypeHandler:
 
     def match_topics(self, text: str, topics: list[str], min_count: int = 1) -> list[Topic]:
         """ Filters `topics` for items that appear at least `min_count` times within `text` and returns them. Matching is case-insensitive. """
+        # Note: Can be improved using FAISS (faiss-cpu package) for semantic matching
         matched: list[Topic] = []
         for topic in topics:
             pattern = re.compile(rf'\b{re.escape(topic)}\b', re.IGNORECASE | re.UNICODE)

@@ -41,6 +41,11 @@ async def health_check() -> dict[str, str]:
 @app.post("/extract", response_model=ExtractResponse)
 def extract(request: ExtractRequest) -> ExtractResponse:
     """Extract per-page text and topics from a PDF in a single pass."""
+    if request.extraction_engine == "textract" and (settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY):
+        raise HTTPException(
+            status_code=501,
+            detail="Textract extraction requires AWS credentials; configure AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.",
+        )
     try:
         handler = type_specific_handlers.get_handler(request.material_type)
         file_bytes = base64.b64decode(request.file)

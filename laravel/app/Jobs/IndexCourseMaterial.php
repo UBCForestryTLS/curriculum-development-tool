@@ -91,7 +91,7 @@ class IndexCourseMaterial implements ShouldQueue
                 $rows = [];
                 foreach ($pages as $page) {
                     if (!empty($page['content'])) {
-                        $rows[] = $this->chunkDBRow($file, $page['page_number'], $page['content']);
+                        $rows[] = $this->pageAsDBChunk($file, $page['page_number'], $page['content']);
                     }
                 }
 
@@ -112,7 +112,7 @@ class IndexCourseMaterial implements ShouldQueue
         }
     }
 
-    private function chunkDBRow(CourseMaterialFile $file, int $pageNumber, string $text): array
+    private function pageAsDBChunk(CourseMaterialFile $file, int $pageNumber, string $text): array
     {
         return [
             'course_material_file_id' => $file->course_material_file_id,

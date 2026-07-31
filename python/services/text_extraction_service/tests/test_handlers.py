@@ -48,18 +48,19 @@ class TestDefaultHandler:
 
 
 class TestSlidesHandler:
-    def test_title_topics(self):
+    def test_title_topics_empty(self):
         handler = SlidesHandler()
-
         empty = ExtractedPage(page_number=1, lines=[])
         assert handler._title_topics([empty]) == []
-        
-        # largest font
+
+    def test_title_topics_largest_font(self):
+        handler = SlidesHandler()
         page = _make_page(["Small", "BIG TITLE", "Medium"], sizes=[10, 24, 14])
         t1 = handler._title_topics([page])
         assert len(t1) == 1 and t1[0].topic == "BIG TITLE"
 
-        # skip long titles
+    def test_title_topics_skips_long_titles(self):
+        handler = SlidesHandler()
         # MAX_TITLE_WORD_COUNT = 15
         # Change test based on value in type_specific_handlers.py.
         long_title = " ".join(["word"] * 16)
@@ -87,31 +88,31 @@ class TestSlidesHandler:
 
 
 class TestArticleHandler:
-    def test_heading_detection_and_topics(self):
+    def test_is_heading(self):
         handler = ArticleHandler()
-
-        # heading detection
         assert handler._is_heading(ExtractedLine(text="Heading", size=14, bold=True))
         assert handler._is_heading(ExtractedLine(text="Heading", size=14, bold=None))
         assert not handler._is_heading(ExtractedLine(text="Small", size=8, bold=True))
         assert not handler._is_heading(ExtractedLine(text="Small", size=8, bold=False))
 
-        # heading topics
+    def test_heading_topics(self):
+        handler = ArticleHandler()
         page = _make_page(["Regular", "Section Title", "More"], sizes=[10, 14, 10], bolds=[False, True, False])
         topics = handler._heading_topics([page])
         assert len(topics) == 1 and topics[0].topic == "Section Title"
 
-        # refresh skips heading topics
+    def test_refresh_skips_heading_topics(self):
+        handler = ArticleHandler()
         body_lines = _read_sample_file_lines()
-        page2 = _make_page(
+        page = _make_page(
             ["Heading"] + body_lines,
             sizes=[14] + [12.0] * len(body_lines),
             bolds=[True] + [None] * len(body_lines),
         )
-        topics2 = handler.refresh_topics([page2], existing_topics=[])
-        for t in topics2:
+        topics = handler.refresh_topics([page], existing_topics=[])
+        for t in topics:
             print(f"Topic: {t.topic}, Source: {t.source}")
-        assert not any(t.source == TopicSource.FONT for t in topics2)
+        assert not any(t.source == TopicSource.FONT for t in topics)
 
     def test_bertopic_basic(self):
         # May be flaky

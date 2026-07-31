@@ -32,18 +32,18 @@ class TextractClient:
 
         if page_count == 1:
             try:
-                return self._extract_sync(session, file_bytes), page_count
+                return self._single_page_doc_extract(session, file_bytes), page_count
             except Exception as e:
                 logger.info("Synchronous Textract failed: %s; falling back to async", e)
         else:
-            return self._extract_async(session, file_bytes), page_count
+            return self._start_multi_page_extract_job(session, file_bytes), page_count
 
-    def _extract_sync(self, session: boto3.Session, file_bytes: bytes) -> list[ExtractedPage]:
+    def _single_page_doc_extract(self, session: boto3.Session, file_bytes: bytes) -> list[ExtractedPage]:
         """Single-page extraction using the synchronous detect_document_text API."""
         response = session.client("textract").detect_document_text(Document={"Bytes": file_bytes})
         return _parse_textract_response(response)
 
-    def _extract_async(self, session: boto3.Session, file_bytes: bytes) -> list[ExtractedPage]:
+    def _start_multi_page_extract_job(self, session: boto3.Session, file_bytes: bytes) -> list[ExtractedPage]:
         """Multi-page extraction using async start/get document text detection via S3."""
         textract = session.client("textract")
         s3 = session.client("s3")
