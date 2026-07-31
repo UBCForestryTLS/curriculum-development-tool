@@ -44,19 +44,28 @@ class TextractClient:
         return _parse_textract_response(response)
 
     def _start_multi_page_extract_job(self, session: boto3.Session, file_bytes: bytes) -> list[ExtractedPage]:
-        """Multi-page extraction using async start/get document text detection via S3."""
+        """Multi-page extraction using async start/get document text detection via S3.
+        Uploads the document to S3, then deletes it once the job succeeds, fails, or times out.
+        """
         textract = session.client("textract")
         s3 = session.client("s3")
 
         s3_key = f"textract-jobs/{int(time.time())}-{os.urandom(4).hex()}.pdf"
         s3.put_object(Bucket=self.settings.AWS_S3_BUCKET, Key=s3_key, Body=file_bytes)
 
-        job_id = textract.start_document_text_detection(
-            DocumentLocation={"S3Object": {"Bucket": self.settings.AWS_S3_BUCKET, "Name": s3_key}}
-        )["JobId"]
-        logger.info("Started async Textract job %s", job_id)
+        try:
+            job_id = textract.start_document_text_detection(
+                DocumentLocation={"S3Object": {"Bucket": self.settings.AWS_S3_BUCKET, "Name": s3_key}}
+            )["JobId"]
+            logger.info("Started async Textract job %s", job_id)
 
-        return self._poll_job(textract, job_id)
+            return self._poll_job(textract, job_id)
+        finally:
+            try:
+                s3.delete_object(Bucket=self.settings.AWS_S3_BUCKET, Key=s3_key)
+                logger.info("Deleted S3 object %s", s3_key)
+            except Exception as e:
+                logger.warning("Failed to delete S3 object %s: %s", s3_key, e)
 
     def _poll_job(self, textract, job_id: str) -> list[ExtractedPage]:
         """Poll Textract until the job succeeds, fails, or times out."""
