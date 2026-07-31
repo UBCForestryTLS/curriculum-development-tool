@@ -2,6 +2,10 @@
 
 @section('content')
 
+@php
+    $failed = $file->status === 'FAILED';
+@endphp
+
 <div class="mt-4 mb-5">
     <div class="row align-items-center mb-3">
         <div class="col">
@@ -23,6 +27,18 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0">File Details</h6>
             <div class="d-flex align-items-center flex-wrap gap-2">
+                @if ($failed)
+                    <form method="POST"
+                          action="{{ route('course.material.files.refresh', [$course_id, $material_id, $file->course_material_file_id]) }}"
+                          class="d-inline">
+                        @csrf
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Retry text and topic extraction for this file using the same settings?');">
+                            <i class="bi bi-arrow-clockwise"></i> Retry
+                        </button>
+                    </form>
+                @endif
                 @if ($file->ocr_enabled)
                     @php
                         if ($file->extraction_engine === 'textract') {
@@ -123,7 +139,7 @@
                     <button type="submit"
                             class="btn btn-sm btn-outline-primary"
                             @disabled(in_array($file->status, ['PENDING', 'INDEXING']))
-                            onclick="return confirm('{{ $file->chunks->isNotEmpty() ? 'Re-run topic extraction for this file?' : 'Re-run text and topic extraction for this file using the saved settings?' }}');">
+                            onclick="return confirm('{{ $file->chunks->isNotEmpty() ? 'Re-run topic extraction for this file?' : 'Re-run text and topic extraction for this file using the same settings?' }}');">
                             <i class="bi bi-arrow-clockwise"></i> Refresh Topics
                     </button>
                 </form>
