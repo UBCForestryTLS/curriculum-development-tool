@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\Program;
+use App\Support\SearchedTextHighlighter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,19 +42,24 @@ class CoverageAnalysisController extends Controller
             return redirect()->route('course.coverageAnalysis', ['course' => $course_id]);
         }
 
+        $headlineOptions = 'StartSel=' . SearchedTextHighlighter::START_MARKER
+            . ', StopSel=' . SearchedTextHighlighter::END_MARKER
+            . ', MaxFragments=2, MinWords=5, MaxWords=25';
+
         $results = DB::table('course_material_chunks as c')
             ->join('course_material_files as f', 'f.course_material_file_id', '=', 'c.course_material_file_id')
-            ->where('f.course_id', $course_id)
+            ->join('course_materials as m', 'm.course_material_id', '=', 'f.course_material_id')
+            ->where('m.course_id', $course_id)
             ->whereRaw("c.content_tsv @@ plainto_tsquery('english', ?)", [$searchTerm])
             ->selectRaw("
                 f.course_material_file_id as file_id,
                 f.course_material_id,
                 f.file_name,
+                m.course_id,
                 c.page_number,
                 ts_rank(c.content_tsv, plainto_tsquery('english', ?)) as rank,
-                ts_headline('english', c.content, plainto_tsquery('english', ?),
-                    'StartSel=<mark>, StopSel=</mark>, MaxFragments=2, MinWords=5, MaxWords=25') as snippet
-            ", [$searchTerm, $searchTerm])
+                ts_headline('english', c.content, plainto_tsquery('english', ?), ?) as snippet
+            ", [$searchTerm, $searchTerm, $headlineOptions])
             ->orderByDesc('rank')
             ->limit(20)
             ->get();
@@ -72,24 +78,28 @@ class CoverageAnalysisController extends Controller
             return redirect()->route('program.coverageAnalysis', ['program' => $program_id]);
         }
 
+        $headlineOptions = 'StartSel=' . SearchedTextHighlighter::START_MARKER
+            . ', StopSel=' . SearchedTextHighlighter::END_MARKER
+            . ', MaxFragments=2, MinWords=5, MaxWords=25';
+
         $courseIds = DB::table('course_programs')
             ->where('program_id', $program_id)
             ->pluck('course_id');
 
         $results = DB::table('course_material_chunks as c')
             ->join('course_material_files as f', 'f.course_material_file_id', '=', 'c.course_material_file_id')
-            ->whereIn('f.course_id', $courseIds)
+            ->join('course_materials as m', 'm.course_material_id', '=', 'f.course_material_id')
+            ->whereIn('m.course_id', $courseIds)
             ->whereRaw("c.content_tsv @@ plainto_tsquery('english', ?)", [$searchTerm])
             ->selectRaw("
                 f.course_material_file_id as file_id,
                 f.course_material_id,
                 f.file_name,
-                f.course_id,
+                m.course_id,
                 c.page_number,
                 ts_rank(c.content_tsv, plainto_tsquery('english', ?)) as rank,
-                ts_headline('english', c.content, plainto_tsquery('english', ?),
-                    'StartSel=<mark>, StopSel=</mark>, MaxFragments=2, MinWords=5, MaxWords=25') as snippet
-            ", [$searchTerm, $searchTerm])
+                ts_headline('english', c.content, plainto_tsquery('english', ?), ?) as snippet
+            ", [$searchTerm, $searchTerm, $headlineOptions])
             ->orderByDesc('rank')
             ->limit(20)
             ->get();
