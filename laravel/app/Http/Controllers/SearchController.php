@@ -96,6 +96,15 @@ class SearchController extends Controller
             ->orderBy('program')
             ->get();
 
+        // Program page access can come from direct permissions or an elevated role.
+        $programPageAccessIds = $user->programs()
+            ->pluck('programs.program_id')
+            ->merge($user->programsWithElevatedRoleAccess()->pluck('programs.program_id'))
+            ->map(fn ($programId) => (int) $programId)
+            ->unique()
+            ->values()
+            ->all();
+
         $programFiltersApplied = (bool) ($validated['program_filters_applied'] ?? false);
         $selectedProgramIds = $programFiltersApplied
             ? collect($validated['program_ids'] ?? [])
@@ -187,6 +196,7 @@ class SearchController extends Controller
             'selectedCourseCodes' => $selectedCourseCodes,
             'selectedCourseLevels' => $selectedCourseLevels,
             'availablePrograms' => $availablePrograms,
+            'programPageAccessIds' => $programPageAccessIds,
             'selectedProgramIds' => $selectedProgramIds,
             'selectedProgramNames' => $selectedProgramNames,
             'savedSearchFilters' => $savedSearchFilters,

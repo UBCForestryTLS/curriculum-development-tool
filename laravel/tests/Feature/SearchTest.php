@@ -310,6 +310,7 @@ class SearchTest extends TestCase
         ], [
             'Terraria Hidden Program',
         ]);
+        $response->assertSee(route('programWizard.step1', $directedProgramId));
     }
 
     public function test_department_head_can_search_courses_with_role_and_direct_access()
@@ -372,6 +373,7 @@ class SearchTest extends TestCase
         ], [
             'Terraria Hidden Department Program',
         ]);
+        $response->assertDontSee(route('programWizard.step1', $visibleProgramId));
     }
 
     public function test_program_view_selection_is_preserved(){
@@ -1179,6 +1181,7 @@ public function test_search_result_shows_the_course_program()
 
     $programId = $this->createProgram('Astronomy Program');
     $this->attachCourseToProgram($course, $programId);
+    $this->searchUser->programs()->attach($programId, ['permission' => 3]);
 
     $response = $this->get(route('search.index', [
         'query' => 'astronomy',
@@ -1237,6 +1240,7 @@ public function test_search_stats_count_distinct_programs()
 public function test_search_finds_program_directly_by_name()
 {
     $matchingProgramId = $this->createProgram('Quasar Studies');
+    $this->searchUser->programs()->attach($matchingProgramId, ['permission' => 3]);
 
     DB::table('programs')->insert([
         'program' => 'Marine Biology',
