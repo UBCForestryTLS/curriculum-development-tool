@@ -368,6 +368,7 @@ class CourseTest extends TestCase
             'new_material' => [
                 0 => [
                     'name' => 'Course Website',
+                    'type' => 'website',
                 ],
             ],
             'course_id' => $course->course_id,
@@ -377,7 +378,7 @@ class CourseTest extends TestCase
 
         $this->assertDatabaseHas('course_materials', [
             'name' => 'Course Website',
-            'type' => null,
+            'type' => 'website',
             'description' => null,
             'url' => null,
             'is_required' => false,
@@ -428,13 +429,31 @@ class CourseTest extends TestCase
         $this->assertSame($materialCount, CourseMaterial::where('course_id', $course->course_id)->count());
     }
 
+    public function test_course_material_requires_type(): void
+    {
+        $user = User::where('email', 'test-course@ubc.ca')->first();
+        $course = Course::where('course_title', 'Intro to Unit Testing')->orderBy('course_id', 'DESC')->first();
+        $materialCount = CourseMaterial::where('course_id', $course->course_id)->count();
+
+        $response = $this->actingAs($user)->post(route('courseMaterials.store'), [
+            'new_material' => [
+                ['name' => 'Forest Ecology'],
+            ],
+            'course_id' => $course->course_id,
+        ]);
+
+        $response->assertSessionHasErrors('new_material.0.type');
+        $this->assertSame($materialCount, CourseMaterial::where('course_id', $course->course_id)->count());
+    }
+
     public function test_course_material_requires_course_id(): void
     {
         $user = User::where('email', 'test-course@ubc.ca')->first();
 
         $response = $this->actingAs($user)->post(route('courseMaterials.store'), [
             'new_material' => [
-                ['name' => 'Forest Ecology'],
+                ['name' => 'Forest Ecology',
+                 'type' => 'textbook'],
             ],
         ]);
 
