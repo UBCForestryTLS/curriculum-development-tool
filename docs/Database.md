@@ -36,6 +36,67 @@ and constraints.
 | created_at  | timestamp with time zone |               |
 | updated_at  | timestamp with time zone |               |
 
+
+### `course_material_chunks` table
+
+| Column Name              | Type                     | Constraints                                                  |
+|--------------------------|--------------------------|--------------------------------------------------------------|
+| id                       | bigint                   | PK                                                           |
+| course_material_file_id  | bigint                   | FK on course_material_files, NOT NULL                        |
+| page_number              | integer                  | NOT NULL                                                     |
+| chunk_index              | integer                  | NOT NULL, Default: 0                                         |
+| content                  | text                     | NOT NULL                                                     |
+| content_tsv              | tsvector                 | GENERATED ALWAYS AS (to_tsvector('english', content)) STORED |
+| created_at               | timestamp with time zone |                                                              |
+| updated_at               | timestamp with time zone |                                                              |
+
+**Constraints**:
+* UNIQUE (course_material_file_id, page_number, chunk_index)
+* GIN index on content_tsv
+
+### `course_material_file_topic` table
+
+| Column Name             | Type                     | Constraints                           |
+|-------------------------|--------------------------|---------------------------------------|
+| course_material_file_id | bigint                   | FK on course_material_files, NOT NULL |
+| course_topic_id         | bigint                   | FK on course_topics, NOT NULL         |
+
+
+### `course_material_files` table
+
+| Column Name               | Type                     | Constraints                              |
+|---------------------------|--------------------------|------------------------------------------|
+| course_material_file_id   | bigint                   | PK                                       |
+| course_material_id        | bigint                   | FK on course_materials, NOT NULL         |
+| uploaded_by               | bigint                   | FK on users                              |
+| file_name                 | character varying(191)   | NOT NULL                                 |
+| file_path                 | character varying(191)   | NOT NULL                                 |
+| file_size                 | bigint                   | NOT NULL                                 |
+| status                    | character varying(191)   | NOT NULL, Default: 'PENDING'             |
+| error_message             | text                     |                                          |
+| page_count                | integer                  |                                          |
+| ocr_enabled               | boolean                  | NOT NULL, Default: false                 |
+| ocr_threshold             | integer                  | NOT NULL, Default: 0                     |
+| extraction_engine         | character varying(191)   | NOT NULL, Default: 'tesseract'           |
+| processing_time_seconds   | integer                  |                                          |
+| created_at                | timestamp with time zone |                                          |
+| updated_at                | timestamp with time zone |                                          |
+
+### `course_materials` table
+
+| Column Name        | Type                     | Constraints              |
+|--------------------|--------------------------|--------------------------|
+| course_material_id | bigint                   | PK                       |
+| course_id          | bigint                   | FK on courses, NOT NULL  |
+| name               | text                     | NOT NULL                 |
+| type               | character varying(191)   |                          |
+| description        | text                     |                          |
+| is_required        | boolean                  |                          |
+| url                | character varying(191)   |                          |
+| position           | integer                  | NOT NULL, Default: 0     |
+| created_at         | timestamp with time zone |                          |
+| updated_at         | timestamp with time zone |                          |
+
 ### `course_optional_priorities` table
 
 | Column Name | Type                     | Constraints                   |
@@ -55,6 +116,8 @@ and constraints.
 | course_required     | integer                  |                          |
 | instructor_assigned | integer                  |                          |
 | map_status          | integer                  | NOT NULL, Default: 0     |
+| manual_map_status   | boolean                  | NOT NULL, Default: false |
+| ai_suggestion_status| boolean                  | NOT NULL, Default: false |
 | note                | character varying(191)   |                          |
 | created_at          | timestamp with time zone |                          |
 | updated_at          | timestamp with time zone |                          |
@@ -82,6 +145,18 @@ and constraints.
 | created_at  | timestamp with time zone |               |
 | updated_at  | timestamp with time zone |               |
 
+
+### `course_topics` table
+
+| Column Name     | Type                     | Constraints             |
+|-----------------|--------------------------|-------------------------|
+| course_topic_id | bigint                   | PK                      |
+| course_id       | bigint                   | FK on courses, NOT NULL |
+| topic           | text                     | NOT NULL                |
+| description     | text                     |                         |
+| position        | integer                  | NOT NULL, Default: 0    |
+| created_at      | timestamp with time zone |                         |
+| updated_at      | timestamp with time zone |                         |
 
 ### `course_user_role` table
 
@@ -424,6 +499,19 @@ and constraints.
 **Constraints**:
 * PK (l_outcome_id, a_method_id)
 
+### `outcome_map_ai_suggestions` table
+
+| Column Name   | Type                     | Constraints                               |
+|---------------|--------------------------|-------------------------------------------|
+| l_outcome_id  | bigint                   | FK on learning_outcomes, NOT NULL         |
+| pl_outcome_id | bigint                   | FK on program_learning_outcomes, NOT NULL |
+| map_scale_id  | bigint                   | FK on mapping_scales, NOT NULL, Default: 0 |
+| created_at    | timestamp with time zone |                                           |
+| updated_at    | timestamp with time zone |                                           |
+
+**Constraints**:
+* PK (l_outcome_id, pl_outcome_id, map_scale_id)
+
 ### `outcome_maps` table
 
 | Column Name   | Type                     | Constraints                               |
@@ -435,7 +523,7 @@ and constraints.
 | updated_at    | timestamp with time zone |
 
 **Constraints**:
-* PK (l_outcome_id, pl_outcome_id)
+* PK (l_outcome_id, pl_outcome_id, map_scale_id)
 
 ### `p_l_o_categories` table
 
@@ -594,8 +682,24 @@ and constraints.
 | name              | character varying(191)   | NOT NULL    |
 | description       | text                     |             |
 | created_at        | timestamp with time zone |             |
-| updated_at        | timestamp with time zone |             |
+| updated_at  | timestamp with time zone |             |
 
+
+### `suggested_topics` table
+
+| Column Name             | Type                     | Constraints                          |
+|-------------------------|--------------------------|--------------------------------------|
+| suggested_topic_id      | bigint                   | PK                                   |
+| course_material_file_id | bigint                   | FK on course_material_files, NOT NULL |
+| topic                   | text                     | NOT NULL                             |
+| score                   | double precision         |                                      |
+| source                  | character varying(191)   | NOT NULL, Default: 'keyword'         |
+| status                  | smallint                 | NOT NULL, Default: 0                 |
+| created_at              | timestamp with time zone |                                      |
+| updated_at              | timestamp with time zone |                                      |
+
+**Constraints**:
+* UNIQUE (course_material_file_id, topic)
 
 ### `syllabi` table
 
