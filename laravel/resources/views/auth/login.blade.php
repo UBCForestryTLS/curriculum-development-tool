@@ -17,7 +17,7 @@
                             </div>
                         </div>
                     </div>
-                    <form method="POST" action="{{ route('login') }}">
+                    <form id="login-form" method="POST" action="{{ route('login') }}">
                         @csrf
 
                         <div class="mb-3 row">
@@ -68,7 +68,7 @@
 
                         <div class="mb-3 row mb-0">
                             <div class="col-md-8 offset-md-4">
-                                <button type="submit" class="btn btn-primary">
+                                <button id="login-button" type="submit" class="btn btn-primary">
                                     {{ __('Login') }}
                                 </button>
 
@@ -91,6 +91,21 @@
 <script>
     window.addEventListener('load', function() {
         const email = document.getElementById('email');
+        const loginForm = document.getElementById('login-form');
+        const loginButton = document.getElementById('login-button');
+        let loginSubmitting = false;
+
+        loginForm.addEventListener('submit', function(event) {
+            if (loginSubmitting) {
+                event.preventDefault();
+                return;
+            }
+
+            loginSubmitting = true;
+            loginButton.disabled = true;
+            loginButton.textContent = 'Logging in...';
+        });
+
         var input = email.value;
         if (input.includes("@")) {
             // get user email domain 
