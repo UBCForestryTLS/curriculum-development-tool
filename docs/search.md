@@ -76,15 +76,14 @@ Current supported access:
 
 - administrators can search all courses
 - regular users can search courses they have direct access to through `course_users`
-- program directors can search courses attached to programs they direct through `program_user_role` and `course_programs`
-- department heads can search courses they have role access to through `course_user_role`
-- faculty-wide access uses `has_access_to_all_courses_in_faculty` with `faculty_course_codes`
+- program directors and department heads can search courses assigned to them through `course_user_role`
+- faculty-wide access also depends on the access rows created in `course_user_role` by the existing role-assignment flows
 
 The search access logic lives in `SearchCourseAccess`. It uses `whereExists` subqueries so inaccessible courses are filtered out before the controller combines matches or paginates results.
 
 Direct course access only checks whether the `course_users` row exists. It does not enforce owner, editor, or viewer permissions because search only controls whether a course can be discovered. Course action permissions are handled by the existing course pages after a user opens a result.
 
-Department Head access currently uses the existing role access rows in `course_user_role`. For the all-faculty flag, search also checks the user's faculty through `department_head` and `faculty_course_codes`, so faculty-owned course codes can still be found.
+Role-based search access uses the same materialized `course_user_role` rows as the dashboard and course-page access. Search does not recalculate access from program, department, or faculty relationships. These rows must therefore stay synchronized when roles and course relationships change.
 
 ## Request Flow
 

@@ -189,7 +189,7 @@ class SearchTest extends TestCase
         $response->assertSee('Courses: 2');
     }
 
-    public function test_department_head_with_faculty_access_can_search_faculty_course_codes()
+    public function test_department_head_can_search_materialized_faculty_course_access()
     {
         $this->createCourseScaleCategory();
 
@@ -232,7 +232,7 @@ class SearchTest extends TestCase
         ]);
 
         $this->assignRoleToUser($departmentHead, 'department head');
-        $this->createSearchCourse('FACC', 411, 'Facultium Faculty Course');
+        $facultyCourse = $this->createSearchCourse('FACC', 411, 'Facultium Faculty Course');
         $this->createSearchCourse('HIDE', 412, 'Facultium Hidden Course');
 
         DB::table('faculty_course_codes')->insert([
@@ -241,6 +241,9 @@ class SearchTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        // The role assignment flow materializes faculty-wide access in course_user_role.
+        $this->giveUserDepartmentHeadCourseAccess($departmentHead, $facultyCourse);
 
         $response = $this->get(route('search.index', [
             'query' => 'facultium',
@@ -565,6 +568,25 @@ class SearchTest extends TestCase
                 'updated_at' => now(),
             ]
         );
+
+        $courseIds = DB::table('course_programs')
+            ->where('program_id', $programId)
+            ->pluck('course_id');
+
+        foreach ($courseIds as $courseId) {
+            DB::table('course_user_role')->updateOrInsert(
+                [
+                    'course_id' => $courseId,
+                    'user_id' => $user->id,
+                    'role_id' => $programDirectorRoleId,
+                    'program_id' => $programId,
+                ],
+                [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
     }
 
     private function giveUserDepartmentHeadCourseAccess(User $user, Course $course): void
