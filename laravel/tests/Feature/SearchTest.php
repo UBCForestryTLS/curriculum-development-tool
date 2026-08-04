@@ -156,6 +156,35 @@ class SearchTest extends TestCase
         $response->assertSee('Courses: 1');
     }
 
+    public function test_program_role_without_course_role_does_not_grant_search_access()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->actingAs($programDirector);
+
+        $programId = $this->createProgram('Unmaterialized Director Program');
+        $course = $this->createSearchCourse('MISS', 301, 'Unmaterialized Hidden Course');
+        $this->attachCourseToProgram($course, $programId);
+
+        $roleId = $this->assignRoleToUser($programDirector, 'program director');
+        DB::table('program_user_role')->insert([
+            'program_id' => $programId,
+            'user_id' => $programDirector->id,
+            'role_id' => $roleId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'unmaterialized',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertDontSee('Unmaterialized Hidden Course');
+        $this->assertSame(0, $response->viewData('results')->total());
+    }
+
     public function test_program_director_keeps_direct_course_access_outside_directed_program()
     {
         $this->createCourseScaleCategory();
