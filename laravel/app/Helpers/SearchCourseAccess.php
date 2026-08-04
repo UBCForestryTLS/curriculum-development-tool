@@ -67,4 +67,5 @@ class SearchCourseAccess
                 ->where('course_user_role.user_id', $user->id);
         });
     }
+    
 }
