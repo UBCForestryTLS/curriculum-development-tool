@@ -1,5 +1,6 @@
 # TODO: Replace applicable environment variables with service references (Docker networking)
 # TODO: Modify Dockerfile apache config to serve follow Laravel's deployment reqs (see https://laravel.com/docs/13.x/deployment)
+# TODO: Configure volumes for user-uploaded data in Laravel needs to be persisted
 
 name: curriculum-tool
 
@@ -9,6 +10,9 @@ services:
       context: laravel/
     ports:
       - 9000:80
+    volumes:
+      - sessions:/var/www/html/storage/framework/sessions
+      - uploads:/var/www/html/storage/app
     depends_on:
       db:
         condition: service_healthy
@@ -16,6 +20,8 @@ services:
 
   db:
     image: postgres:17.10-trixie
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: ${DB_DATABASE:?}
       POSTGRES_USER: ${DB_USERNAME:?}
@@ -25,5 +31,10 @@ services:
       interval: 5s
       retries: 5
       timeout: 10s
+
+volumes:
+  pgdata:
+  sessions:
+  uploads:
 
 # TODO: Set up Python services!

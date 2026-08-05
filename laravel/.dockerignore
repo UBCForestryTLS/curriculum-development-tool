@@ -19,11 +19,13 @@ README*
 # project-specific
 .editorconfig
 .styleci.yml
-
-# storage/
 scripts/
 tests/
 vendor/
+
+storage/app/
+storage/framework/
+storage/logs/
 
 phpunit.xml
 vite.config.js

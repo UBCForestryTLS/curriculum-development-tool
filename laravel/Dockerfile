@@ -27,6 +27,14 @@ RUN --mount=type=bind,source=composer.json,target=composer.json \
 # files into container
 COPY --exclude=**/.dockerenv --exclude=**/.docker . /var/www/html
 
+# TODO: Figure out if this needs to be modified to support volumes
+# storage/app/public and storage/framework/sessions probably need
+# to be persisted across builds
+RUN mkdir -p storage/app/public/ \
+    storage/framework/sessions/ \
+    storage/framework/views/ \
+    storage/framework/cache/
+
 # required due to --no-autoloader option in the composer install layer
 # Both commands need env variables to correctly generate config, which
 # --mount makes temporarily available
@@ -44,22 +52,12 @@ RUN a2enmod headers rewrite
 
 WORKDIR /var/www/html
 
-# TODO: Figure out if this needs to be modified to support volumes
-# storage/app/public and storage/framework/sessions probably need
-# to be persisted across builds
-RUN mkdir -p storage/app/public/ \
-    storage/framework/sessions/ \
-    storage/framework/views/ \
-    storage/framework/cache/
-
-RUN chown -R www-data bootstrap/cache/ storage/
-RUN chmod -R 700 bootstrap/cache/ storage/
+RUN chown -R www-data bootstrap/cache/ storage/ start-apache-app.sh
+RUN chmod -R 700 bootstrap/cache/ storage/ start-apache-app.sh
 
 USER www-data
 
 # run migrations and start the apache process
-CMD php artisan migrate --isolated \
-    && php artisan db:seed \
-        --force \
-        --class=ProductionSeeder \
-    && apache2-foreground
+# IMPORTANT: Seeding should not be run automatically as it will
+# likely result in DB integrity errors that will stop the container
+CMD ./start-apache-app.sh
