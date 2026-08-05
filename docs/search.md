@@ -164,6 +164,20 @@ Saved presets are stored in `saved_search_filters` with:
 
 The filters JSON stores the selected view, properties, course codes, course levels, and program IDs. Preset names are unique per user.
 
+Example `filters` value:
+
+```json
+{
+  "view": "courses",
+  "properties": ["course", "topics", "learning_outcomes"],
+  "course_codes": ["FRST", "CONS"],
+  "course_levels": ["200", "300"],
+  "program_ids": [12, 18]
+}
+```
+
+`view` is either `courses` or `programs`. The remaining fields are arrays containing the selected property keys, course codes, course levels, and program IDs. Empty arrays mean that no values from that filter group were selected.
+
 Applying a preset redirects to `search.index` with the saved preset converted into normal search query parameters. Deleting a preset is scoped through the current user's saved filters relation, so users cannot delete another user's preset by guessing an ID.
 
 ## Snippet Safety
