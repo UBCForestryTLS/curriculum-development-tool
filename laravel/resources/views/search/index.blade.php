@@ -1086,7 +1086,10 @@
             }
 
             if (openSaveFilterModal && savedFilterValues) {
-                openSaveFilterModal.addEventListener('click', prepareSavedFilterValues);
+                openSaveFilterModal.addEventListener('click', function () {
+                    prepareSavedFilterValues();
+                    closeSearchFilterMenu();
+                });
             }
 
             if (openSavedFiltersModal) {
