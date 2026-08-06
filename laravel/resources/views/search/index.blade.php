@@ -2,9 +2,20 @@
 
 @section('content')
     <style>
+        #app {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bg-body {
+            flex-grow: 1;
+            display: grid;
+            align-items: center;
+        }
+
         .search-page-header {
             max-width: 780px;
-            margin: 0 auto 1.5rem;
+            margin: 1rem auto 1.5rem;
         }
 
         .search-input,
