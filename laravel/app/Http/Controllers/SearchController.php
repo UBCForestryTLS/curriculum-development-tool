@@ -281,14 +281,10 @@ class SearchController extends Controller
                 foreach ($courseLevels as $level) {
                     $minimum = (int) $level;
 
-                    if ($minimum === 600) {
-                        $levelQuery->orWhere('courses.course_num', '>=', $minimum); //final level is open ended
-                    } else {
-                        $levelQuery->orWhereBetween(
-                            'courses.course_num',
-                            [$minimum, $minimum + 99] //in the query, normal levels become ranges (300 -> 300-399)
-                        );
-                    }
+                    $levelQuery->orWhereBetween(
+                        'courses.course_num',
+                        [$minimum, $minimum + 99] //in the query, levels become ranges (300 -> 300-399)
+                    );
                 }
             });
         }
@@ -556,7 +552,7 @@ class SearchController extends Controller
      */
     public function searchCourseNames(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds){
         $searchText = "concat_ws(' ', courses.course_code, courses.course_num, courses.course_title)";
-        $normalizedSearchTerm = preg_replace('/^([A-Za-z]+)\s*(\d+)$/', '$1 $2', $searchTerm); //normalize course code/nums for better search
+        $normalizedSearchTerm = preg_replace('/^([A-Za-z]+(?:_[A-Za-z]+)?)\s*(\d+)\b/', '$1 $2', $searchTerm); //normalize compact course codes at the start of a query
 
         $query = DB::table('courses');
 
