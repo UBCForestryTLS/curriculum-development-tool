@@ -971,6 +971,7 @@ public function test_search_result_shows_the_course_program()
     ]));
 
     $response->assertStatus(200);
+    $this->assertCount(0, $response->viewData('programMatches'));
     $response->assertSee('Astronomy Program');
     $response->assertSee(route('programWizard.step1', $programId));
 }

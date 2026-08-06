@@ -134,14 +134,18 @@ class SearchController extends Controller
             );
             $results = $resultsAndStats['results'];
             $stats = $resultsAndStats['stats'];
-            $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels);
-            $programResults = $this->groupCourseResultsByProgram($results,$programMatches,$selectedProgramIds);
-
-            $stats['programs'] = $programResults->count();
             $courseQuickLinks = $results;
-            $programQuickLinks = $programResults;
+            $programQuickLinks = $results
+                ->flatMap(fn ($course) => $course->programs)
+                ->unique('program_id')
+                ->values();
 
             if ($selectedView === 'programs') {
+                $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels);
+                $programResults = $this->groupCourseResultsByProgram($results, $programMatches, $selectedProgramIds);
+                $stats['programs'] = $programResults->count();
+                $programQuickLinks = $programResults;
+
                 $stats['courses'] = $programResults
                     ->flatMap(fn ($program) => $program->courses)
                     ->pluck('course_id')
