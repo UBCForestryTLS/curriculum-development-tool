@@ -144,6 +144,23 @@ class SearchTest extends TestCase
         $response->assertDontSee('<strong>Course:</strong>', false);
     }
 
+    public function test_compact_course_code_supports_new_notation_and_title_words(){
+        $this->createCourseScaleCategory();
+
+        Course::factory()->create([
+            'course_code' => 'FRST_V',
+            'course_num' => 100,
+            'course_title' => 'Forest Management',
+        ]);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'FRST_V100 Forest',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertSee('Forest Management');
+    }
+
     public function test_search_finds_course_by_course_title(){
         $this->createCourseScaleCategory();
 
