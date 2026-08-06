@@ -305,7 +305,7 @@
                     class="btn btn-outline-secondary search-action-button search-filter-button"
                     id="searchFiltersButton"
                     data-bs-toggle="dropdown"
-                    data-bs-auto-close="false"
+                    data-bs-auto-close="outside"
                     aria-expanded="false"
                     aria-label="Search settings"
                     title="Search settings"
