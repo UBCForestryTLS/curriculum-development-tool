@@ -363,7 +363,7 @@ class SearchController extends Controller
             ->join('courses', 'courses.course_id', '=', 'course_topics.course_id');
 
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw( //need to use raw SQL to support PostgreSQL full-text search functions
                 "course_topics.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -403,7 +403,7 @@ class SearchController extends Controller
             ->join('courses', 'courses.course_id', '=', 'learning_outcomes.course_id');
 
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
             "learning_outcomes.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -441,7 +441,7 @@ class SearchController extends Controller
             ->join('courses', 'courses.course_id', '=', 'course_description.course_id');
 
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
             "course_description.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -479,7 +479,7 @@ class SearchController extends Controller
             ->join('courses', 'courses.course_id', '=', 'course_materials.course_id');
 
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
             "course_materials.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -517,7 +517,7 @@ class SearchController extends Controller
             ->join('courses', 'courses.course_id', '=', 'assessment_methods.course_id');
 
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
             "assessment_methods.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -557,7 +557,7 @@ class SearchController extends Controller
         $query = DB::table('courses');
 
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
                 "courses.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -628,14 +628,14 @@ class SearchController extends Controller
     }
 
     /**
-     * Applies the selected program filters from the search request, filtering only selected programs by building a sub query
+     * Filters a course-backed query by selected program IDs using a subquery.
      * 
-     * @param Builder $query The query to be built on using SQL to apply program filters
-     * @param array $programIds User selected program Ids for filtering
+     * @param Builder $query The course-backed query to filter.
+     * @param array $programIds The selected program IDs.
      * 
-     * @return Builder Query with slected program restrictions applied.
+     * @return Builder The query with the selected program restrictions applied.
      */
-    private function applyProgramFilters(Builder $query, array $programIds): Builder{
+    private function filterByProgramIds(Builder $query, array $programIds): Builder{
         if(empty($programIds)){
             return $query;
         }
@@ -799,20 +799,20 @@ class SearchController extends Controller
     /**
      * Calculates distinct course and program totals and match counts for each course property.
      *
-     * @param Collection $matches Raw matches returned by all course property searches.
-     * @param Collection $results Combined course results with their associated programs.
+     * @param Collection $rawCourseMatches Raw matches returned by all course property searches.
+     * @param Collection $enrichedCourseResults Combined course results with their associated programs.
      *
      * @return array The overall course, program, and property match totals.
      */
-    public function calculateSearchStats(Collection $matches, Collection $results): array{
+    public function calculateSearchStats(Collection $rawCourseMatches, Collection $enrichedCourseResults): array{
         return [
-            'courses' => $matches->pluck('course_id')->unique()->count(),
-            'programs' => $results->pluck('programs')->flatten()->pluck('program_id')->unique()->count(),
-            'topics' => $matches->where('property', 'topic')->count(),
-            'learning_outcomes' => $matches->where('property', 'learning outcome')->count(),
-            'assessments' => $matches->where('property', 'assessment')->count(),
-            'descriptions' => $matches->where('property', 'description')->count(),
-            'materials' => $matches->where('property', 'material')->count(),];
+            'courses' => $rawCourseMatches->pluck('course_id')->unique()->count(),
+            'programs' => $enrichedCourseResults->pluck('programs')->flatten()->pluck('program_id')->unique()->count(),
+            'topics' => $rawCourseMatches->where('property', 'topic')->count(),
+            'learning_outcomes' => $rawCourseMatches->where('property', 'learning outcome')->count(),
+            'assessments' => $rawCourseMatches->where('property', 'assessment')->count(),
+            'descriptions' => $rawCourseMatches->where('property', 'description')->count(),
+            'materials' => $rawCourseMatches->where('property', 'material')->count(),];
     }   
 
 

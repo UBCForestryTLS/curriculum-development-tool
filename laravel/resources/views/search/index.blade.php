@@ -953,7 +953,13 @@
                 });
             }
 
-            allProperties.addEventListener('change', updatePropertyControls);
+            allProperties.addEventListener('change', function () {
+                propertyOptions.forEach(function (option) {
+                    option.checked = allProperties.checked;
+                });
+
+                updatePropertyControls();
+            });
 
             propertyOptions.forEach(function (option) {
                 option.addEventListener('change', function () {
