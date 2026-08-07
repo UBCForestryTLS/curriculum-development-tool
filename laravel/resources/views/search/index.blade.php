@@ -687,32 +687,35 @@
     @endphp
 
     <div class="text-center mb-3">
-        <span class="search-summary-chip">
+        <span class="search-summary-chip" id="searchSummaryView">
             View: {{ $selectedView === 'programs' ? 'Programs' : 'Courses' }}
         </span>
 
-        <span class="search-summary-chip">
+        <span class="search-summary-chip" id="searchSummaryProperties">
             Properties:
             {{ $allPropertiesSelected ? 'All' : (empty($selectedPropertyLabels) ? 'None' : implode(', ', $selectedPropertyLabels)) }}
         </span>
 
-        @if(!empty($selectedCourseCodes))
-            <span class="search-summary-chip">
-                Course Codes: {{ implode(', ', $selectedCourseCodes) }}
-            </span>
-        @endif
+        <span
+            class="search-summary-chip {{ empty($selectedCourseCodes) ? 'd-none' : '' }}"
+            id="searchSummaryCourseCodes"
+        >
+            Course Codes: {{ implode(', ', $selectedCourseCodes) }}
+        </span>
 
-        @if(!empty($selectedCourseLevels))
-            <span class="search-summary-chip">
-                Levels: {{ implode(', ', $selectedCourseLevels) }}
-            </span>
-        @endif
+        <span
+            class="search-summary-chip {{ empty($selectedCourseLevels) ? 'd-none' : '' }}"
+            id="searchSummaryCourseLevels"
+        >
+            Levels: {{ implode(', ', $selectedCourseLevels) }}
+        </span>
 
-        @if(!empty($selectedProgramNames))
-            <span class="search-summary-chip">
-                Programs: {{ implode(', ', $selectedProgramNames) }}
-            </span>
-        @endif
+        <span
+            class="search-summary-chip {{ empty($selectedProgramNames) ? 'd-none' : '' }}"
+            id="searchSummaryPrograms"
+        >
+            Programs: {{ implode(', ', $selectedProgramNames) }}
+        </span>
 
         @if($searchTerm !== '' || !$allPropertiesSelected || !empty($selectedCourseCodes) || !empty($selectedCourseLevels) || !empty($selectedProgramNames) || $selectedView !== 'courses')
             <a href="{{ route('search.index') }}" class="search-clear-filters ms-2">
@@ -1016,6 +1019,46 @@
             const openSavedFiltersModal = document.getElementById('openSavedFiltersModal');
             const savedFilterValues = document.getElementById('savedFilterValues');
             const currentSavedFilterInput = document.getElementById('currentSavedFilterId');
+            const searchSummaryView = document.getElementById('searchSummaryView');
+            const searchSummaryProperties = document.getElementById('searchSummaryProperties');
+            const searchSummaryCourseCodes = document.getElementById('searchSummaryCourseCodes');
+            const searchSummaryCourseLevels = document.getElementById('searchSummaryCourseLevels');
+            const searchSummaryPrograms = document.getElementById('searchSummaryPrograms');
+
+            function updateOptionalSummary(summary, label, values) {
+                summary.textContent = label + ': ' + values.join(', ');
+                summary.classList.toggle('d-none', values.length === 0);
+            }
+
+            function updateSearchSummary() {
+                const selectedView = document.querySelector('input[name="view"]:checked');
+                const selectedPropertyLabels = propertyOptions
+                    .filter(function (option) { return option.checked; })
+                    .map(function (option) { return option.labels[0].textContent.trim(); });
+                const selectedCourseLevels = Array.from(
+                    document.querySelectorAll('input[name="course_levels[]"]:checked')
+                ).map(function (level) { return level.value; });
+                const selectedProgramNames = Array.from(selectedPrograms)
+                    .map(function (programId) {
+                        return programOptions.find(function (program) {
+                            return String(program.program_id) === programId;
+                        });
+                    })
+                    .filter(function (program) { return program; })
+                    .map(function (program) { return program.program; });
+                const selectedViewName = selectedView && selectedView.value === 'programs'
+                    ? 'Programs'
+                    : 'Courses';
+                const selectedPropertiesText = allProperties.checked
+                    ? 'All'
+                    : (selectedPropertyLabels.length > 0 ? selectedPropertyLabels.join(', ') : 'None');
+
+                searchSummaryView.textContent = 'View: ' + selectedViewName;
+                searchSummaryProperties.textContent = 'Properties: ' + selectedPropertiesText;
+                updateOptionalSummary(searchSummaryCourseCodes, 'Course Codes', Array.from(selectedCourseCodes));
+                updateOptionalSummary(searchSummaryCourseLevels, 'Levels', selectedCourseLevels);
+                updateOptionalSummary(searchSummaryPrograms, 'Programs', selectedProgramNames);
+            }
 
             function getCurrentFilterState() {
                 const selectedView = document.querySelector('input[name="view"]:checked');
@@ -1046,6 +1089,7 @@
                 window.bootstrap.Dropdown.getOrCreateInstance(searchFiltersButton).hide();
             }
 
+            searchFiltersButton.addEventListener('hidden.bs.dropdown', updateSearchSummary);
             closeSearchFilters.addEventListener('click', closeSearchFilterMenu);
 
             //Adds one selected filter as a hidden field in the save-filter form
