@@ -1,7 +1,3 @@
-# TODO: Replace applicable environment variables with service references (Docker networking)
-# TODO: Modify Dockerfile apache config to serve follow Laravel's deployment reqs (see https://laravel.com/docs/13.x/deployment)
-# TODO: Configure volumes for user-uploaded data in Laravel needs to be persisted
-
 name: curriculum-tool
 
 services:
@@ -17,6 +13,14 @@ services:
       db:
         condition: service_healthy
         restart: true
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
 
   db:
     image: postgres:17.10-trixie
@@ -31,10 +35,33 @@ services:
       interval: 5s
       retries: 5
       timeout: 10s
-
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    
+  syllabus-parser:
+    build:
+      context: python/services/syllabi_service/
+    volumes:
+      - syllabus-parser-logs:/usr/src/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
 volumes:
   pgdata:
   sessions:
   uploads:
+  syllabus-parser-logs:
 
 # TODO: Set up Python services!

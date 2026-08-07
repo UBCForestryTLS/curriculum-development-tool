@@ -7,6 +7,8 @@ from nltk.corpus import stopwords
 from tabula import read_pdf
 from datetime import datetime
 
+from app.schema.courseSyllabi import Course
+
 
 nltk.download('stopwords')
 
@@ -137,26 +139,13 @@ def append_material(materials: list[dict], name: str, description: str, material
         "description": description,
     })
 
-
-def get_course_from_text_file(filePath: str, originalFileName: str) -> dict:
+def get_course_from_file_contents(file_contents: bytes, originalFileName: str) -> Course:
     try:
-        doc = pymupdf.open(filePath)
+        doc = pymupdf.open(stream=file_contents)
     except Exception as e:
-        raise Exception(f"Error opening file {filePath}: {str(e)}")
+        raise Exception(f"Error opening file {originalFileName}: {str(e)}")
     
-    course = {
-            "code": "",
-            "number": 0,
-            "title": "",
-            "term": "",
-            "year": 0,
-            "level": "",
-            "description": "",
-            "goals": [],
-            "assessments": [],
-            "topics": [],
-            "materials": [],
-    }
+    course = Course()
     
     doc_without_header = remove_header_and_footer(doc)
     code_and_number = find_course_code_and_number(doc, originalFileName)
@@ -1085,7 +1074,7 @@ def get_assessment_weight_from_table(tables: pymupdf.table.TableFinder) -> list[
             for i in range(1, len(assessment_table)):
                 #print("From Inside Loop", assessment_and_weight)
                 try:
-                    if (re.search('\d', assessment_table[i][index_mark_column])):
+                    if (re.search('\\d', assessment_table[i][index_mark_column])):
                             assessment_and_weight.append((assessment_table[i][index_name_column], assessment_table[i][index_mark_column]))
                 except:
                     continue

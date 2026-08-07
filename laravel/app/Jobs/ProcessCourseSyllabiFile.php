@@ -18,6 +18,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Bus\Batchable;
 use App\Models\CourseTopic;
 use App\Models\CourseMaterial;
@@ -46,21 +47,24 @@ class ProcessCourseSyllabiFile implements ShouldQueue
      */
     public function handle(): void
     {
-        $baseUrl = config('services.python_api.base_url');
+        $serviceBaseUrl = config('services.python_api.base_url');
 
         $courseFile = CourseSyllabiFile::where('id', $this->courseFileId)->first();
 
+        $rawFileContents = Storage::get($courseFile->file_path);
 
-        try{
-            $response = HTTP::post($baseUrl . '/create_course_from_syllabi', [
-                'file_path' => storage_path('app') . "/" . $courseFile->file_path,
-                'client_original_filename' => $courseFile->file_name
-            ]);
+        try {
+            $response = HTTP::acceptJson()
+                ->attach(
+                    'file',
+                    $rawFileContents,
+                    $courseFile->file_name
+                )
+                ->post($serviceBaseUrl . '/create_course_from_syllabi');
         } catch (\Exception $e) {
             // handle any other exception
-            Log::error('Error in parsing file ' . $e->getMessage());
+            Log::error('Failed to get syllabi service response: ' . $e->getMessage());
             throw $e;
-
         }
 
         if($response->failed()){

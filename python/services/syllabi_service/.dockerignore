@@ -1,0 +1,17 @@
+# Development
+**/Dockerfile*
+**/.dockerignore
+**/tests/
+**/logs/
+**/*.log
+LICENSE*
+README*
+
+# Virtual Environments
+**/.env/
+**/.venv/
+
+# Cache
+**/__pycache__/
+**/.pytest*/
+**/*.cache
