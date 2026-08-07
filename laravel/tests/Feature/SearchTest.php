@@ -1732,6 +1732,22 @@ public function test_authenticated_user_can_apply_saved_search_filter(): void
     $response->assertSessionHas('preset_applied', true);
 }
 
+public function test_authenticated_user_cannot_apply_another_users_saved_search_filter(): void
+{
+    $owner = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $savedFilter = $owner->savedSearchFilters()->create([
+        'name' => 'Private Preset',
+        'filters' => [],
+    ]);
+
+    $response = $this->actingAs($otherUser)->get(route('search.filters.apply', [
+        'savedFilterId' => $savedFilter->id,
+    ]));
+
+    $response->assertNotFound();
+}
+
 public function test_authenticated_user_can_delete_saved_search_filter(): void
 {
     $user = User::factory()->create();
@@ -1773,6 +1789,26 @@ public function test_authenticated_user_can_delete_saved_search_filter(): void
     $this->assertDatabaseHas('saved_search_filters', [
         'id' => $otherUserFilter->id,
         'user_id' => $otherUser->id,
+    ]);
+}
+
+public function test_authenticated_user_cannot_delete_another_users_saved_search_filter(): void
+{
+    $owner = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $savedFilter = $owner->savedSearchFilters()->create([
+        'name' => 'Keep Private Preset',
+        'filters' => [],
+    ]);
+
+    $response = $this->actingAs($otherUser)->delete(route('search.filters.destroy', [
+        'savedFilterId' => $savedFilter->id,
+    ]));
+
+    $response->assertNotFound();
+    $this->assertDatabaseHas('saved_search_filters', [
+        'id' => $savedFilter->id,
+        'user_id' => $owner->id,
     ]);
 }
 
