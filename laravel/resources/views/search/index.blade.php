@@ -999,6 +999,7 @@
             const selectedCourseCodes = new Set(@json($selectedCourseCodes).map(function (courseCode) {
                 return String(courseCode);
             }));
+            const filterOptionLimit = 10;
             const programSearch = document.getElementById('programSearch');
             const programOptionsContainer = document.getElementById('programOptions');
             const selectedProgramChips = document.getElementById('selectedProgramChips');
@@ -1135,11 +1136,20 @@
                 courseCodeOptionsContainer.innerHTML = '';
 
                 // Do not show course codes that are already selected.
-                const matchingCourseCodes = courseCodeOptions
-                    .filter(function (courseCode) {
-                        return !selectedCourseCodes.has(courseCode)
-                            && (!searchText || courseCode.toLowerCase().includes(searchText));
-                    });
+                const matchingCourseCodes = [];
+
+                for (const courseCode of courseCodeOptions) {
+                    const matchesSearch = !selectedCourseCodes.has(courseCode)
+                        && (!searchText || courseCode.toLowerCase().includes(searchText));
+
+                    if (matchesSearch) {
+                        matchingCourseCodes.push(courseCode);
+                    }
+
+                    if (matchingCourseCodes.length === filterOptionLimit) {
+                        break;
+                    }
+                }
 
                 if (matchingCourseCodes.length === 0) {
                     courseCodeOptionsContainer.style.display = 'none';
@@ -1214,13 +1224,21 @@
                 const searchText = programSearch.value.trim().toLowerCase();
                 programOptionsContainer.innerHTML = '';
 
-                const matchingPrograms = programOptions
-                    .filter(function (program) {
-                        const programId = String(program.program_id);
+                const matchingPrograms = [];
 
-                        return !selectedPrograms.has(programId)
-                            && (!searchText || program.program.toLowerCase().includes(searchText));
-                    });
+                for (const program of programOptions) {
+                    const programId = String(program.program_id);
+                    const matchesSearch = !selectedPrograms.has(programId)
+                        && (!searchText || program.program.toLowerCase().includes(searchText));
+
+                    if (matchesSearch) {
+                        matchingPrograms.push(program);
+                    }
+
+                    if (matchingPrograms.length === filterOptionLimit) {
+                        break;
+                    }
+                }
 
                 if (matchingPrograms.length === 0) {
                     programOptionsContainer.style.display = 'none';
