@@ -245,6 +245,29 @@ cd laravel
 php artisan test tests/Feature/SearchTest.php
 ```
 
+## Optional Performance Data
+
+`SearchPerformanceSeeder` creates deterministic data for measuring search response times and PostgreSQL query performance. It is not included in `DatabaseSeeder` and cannot run in production.
+
+Run the default dataset with:
+
+```bash
+cd laravel
+php artisan db:seed --class=SearchPerformanceSeeder
+```
+
+The default dataset contains 2,000 courses, 1,500 programs, two topics, outcomes, assessments, and materials per course, one description per course, program relationships, and direct and role-based access rows. Rerunning the seeder replaces only its own `Performance Test` data.
+
+Dataset size can be changed when running the command:
+
+```bash
+SEARCH_PERFORMANCE_COURSES=5000 SEARCH_PERFORMANCE_PROGRAMS=2500 php artisan db:seed --class=SearchPerformanceSeeder
+```
+
+All generated accounts use the password `password` and verified `@example.test` email addresses. Accounts cover no access, limited and broad direct access, Program Director access, Department Head access, faculty-wide access, and administrator access. The full account list is printed after seeding.
+
+Repeatable search terms are `climate` for many matches, `watershed` for fewer matches, and `cryosphere` for a rare match.
+
 ## Operational Notes
 
 Few constraints that might be important to consider for this feature:
