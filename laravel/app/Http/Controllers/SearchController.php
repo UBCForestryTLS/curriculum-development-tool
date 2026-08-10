@@ -149,14 +149,18 @@ class SearchController extends Controller
             );
             $results = $resultsAndStats['results'];
             $stats = $resultsAndStats['stats'];
-            $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $user);
-            $programResults = $this->groupCourseResultsByProgram($results,$programMatches,$selectedProgramIds);
-
-            $stats['programs'] = $programResults->count();
             $courseQuickLinks = $results;
-            $programQuickLinks = $programResults;
+            $programQuickLinks = $results
+                ->flatMap(fn ($course) => $course->programs)
+                ->unique('program_id')
+                ->values();
 
             if ($selectedView === 'programs') {
+                $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $user);
+                $programResults = $this->groupCourseResultsByProgram($results, $programMatches, $selectedProgramIds);
+                $stats['programs'] = $programResults->count();
+                $programQuickLinks = $programResults;
+
                 $stats['courses'] = $programResults
                     ->flatMap(fn ($program) => $program->courses)
                     ->pluck('course_id')
@@ -299,14 +303,10 @@ class SearchController extends Controller
                 foreach ($courseLevels as $level) {
                     $minimum = (int) $level;
 
-                    if ($minimum === 600) {
-                        $levelQuery->orWhere('courses.course_num', '>=', $minimum); //final level is open ended
-                    } else {
-                        $levelQuery->orWhereBetween(
-                            'courses.course_num',
-                            [$minimum, $minimum + 99] //in the query, normal levels become ranges (300 -> 300-399)
-                        );
-                    }
+                    $levelQuery->orWhereBetween(
+                        'courses.course_num',
+                        [$minimum, $minimum + 99] //in the query, levels become ranges (300 -> 300-399)
+                    );
                 }
             });
         }
@@ -387,7 +387,7 @@ class SearchController extends Controller
 
         $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw( //need to use raw SQL to support PostgreSQL full-text search functions
                 "course_topics.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -429,7 +429,7 @@ class SearchController extends Controller
 
         $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
             "learning_outcomes.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -469,7 +469,7 @@ class SearchController extends Controller
 
         $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
             "course_description.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -509,7 +509,7 @@ class SearchController extends Controller
 
         $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
             "course_materials.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -549,7 +549,7 @@ class SearchController extends Controller
 
         $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
             "assessment_methods.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -585,13 +585,13 @@ class SearchController extends Controller
      */
     public function searchCourseNames(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds, User $user){
         $searchText = "concat_ws(' ', courses.course_code, courses.course_num, courses.course_title)";
-        $normalizedSearchTerm = preg_replace('/^([A-Za-z]+)\s*(\d+)$/', '$1 $2', $searchTerm); //normalize course code/nums for better search
+        $normalizedSearchTerm = preg_replace('/^([A-Za-z]+(?:_[A-Za-z]+)?)\s*(\d+)\b/', '$1 $2', $searchTerm); //normalize compact course codes at the start of a query
 
         $query = DB::table('courses');
 
         $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
-        $query = $this->applyProgramFilters($query, $selectedProgramIds);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
         $results = $query->whereRaw(
                 "courses.search_vector @@ websearch_to_tsquery('english', ?)",
@@ -666,14 +666,14 @@ class SearchController extends Controller
     }
 
     /**
-     * Applies the selected program filters from the search request, filtering only selected programs by building a sub query
+     * Filters a course-backed query by selected program IDs using a subquery.
      * 
-     * @param Builder $query The query to be built on using SQL to apply program filters
-     * @param array $programIds User selected program Ids for filtering
+     * @param Builder $query The course-backed query to filter.
+     * @param array $programIds The selected program IDs.
      * 
-     * @return Builder Query with slected program restrictions applied.
+     * @return Builder The query with the selected program restrictions applied.
      */
-    private function applyProgramFilters(Builder $query, array $programIds): Builder{
+    private function filterByProgramIds(Builder $query, array $programIds): Builder{
         if(empty($programIds)){
             return $query;
         }
@@ -837,20 +837,20 @@ class SearchController extends Controller
     /**
      * Calculates distinct course and program totals and match counts for each course property.
      *
-     * @param Collection $matches Raw matches returned by all course property searches.
-     * @param Collection $results Combined course results with their associated programs.
+     * @param Collection $rawCourseMatches Raw matches returned by all course property searches.
+     * @param Collection $enrichedCourseResults Combined course results with their associated programs.
      *
      * @return array The overall course, program, and property match totals.
      */
-    public function calculateSearchStats(Collection $matches, Collection $results): array{
+    public function calculateSearchStats(Collection $rawCourseMatches, Collection $enrichedCourseResults): array{
         return [
-            'courses' => $matches->pluck('course_id')->unique()->count(),
-            'programs' => $results->pluck('programs')->flatten()->pluck('program_id')->unique()->count(),
-            'topics' => $matches->where('property', 'topic')->count(),
-            'learning_outcomes' => $matches->where('property', 'learning outcome')->count(),
-            'assessments' => $matches->where('property', 'assessment')->count(),
-            'descriptions' => $matches->where('property', 'description')->count(),
-            'materials' => $matches->where('property', 'material')->count(),];
+            'courses' => $rawCourseMatches->pluck('course_id')->unique()->count(),
+            'programs' => $enrichedCourseResults->pluck('programs')->flatten()->pluck('program_id')->unique()->count(),
+            'topics' => $rawCourseMatches->where('property', 'topic')->count(),
+            'learning_outcomes' => $rawCourseMatches->where('property', 'learning outcome')->count(),
+            'assessments' => $rawCourseMatches->where('property', 'assessment')->count(),
+            'descriptions' => $rawCourseMatches->where('property', 'description')->count(),
+            'materials' => $rawCourseMatches->where('property', 'material')->count(),];
     }   
 
 

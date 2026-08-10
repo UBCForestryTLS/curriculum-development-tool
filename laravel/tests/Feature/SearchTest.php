@@ -489,6 +489,23 @@ class SearchTest extends TestCase
         $response->assertDontSee('<strong>Course:</strong>', false);
     }
 
+    public function test_compact_course_code_supports_new_notation_and_title_words(){
+        $this->createCourseScaleCategory();
+
+        Course::factory()->create([
+            'course_code' => 'FRST_V',
+            'course_num' => 100,
+            'course_title' => 'Forest Management',
+        ]);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'FRST_V100 Forest',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertSee('Forest Management');
+    }
+
     public function test_search_finds_course_by_course_title(){
         $this->createCourseScaleCategory();
 
@@ -1239,6 +1256,7 @@ public function test_search_result_shows_the_course_program()
     ]));
 
     $response->assertStatus(200);
+    $this->assertCount(0, $response->viewData('programMatches'));
     $response->assertSee('Astronomy Program');
     $response->assertSee(route('programWizard.step1', $programId));
 }
@@ -1763,6 +1781,22 @@ public function test_authenticated_user_can_apply_saved_search_filter(): void
     $response->assertSessionHas('preset_applied', true);
 }
 
+public function test_authenticated_user_cannot_apply_another_users_saved_search_filter(): void
+{
+    $owner = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $savedFilter = $owner->savedSearchFilters()->create([
+        'name' => 'Private Preset',
+        'filters' => [],
+    ]);
+
+    $response = $this->actingAs($otherUser)->get(route('search.filters.apply', [
+        'savedFilterId' => $savedFilter->id,
+    ]));
+
+    $response->assertNotFound();
+}
+
 public function test_authenticated_user_can_delete_saved_search_filter(): void
 {
     $user = User::factory()->create();
@@ -1804,6 +1838,26 @@ public function test_authenticated_user_can_delete_saved_search_filter(): void
     $this->assertDatabaseHas('saved_search_filters', [
         'id' => $otherUserFilter->id,
         'user_id' => $otherUser->id,
+    ]);
+}
+
+public function test_authenticated_user_cannot_delete_another_users_saved_search_filter(): void
+{
+    $owner = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $savedFilter = $owner->savedSearchFilters()->create([
+        'name' => 'Keep Private Preset',
+        'filters' => [],
+    ]);
+
+    $response = $this->actingAs($otherUser)->delete(route('search.filters.destroy', [
+        'savedFilterId' => $savedFilter->id,
+    ]));
+
+    $response->assertNotFound();
+    $this->assertDatabaseHas('saved_search_filters', [
+        'id' => $savedFilter->id,
+        'user_id' => $owner->id,
     ]);
 }
 

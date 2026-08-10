@@ -2,9 +2,20 @@
 
 @section('content')
     <style>
+        #app {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bg-body {
+            flex-grow: 1;
+            display: grid;
+            align-items: center;
+        }
+
         .search-page-header {
             max-width: 780px;
-            margin: 0 auto 1.5rem;
+            margin: 1rem auto 1.5rem;
         }
 
         .search-input,
@@ -294,7 +305,7 @@
                     class="btn btn-outline-secondary search-action-button search-filter-button"
                     id="searchFiltersButton"
                     data-bs-toggle="dropdown"
-                    data-bs-auto-close="false"
+                    data-bs-auto-close="outside"
                     aria-expanded="false"
                     aria-label="Search settings"
                     title="Search settings"
@@ -676,32 +687,35 @@
     @endphp
 
     <div class="text-center mb-3">
-        <span class="search-summary-chip">
+        <span class="search-summary-chip" id="searchSummaryView">
             View: {{ $selectedView === 'programs' ? 'Programs' : 'Courses' }}
         </span>
 
-        <span class="search-summary-chip">
+        <span class="search-summary-chip" id="searchSummaryProperties">
             Properties:
             {{ $allPropertiesSelected ? 'All' : (empty($selectedPropertyLabels) ? 'None' : implode(', ', $selectedPropertyLabels)) }}
         </span>
 
-        @if(!empty($selectedCourseCodes))
-            <span class="search-summary-chip">
-                Course Codes: {{ implode(', ', $selectedCourseCodes) }}
-            </span>
-        @endif
+        <span
+            class="search-summary-chip {{ empty($selectedCourseCodes) ? 'd-none' : '' }}"
+            id="searchSummaryCourseCodes"
+        >
+            Course Codes: {{ implode(', ', $selectedCourseCodes) }}
+        </span>
 
-        @if(!empty($selectedCourseLevels))
-            <span class="search-summary-chip">
-                Levels: {{ implode(', ', $selectedCourseLevels) }}
-            </span>
-        @endif
+        <span
+            class="search-summary-chip {{ empty($selectedCourseLevels) ? 'd-none' : '' }}"
+            id="searchSummaryCourseLevels"
+        >
+            Levels: {{ implode(', ', $selectedCourseLevels) }}
+        </span>
 
-        @if(!empty($selectedProgramNames))
-            <span class="search-summary-chip">
-                Programs: {{ implode(', ', $selectedProgramNames) }}
-            </span>
-        @endif
+        <span
+            class="search-summary-chip {{ empty($selectedProgramNames) ? 'd-none' : '' }}"
+            id="searchSummaryPrograms"
+        >
+            Programs: {{ implode(', ', $selectedProgramNames) }}
+        </span>
 
         @if($searchTerm !== '' || !$allPropertiesSelected || !empty($selectedCourseCodes) || !empty($selectedCourseLevels) || !empty($selectedProgramNames) || $selectedView !== 'courses')
             <a href="{{ route('search.index') }}" class="search-clear-filters ms-2">
@@ -966,7 +980,13 @@
                 });
             }
 
-            allProperties.addEventListener('change', updatePropertyControls);
+            allProperties.addEventListener('change', function () {
+                propertyOptions.forEach(function (option) {
+                    option.checked = allProperties.checked;
+                });
+
+                updatePropertyControls();
+            });
 
             propertyOptions.forEach(function (option) {
                 option.addEventListener('change', function () {
@@ -995,6 +1015,7 @@
             const selectedCourseCodes = new Set(@json($selectedCourseCodes).map(function (courseCode) {
                 return String(courseCode);
             }));
+            const filterOptionLimit = 10;
             const programSearch = document.getElementById('programSearch');
             const programOptionsContainer = document.getElementById('programOptions');
             const selectedProgramChips = document.getElementById('selectedProgramChips');
@@ -1011,6 +1032,46 @@
             const openSavedFiltersModal = document.getElementById('openSavedFiltersModal');
             const savedFilterValues = document.getElementById('savedFilterValues');
             const currentSavedFilterInput = document.getElementById('currentSavedFilterId');
+            const searchSummaryView = document.getElementById('searchSummaryView');
+            const searchSummaryProperties = document.getElementById('searchSummaryProperties');
+            const searchSummaryCourseCodes = document.getElementById('searchSummaryCourseCodes');
+            const searchSummaryCourseLevels = document.getElementById('searchSummaryCourseLevels');
+            const searchSummaryPrograms = document.getElementById('searchSummaryPrograms');
+
+            function updateOptionalSummary(summary, label, values) {
+                summary.textContent = label + ': ' + values.join(', ');
+                summary.classList.toggle('d-none', values.length === 0);
+            }
+
+            function updateSearchSummary() {
+                const selectedView = document.querySelector('input[name="view"]:checked');
+                const selectedPropertyLabels = propertyOptions
+                    .filter(function (option) { return option.checked; })
+                    .map(function (option) { return option.labels[0].textContent.trim(); });
+                const selectedCourseLevels = Array.from(
+                    document.querySelectorAll('input[name="course_levels[]"]:checked')
+                ).map(function (level) { return level.value; });
+                const selectedProgramNames = Array.from(selectedPrograms)
+                    .map(function (programId) {
+                        return programOptions.find(function (program) {
+                            return String(program.program_id) === programId;
+                        });
+                    })
+                    .filter(function (program) { return program; })
+                    .map(function (program) { return program.program; });
+                const selectedViewName = selectedView && selectedView.value === 'programs'
+                    ? 'Programs'
+                    : 'Courses';
+                const selectedPropertiesText = allProperties.checked
+                    ? 'All'
+                    : (selectedPropertyLabels.length > 0 ? selectedPropertyLabels.join(', ') : 'None');
+
+                searchSummaryView.textContent = 'View: ' + selectedViewName;
+                searchSummaryProperties.textContent = 'Properties: ' + selectedPropertiesText;
+                updateOptionalSummary(searchSummaryCourseCodes, 'Course Codes', Array.from(selectedCourseCodes));
+                updateOptionalSummary(searchSummaryCourseLevels, 'Levels', selectedCourseLevels);
+                updateOptionalSummary(searchSummaryPrograms, 'Programs', selectedProgramNames);
+            }
 
             function getCurrentFilterState() {
                 const selectedView = document.querySelector('input[name="view"]:checked');
@@ -1041,6 +1102,7 @@
                 window.bootstrap.Dropdown.getOrCreateInstance(searchFiltersButton).hide();
             }
 
+            searchFiltersButton.addEventListener('hidden.bs.dropdown', updateSearchSummary);
             closeSearchFilters.addEventListener('click', closeSearchFilterMenu);
 
             //Adds one selected filter as a hidden field in the save-filter form
@@ -1131,11 +1193,20 @@
                 courseCodeOptionsContainer.innerHTML = '';
 
                 // Do not show course codes that are already selected.
-                const matchingCourseCodes = courseCodeOptions
-                    .filter(function (courseCode) {
-                        return !selectedCourseCodes.has(courseCode)
-                            && (!searchText || courseCode.toLowerCase().includes(searchText));
-                    });
+                const matchingCourseCodes = [];
+
+                for (const courseCode of courseCodeOptions) {
+                    const matchesSearch = !selectedCourseCodes.has(courseCode)
+                        && (!searchText || courseCode.toLowerCase().includes(searchText));
+
+                    if (matchesSearch) {
+                        matchingCourseCodes.push(courseCode);
+                    }
+
+                    if (matchingCourseCodes.length === filterOptionLimit) {
+                        break;
+                    }
+                }
 
                 if (matchingCourseCodes.length === 0) {
                     courseCodeOptionsContainer.style.display = 'none';
@@ -1210,13 +1281,21 @@
                 const searchText = programSearch.value.trim().toLowerCase();
                 programOptionsContainer.innerHTML = '';
 
-                const matchingPrograms = programOptions
-                    .filter(function (program) {
-                        const programId = String(program.program_id);
+                const matchingPrograms = [];
 
-                        return !selectedPrograms.has(programId)
-                            && (!searchText || program.program.toLowerCase().includes(searchText));
-                    });
+                for (const program of programOptions) {
+                    const programId = String(program.program_id);
+                    const matchesSearch = !selectedPrograms.has(programId)
+                        && (!searchText || program.program.toLowerCase().includes(searchText));
+
+                    if (matchesSearch) {
+                        matchingPrograms.push(program);
+                    }
+
+                    if (matchingPrograms.length === filterOptionLimit) {
+                        break;
+                    }
+                }
 
                 if (matchingPrograms.length === 0) {
                     programOptionsContainer.style.display = 'none';

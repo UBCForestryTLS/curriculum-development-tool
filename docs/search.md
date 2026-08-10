@@ -64,7 +64,7 @@ Search uses PostgreSQL full-text search across these fields:
 | `descriptions` | Descriptions | `course_description.description` |
 | `materials` | Materials | `course_materials.name`, `course_materials.type`, `course_materials.description` |
 
-Program names are searched directly from `programs.program`.
+Program names are searched directly from `programs.program` when Program view is selected. Course view still displays programs related to matching courses, but it does not run the direct program-name search.
 
 The filter values and UI labels are defined in `SearchFilterOptions`, which is used by both search controllers and the Blade view. This keeps property validation, defaults, and display labels in one place.
 
@@ -91,7 +91,7 @@ The processing flow is:
 
 1. A logged-in user opens `/search` or submits a search query.
 2. `SearchController@index` validates the query, selected view, selected properties, course filters, and program filters.
-3. The controller normalizes input, including trimming query whitespace and uppercasing course codes.
+3. The controller normalizes input, including trimming and collapsing query whitespace and uppercasing course-code filters. Compact course codes at the start of a direct course search, such as `FRST100` and `FRST_V100`, are normalized into separate code and number terms.
 4. If a query exists, the controller searches the selected properties.
 5. Raw matches are grouped by course and ranked.
 6. Course results are enriched with their related programs.
@@ -164,7 +164,7 @@ Course levels are treated as ranges:
 - `300` means `300-399`
 - `400` means `400-499`
 - `500` means `500-599`
-- `600` means `600+`
+- `600` means `600-699`
 
 Course view is the default view. It shows matching courses, related programs, match stats, and snippets.
 
@@ -182,7 +182,21 @@ Saved presets are stored in `saved_search_filters` with:
 
 The filters JSON stores the selected view, properties, course codes, course levels, and program IDs. Preset names are unique per user.
 
-Applying a preset redirects to `search.index` with the saved preset converted into normal search query parameters. Deleting a preset is scoped through the current user's saved filters relation, so users cannot delete another user's preset by guessing an ID.
+Example `filters` value:
+
+```json
+{
+  "view": "courses",
+  "properties": ["course", "topics", "learning_outcomes"],
+  "course_codes": ["FRST", "CONS"],
+  "course_levels": ["200", "300"],
+  "program_ids": [12, 18]
+}
+```
+
+`view` is either `courses` or `programs`. The remaining fields are arrays containing the selected property keys, course codes, course levels, and program IDs. Empty arrays mean that no values from that filter group were selected.
+
+Applying a preset redirects to `search.index` with the saved preset converted into normal search query parameters. Applying and deleting presets are scoped through the current user's saved filters relation, so users cannot apply or delete another user's preset by guessing an ID.
 
 ## Snippet Safety
 
@@ -222,7 +236,7 @@ The tests cover:
 - search stats
 - course and program pagination
 - course code, course level, and program filters
-- saved filter saving, applying, deleting, and current preset display
+- saved filter saving, applying, deleting, ownership restrictions, and current preset display
 
 Run the search tests with:
 
