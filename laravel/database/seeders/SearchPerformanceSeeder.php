@@ -389,7 +389,7 @@ class SearchPerformanceSeeder extends Seeder
             $label = str_pad((string) $index, 5, '0', STR_PAD_LEFT);
             $primaryTerm = $index % 2 === 0 ? 'climate' : 'forest';
             $secondaryTerm = $index % 20 === 0 ? 'watershed' : 'policy';
-            $rareTerm = $index === $this->courseCount ? ' cryosphere' : '';
+            $rareTerm = $index === $this->rareCourseIndex() ? ' cryosphere' : '';
 
             $descriptions[] = [
                 'course_id' => $courseId,
@@ -576,7 +576,7 @@ class SearchPerformanceSeeder extends Seeder
                 );
             }
 
-            if ($index % 2 === 1) {
+            if ($this->departmentForIndex($organization, $index)['id'] === $primaryDepartment['id']) {
                 $programRoleRows[] = $this->programRoleRow(
                     $programIds[$index],
                     $userIds['department_head'],
@@ -616,7 +616,7 @@ class SearchPerformanceSeeder extends Seeder
                 }
             }
 
-            if ($index % 2 === 1) {
+            if ($this->departmentForIndex($organization, $index)['id'] === $primaryDepartment['id']) {
                 $courseRoleRows[] = [
                     'course_id' => $courseId,
                     'user_id' => $userIds['department_head'],
@@ -669,7 +669,7 @@ class SearchPerformanceSeeder extends Seeder
 
     private function departmentForIndex(array $organization, int $index): array
     {
-        return $organization['departments'][($index - 1) % 2];
+        return $organization['departments'][intdiv($index - 1, 10) % 2];
     }
 
     private function primaryProgramIndex(int $courseIndex): int
@@ -719,7 +719,7 @@ class SearchPerformanceSeeder extends Seeder
             default => 'Sustainability Practice',
         };
 
-        if ($index === $this->courseCount) {
+        if ($index === $this->rareCourseIndex()) {
             $focus = 'Cryosphere Monitoring';
         }
 
@@ -731,6 +731,11 @@ class SearchPerformanceSeeder extends Seeder
         $codeIndex = ($index - 1) % 100;
 
         return 'PF'.chr(65 + intdiv($codeIndex, 26)).chr(65 + ($codeIndex % 26));
+    }
+
+    private function rareCourseIndex(): int
+    {
+        return max(1, $this->courseCount - 10);
     }
 
     /**
