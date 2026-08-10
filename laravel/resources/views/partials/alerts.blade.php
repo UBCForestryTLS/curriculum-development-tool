@@ -23,8 +23,9 @@
 @endif
 
 @if(session('success'))
-    <div class="alert alert-success" role="alert">
+    <div class="alert alert-success alert-dismissible fade show py-2 px-3 mx-auto auto-dismiss-alert" style="max-width: 780px;" role="alert">
         {{ session('success') }}
+        <button type="button" class="btn-close top-50 translate-middle-y" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 @endif
 
@@ -48,3 +49,16 @@
         </div>
     @endforeach
 @endif
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        window.setTimeout(function () {
+            document.querySelectorAll('.auto-dismiss-alert').forEach(function (alert) {
+                alert.classList.remove('show');
+                window.setTimeout(function () {
+                    alert.remove();
+                }, 150);
+            });
+        }, 4000);
+    });
+</script>
