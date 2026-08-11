@@ -256,7 +256,7 @@ cd laravel
 php artisan db:seed --class=SearchPerformanceSeeder
 ```
 
-The default dataset contains 2,000 courses, 1,500 programs, two topics, outcomes, assessments, and materials per course, one description per course, program relationships, and direct and role-based access rows. Rerunning the seeder replaces only its own `Performance Test` data.
+The default dataset contains 2,000 courses and 1,500 programs. Each course has seven topics, six learning outcomes, four assessments, two materials, and one description, along with program relationships and direct and role-based access rows. Rerunning the seeder replaces only its own `Performance Test` data.
 
 Dataset size can be changed when running the command:
 

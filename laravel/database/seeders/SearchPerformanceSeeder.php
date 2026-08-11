@@ -11,6 +11,10 @@ class SearchPerformanceSeeder extends Seeder
 {
     private const DEFAULT_COURSE_COUNT = 2000;
     private const DEFAULT_PROGRAM_COUNT = 1500;
+    private const TOPICS_PER_COURSE = 7;
+    private const OUTCOMES_PER_COURSE = 6;
+    private const ASSESSMENTS_PER_COURSE = 4;
+    private const MATERIALS_PER_COURSE = 2;
     private const CHUNK_SIZE = 500;
     private const COURSE_PREFIX = 'Performance Test Course ';
     private const PROGRAM_PREFIX = 'Performance Test Program ';
@@ -373,7 +377,7 @@ class SearchPerformanceSeeder extends Seeder
     }
 
     /**
-     * Add two topics, outcomes, assessments, and materials plus one description per course.
+     * Add realistic amounts of searchable content to each course.
      */
     private function createSearchableCourseContent(array $courseIds): void
     {
@@ -398,84 +402,82 @@ class SearchPerformanceSeeder extends Seeder
                 'updated_at' => $timestamp,
             ];
 
-            $topics[] = [
-                'course_id' => $courseId,
-                'topic' => "Performance topic {$label}: {$primaryTerm} systems",
-                'description' => "Indexed topic about {$secondaryTerm} and sustainability.{$rareTerm}",
-                'position' => 0,
-                'created_at' => $timestamp,
-                'updated_at' => $timestamp,
-            ];
-            $topics[] = [
-                'course_id' => $courseId,
-                'topic' => "Performance topic {$label}: data and community planning",
-                'description' => "Supporting topic for {$primaryTerm} analysis.",
-                'position' => 1,
-                'created_at' => $timestamp,
-                'updated_at' => $timestamp,
-            ];
+            for ($position = 0; $position < self::TOPICS_PER_COURSE; $position++) {
+                $topicNumber = $position + 1;
+                $focusTerm = $position % 2 === 0 ? $primaryTerm : $secondaryTerm;
+                $topicRareTerm = $position === 0 ? $rareTerm : '';
 
-            $outcomes[] = [
-                'clo_shortphrase' => "Performance outcome {$label}A",
-                'l_outcome' => "Analyze {$primaryTerm} evidence and explain its relationship to {$secondaryTerm} decisions.{$rareTerm}",
-                'course_id' => $courseId,
-                'pos_in_alignment' => 0,
-                'created_at' => $timestamp,
-                'updated_at' => $timestamp,
-            ];
-            $outcomes[] = [
-                'clo_shortphrase' => "Performance outcome {$label}B",
-                'l_outcome' => "Evaluate sustainability options and communicate an indexed recommendation for course {$label}.",
-                'course_id' => $courseId,
-                'pos_in_alignment' => 1,
-                'created_at' => $timestamp,
-                'updated_at' => $timestamp,
-            ];
+                $topics[] = [
+                    'course_id' => $courseId,
+                    'topic' => "Performance topic {$label}-{$topicNumber}: {$focusTerm} systems",
+                    'description' => "Indexed topic about {$focusTerm}, evidence, and sustainability.{$topicRareTerm}",
+                    'position' => $position,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ];
+            }
 
-            $assessments[] = [
-                'a_method' => "Performance {$primaryTerm} analysis {$label}",
-                'weight' => 40,
-                'course_id' => $courseId,
-                'pos_in_alignment' => 0,
-                'created_at' => $timestamp,
-                'updated_at' => $timestamp,
-            ];
-            $assessments[] = [
-                'a_method' => "Performance {$secondaryTerm} project {$label}{$rareTerm}",
-                'weight' => 60,
-                'course_id' => $courseId,
-                'pos_in_alignment' => 1,
-                'created_at' => $timestamp,
-                'updated_at' => $timestamp,
-            ];
+            for ($position = 0; $position < self::OUTCOMES_PER_COURSE; $position++) {
+                $outcomeNumber = $position + 1;
+                $focusTerm = $position % 2 === 0 ? $primaryTerm : $secondaryTerm;
+                $outcomeRareTerm = $position === 0 ? $rareTerm : '';
 
-            $materials[] = [
-                'course_id' => $courseId,
-                'name' => "Performance {$primaryTerm} handbook {$label}",
-                'type' => 'book',
-                'description' => "Indexed material covering {$secondaryTerm} and sustainability.{$rareTerm}",
-                'is_required' => true,
-                'position' => 0,
-                'created_at' => $timestamp,
-                'updated_at' => $timestamp,
-            ];
-            $materials[] = [
-                'course_id' => $courseId,
-                'name' => "Performance data collection {$label}",
-                'type' => 'dataset',
-                'description' => "Supporting evidence for {$primaryTerm} analysis.",
-                'is_required' => false,
-                'position' => 1,
-                'created_at' => $timestamp,
-                'updated_at' => $timestamp,
-            ];
+                $outcomes[] = [
+                    'clo_shortphrase' => "Performance outcome {$label}-{$outcomeNumber}",
+                    'l_outcome' => "Analyze {$focusTerm} evidence and communicate an indexed recommendation for course {$label}.{$outcomeRareTerm}",
+                    'course_id' => $courseId,
+                    'pos_in_alignment' => $position,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ];
+            }
+
+            for ($position = 0; $position < self::ASSESSMENTS_PER_COURSE; $position++) {
+                $assessmentNumber = $position + 1;
+                $focusTerm = $position % 2 === 0 ? $primaryTerm : $secondaryTerm;
+                $assessmentRareTerm = $position === 0 ? $rareTerm : '';
+
+                $assessments[] = [
+                    'a_method' => "Performance {$focusTerm} assessment {$label}-{$assessmentNumber}{$assessmentRareTerm}",
+                    'weight' => 25,
+                    'course_id' => $courseId,
+                    'pos_in_alignment' => $position,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ];
+            }
+
+            for ($position = 0; $position < self::MATERIALS_PER_COURSE; $position++) {
+                $materialNumber = $position + 1;
+                $focusTerm = $position === 0 ? $primaryTerm : $secondaryTerm;
+                $materialRareTerm = $position === 0 ? $rareTerm : '';
+
+                $materials[] = [
+                    'course_id' => $courseId,
+                    'name' => "Performance {$focusTerm} material {$label}-{$materialNumber}",
+                    'type' => $position === 0 ? 'book' : 'dataset',
+                    'description' => "Indexed material covering {$focusTerm} evidence and sustainability.{$materialRareTerm}",
+                    'is_required' => $position === 0,
+                    'position' => $position,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ];
+            }
+
+            if ($index % self::CHUNK_SIZE === 0 || $index === $this->courseCount) {
+                $this->insertInChunks('course_description', $descriptions);
+                $this->insertInChunks('course_topics', $topics);
+                $this->insertInChunks('learning_outcomes', $outcomes);
+                $this->insertInChunks('assessment_methods', $assessments);
+                $this->insertInChunks('course_materials', $materials);
+
+                $descriptions = [];
+                $topics = [];
+                $outcomes = [];
+                $assessments = [];
+                $materials = [];
+            }
         }
-
-        $this->insertInChunks('course_description', $descriptions);
-        $this->insertInChunks('course_topics', $topics);
-        $this->insertInChunks('learning_outcomes', $outcomes);
-        $this->insertInChunks('assessment_methods', $assessments);
-        $this->insertInChunks('course_materials', $materials);
     }
 
     /**
