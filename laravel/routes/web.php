@@ -38,6 +38,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\AccountInformationController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SavedSearchFilterController;
 
 /*
 |--------------------------------------------------------------------------
@@ -257,6 +259,27 @@ Route::get('/courseWizard/{course}/step7', [CourseWizardController::class, 'step
 Route::get('/courseWizard/{course}/step8', [CourseWizardController::class, 'step8'])->name('courseWizard.step8');
 Route::get('/courseWizard/{course}/step9', [CourseWizardController::class, 'step9'])->name('courseWizard.step9');
 Route::get('/courseWizard/{course}/step10', [CourseWizardController::class, 'step10'])->name('courseWizard.step10');
+
+//Search engine routes
+Route::get('/search', [SearchController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('search.index');
+
+
+
+//Saved filter routes: before calling the controller method, we use middleware to run auth and verified to confirm the user
+//this way laravel can safely call $request->user()
+Route::post('/search/filters',[SavedSearchFilterController::class, 'store']
+)->middleware(['auth', 'verified'])->name('search.filters.store');
+
+Route::delete('/search/filters/{savedFilterId}',[SavedSearchFilterController::class, 'destroy']
+)->middleware(['auth', 'verified'])->name('search.filters.destroy');
+
+Route::get('/search/filters/{savedFilterId}/apply', [SavedSearchFilterController::class, 'apply']
+)->middleware(['auth', 'verified'])->name('search.filters.apply');
+
+
+
 //lets blade form submit to courseTopicController@store
 Route::post('/courseTopics/store', [CourseTopicController::class, 'store'])->name('courseTopics.store');
 Route::post('/courseMaterials/store', [CourseMaterialController::class, 'store'])->name('courseMaterials.store');
