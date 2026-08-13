@@ -713,6 +713,8 @@ public function test_topic_match_ranks_above_material_match()
     ]);
 }
 
+
+
 public function test_multiple_lower_weight_matches_can_outrank_single_topic_match()
 {
     $this->createCourseScaleCategory();
@@ -856,6 +858,31 @@ public function test_search_stats_show_total_matches_by_property()
     $response->assertSee('Assessments: 1');
     $response->assertSee('Descriptions: 1');
     $response->assertSee('Materials: 1');
+}
+
+public function test_material_content_match_is_included_in_search_statistics()
+{
+    $this->createCourseScaleCategory();
+
+    $course = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 112,
+        'course_title' => 'Material Content Stats Course',
+    ]);
+
+    $this->createIndexedMaterialContent($course, 'The uploaded document discusses statstone restoration.');
+
+    $response = $this->get(route('search.index', [
+        'query' => 'statstone',
+    ]));
+
+    $stats = $response->viewData('stats');
+    $result = $response->viewData('results')->first();
+
+    $response->assertStatus(200);
+    $this->assertSame(1, $stats['material_content']);
+    $this->assertSame(1, $result->match_stats['material_content']);
+    $response->assertSee('Material Content: 1');
 }
 
 public function test_search_stats_count_distinct_courses_and_total_topic_matches()

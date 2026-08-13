@@ -119,6 +119,7 @@ class SearchController extends Controller
             'assessments' => 0,
             'descriptions' => 0,
             'materials' => 0,
+            'material_content' => 0,
         ];
 
         $presetApplied = (bool) $request->session()->get('preset_applied', false);
@@ -777,9 +778,10 @@ class SearchController extends Controller
             'learning outcome' => 40,
             'assessment' => 30,
             'description' => 20,
+            'material content' => 15,
             'material' => 10,
             //these weights determine the score added to each match so courses with higher priority property matches
-            //show up first - the priority order, from highest to lowest is: Topics, LOs, assesments, description, material.
+            //show up first - the priority order, from highest to lowest is: Topics, LOs, assessments, description, material content, material.
         ];
 
         $propertyStatKeys = [
@@ -787,6 +789,7 @@ class SearchController extends Controller
             'learning outcome' => 'learning_outcomes',
             'assessment' => 'assessments',
             'description' => 'descriptions',
+            'material content' => 'material_content',
             'material' => 'materials',
 
             // Maps each raw match property name to the matching per-course stats key
@@ -814,6 +817,7 @@ class SearchController extends Controller
                         'assessments' => 0,
                         'descriptions' => 0,
                         'materials' => 0,
+                        'material_content' => 0,
                     ],
                     'matches' => collect(),
                 ];
@@ -868,7 +872,8 @@ class SearchController extends Controller
             'learning_outcomes' => $rawCourseMatches->where('property', 'learning outcome')->count(),
             'assessments' => $rawCourseMatches->where('property', 'assessment')->count(),
             'descriptions' => $rawCourseMatches->where('property', 'description')->count(),
-            'materials' => $rawCourseMatches->where('property', 'material')->count(),];
+            'materials' => $rawCourseMatches->where('property', 'material')->count(),
+            'material_content' => $rawCourseMatches->where('property', 'material content')->count(),];
     }   
 
 

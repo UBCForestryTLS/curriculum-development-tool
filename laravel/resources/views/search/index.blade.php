@@ -676,6 +676,7 @@
             'Assessments' => $stats['assessments'],
             'Descriptions' => $stats['descriptions'],
             'Materials' => $stats['materials'],
+            'Material Content' => $stats['material_content'],
         ])->filter(fn ($count) => $count > 0);
         $contentStats = $visibleStats->except(['Courses', 'Programs']);
 
@@ -844,6 +845,10 @@
 
                         @if($result->match_stats['materials'] > 0)
                             <span class="ms-2">Materials: {{ $result->match_stats['materials'] }}</span>
+                        @endif
+
+                        @if($result->match_stats['material_content'] > 0)
+                            <span class="ms-2">Material Content: {{ $result->match_stats['material_content'] }}</span>
                         @endif
                     </div>
                 @endif
