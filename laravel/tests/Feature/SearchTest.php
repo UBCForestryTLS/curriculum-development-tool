@@ -8,6 +8,8 @@ use Tests\TestCase;
 use App\Models\AssessmentMethod;
 use App\Models\Course;
 use App\Models\CourseMaterial;
+use App\Models\CourseMaterialChunk;
+use App\Models\CourseMaterialFile;
 use App\Models\CourseTopic;
 use App\Models\LearningOutcome;
 use App\Models\User;
@@ -227,6 +229,31 @@ class SearchTest extends TestCase
             ['scale_category_id' => 1],
             ['name' => 'Test Scale Category']
         );
+    }
+
+    private function createIndexedMaterialContent(Course $course, string $content): void
+    {
+        $material = CourseMaterial::factory()->create([
+            'course_id' => $course->course_id,
+            'name' => 'Indexed lecture material',
+            'type' => 'slides',
+        ]);
+
+        $file = CourseMaterialFile::create([
+            'course_material_id' => $material->course_material_id,
+            'uploaded_by' => $this->searchUser->id,
+            'file_name' => 'lecture.pdf',
+            'file_path' => "course-materials/{$course->course_id}/lecture.pdf",
+            'file_size' => 1024,
+            'status' => CourseMaterialFile::STATUS_INDEXED,
+        ]);
+
+        CourseMaterialChunk::create([
+            'course_material_file_id' => $file->course_material_file_id,
+            'page_number' => 1,
+            'chunk_index' => 0,
+            'content' => $content,
+        ]);
     }
 
 
@@ -533,6 +560,50 @@ public function test_search_only_returns_course_with_matching_material()
     $response->assertSee('Material:');
     $response->assertSee('velorium', false);
     $response->assertDontSee('Material Non Match Course');
+}
+
+public function test_search_finds_course_by_indexed_material_content()
+{
+    $this->createCourseScaleCategory();
+
+    $course = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 810,
+        'course_title' => 'Material Content Match Course',
+    ]);
+
+    $this->createIndexedMaterialContent($course, 'The lecture examines cryodendron restoration methods.');
+
+    $response = $this->get(route('search.index', [
+        'query' => 'cryodendron',
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('Material Content Match Course');
+    $response->assertSee('Material content:');
+    $response->assertSee('<mark>cryodendron</mark>', false);
+}
+
+public function test_material_content_is_not_searched_when_property_is_not_selected()
+{
+    $this->createCourseScaleCategory();
+
+    $course = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 811,
+        'course_title' => 'Excluded Material Content Course',
+    ]);
+
+    $this->createIndexedMaterialContent($course, 'The lecture examines luminara restoration methods.');
+
+    $response = $this->get(route('search.index', [
+        'query' => 'luminara',
+        'property_filters_applied' => 1,
+        'properties' => ['materials'],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertDontSee('Excluded Material Content Course');
 }
 
 public function test_search_finds_course_by_assessment()
@@ -1218,6 +1289,7 @@ public function test_search_defaults_to_all_properties()
         'assessments',
         'descriptions',
         'materials',
+        'material_content',
     ]);
 }
 
