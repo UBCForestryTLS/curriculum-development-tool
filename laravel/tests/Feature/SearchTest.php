@@ -614,6 +614,27 @@ public function test_material_content_is_not_searched_when_property_is_not_selec
     $response->assertDontSee('Excluded Material Content Course');
 }
 
+public function test_material_content_from_pending_file_is_not_searched()
+{
+    $this->createCourseScaleCategory();
+
+    $course = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 812,
+        'course_title' => 'Pending Material Content Course',
+    ]);
+
+    $file = $this->createIndexedMaterialContent($course, 'The lecture examines solavine restoration methods.');
+    $file->update(['status' => CourseMaterialFile::STATUS_PENDING]);
+
+    $response = $this->get(route('search.index', [
+        'query' => 'solavine',
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertDontSee('Pending Material Content Course');
+}
+
 public function test_search_finds_course_by_assessment()
 {
     $this->createCourseScaleCategory();
