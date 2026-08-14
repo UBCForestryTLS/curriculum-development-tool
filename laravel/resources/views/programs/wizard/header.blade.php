@@ -240,13 +240,6 @@
                 </div>
             @endif
 
-            <div class="row my-2">
-                <div class="col">
-                    <a href="{{ route('program.coverageAnalysis', $program->program_id) }}">
-                        <button type="button" style="width:200px" class="btn btn-info btn-sm float-end">Search (Temp)</button>
-                    </a>
-                </div>
-            </div>
         </div>
 
     </div>
