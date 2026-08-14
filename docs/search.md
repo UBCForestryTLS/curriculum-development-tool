@@ -13,6 +13,7 @@ This feature is implemented primarily under:
 - [`laravel/app/Helpers/SearchFilterOptions.php`](../laravel/app/Helpers/SearchFilterOptions.php)
 - [`laravel/resources/views/search/index.blade.php`](../laravel/resources/views/search/index.blade.php)
 - [`laravel/resources/views/search/partials/highlighted-snippet.blade.php`](../laravel/resources/views/search/partials/highlighted-snippet.blade.php)
+- [`laravel/resources/views/search/partials/result-match.blade.php`](../laravel/resources/views/search/partials/result-match.blade.php)
 - [`laravel/tests/Feature/SearchTest.php`](../laravel/tests/Feature/SearchTest.php)
 
 The related routes are defined in [`laravel/routes/web.php`](../laravel/routes/web.php).
@@ -27,6 +28,7 @@ The feature is responsible for:
 - searching course assessment methods
 - searching course descriptions
 - searching course materials
+- searching text extracted from indexed course material PDFs
 - searching program names
 - filtering results by course code, course level, program, and searchable property
 - showing results in either Course view or Program view
@@ -62,8 +64,11 @@ Search uses PostgreSQL full-text search across these fields:
 | `assessments` | Assessments | `assessment_methods.a_method` |
 | `descriptions` | Descriptions | `course_description.description` |
 | `materials` | Materials | `course_materials.name`, `course_materials.type`, `course_materials.description` |
+| `material_content` | Material Content | `course_material_chunks.content` for indexed course material files |
 
 Program names are searched directly from `programs.program` when Program view is selected. Course view still displays programs related to matching courses, but it does not run the direct program-name search.
+
+Topics accepted from course material suggestions are stored in `course_topics`, so they are included through the existing Topics property instead of a separate filter.
 
 The filter values and UI labels are defined in `SearchFilterOptions`, which is used by both search controllers and the Blade view. This keeps property validation, defaults, and display labels in one place.
 
@@ -107,6 +112,8 @@ The search feature depends on these migrations:
   - adds the generated `search_vector` column and GIN index for program names
 - `2026_07_13_000001_create_saved_search_filters_table.php`
   - creates `saved_search_filters` with `user_id`, `name`, and JSONB `filters`
+- `2026_06_08_150930_add_tsvector_to_course_material_chunks.php`
+  - adds the generated `content_tsv` column and GIN index used to search extracted PDF text
 
 The generated vectors are stored columns, so PostgreSQL updates them when the source fields change.
 
@@ -121,6 +128,7 @@ Topic: 50
 Learning outcome: 40 
 Assessment: 30 
 Description: 20 
+Material content: 15
 Material: 10
 
 Direct course matches are intentionally favoured. For example, a search for `CONS123` should show the actual course before another course that only mentions `CONS123` in a topic or description.
@@ -151,6 +159,8 @@ Course levels are treated as ranges:
 Course view is the default view. It shows matching courses, related programs, match stats, and snippets.
 
 Program view groups matching courses under their programs. Program results can come from direct program-name matches or from matching courses that belong to a program.
+
+Material Content matches also show the source PDF filename and page number. The source link opens the uploaded PDF at the matching page in a new tab.
 
 ## Saved Filter Presets
 
@@ -233,6 +243,7 @@ Few constraints that might be important to consider for this feature:
 - search depends on PostgreSQL generated `tsvector` columns and GIN indexes
 - the search page requires a verified logged-in user
 - search result links go to existing course and program wizard routes
+- only files with an `INDEXED` status are included in Material Content searches
 - PHP-side grouping and pagination is fine for a small dataset, but may need refactoring if the database grows extremely large, which is unlikely
 - empty-query listing is not currently implemented
 - if new searchable fields are added, update `SearchFilterOptions`, migrations, controller search methods, tests, and this doc
