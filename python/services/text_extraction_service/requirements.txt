@@ -6,6 +6,7 @@ python-dotenv==1.2.2
 python-json-logger==4.1.0
 python-multipart==0.0.32
 nltk==3.9.4
+spacy==3.8.14
 PyMuPDF==1.28.0
 pytesseract==0.3.13
 Pillow==12.3.0
