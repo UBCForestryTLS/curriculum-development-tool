@@ -841,9 +841,14 @@ class SearchController extends Controller
             }
 
             $combinedResults[$courseId]->matches->push((object) [
+                'course_id' => $match->course_id,
                 'property' => $match->property,
                 'matched_text' => $match->matched_text,
                 'snippet' => $match->snippet,
+                'course_material_id' => $match->course_material_id ?? null,
+                'file_id' => $match->file_id ?? null,
+                'file_name' => $match->file_name ?? null,
+                'page_number' => $match->page_number ?? null,
             ]);
 
         }

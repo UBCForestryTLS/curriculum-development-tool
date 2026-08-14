@@ -854,12 +854,7 @@
                 @endif
 
                 @foreach($result->matches->take(3) as $match)
-                    <div class="search-result-match">
-                        <p>
-                            <strong>{{ $match->property === 'learning outcome' ? 'Learning Objective' : ucfirst($match->property) }}:</strong>
-                            @include('search.partials.highlighted-snippet', ['snippet' => $match->snippet])
-                        </p>
-                    </div>
+                    @include('search.partials.result-match', ['match' => $match])
                 @endforeach
 
                 @if($result->matches->count() > 3)
@@ -868,12 +863,7 @@
 
                         <div class="mt-2">
                             @foreach($result->matches->slice(3) as $match)
-                                <div class="search-result-match">
-                                    <p>
-                                        <strong>{{ $match->property === 'learning outcome' ? 'Learning Objective' : ucfirst($match->property) }}:</strong>
-                                        @include('search.partials.highlighted-snippet', ['snippet' => $match->snippet])
-                                    </p>
-                                </div>
+                                @include('search.partials.result-match', ['match' => $match])
                             @endforeach
                         </div>
                     </details>
@@ -916,12 +906,7 @@
                         </h5>
 
                         @foreach($course->matches->take(3) as $match)
-                            <div class="search-result-match">
-                                <p>
-                                    <strong>{{ $match->property === 'learning outcome' ? 'Learning Objective' : ucfirst($match->property) }}:</strong>
-                                    @include('search.partials.highlighted-snippet', ['snippet' => $match->snippet])
-                                </p>
-                            </div>
+                            @include('search.partials.result-match', ['match' => $match])
                         @endforeach
 
                         @if($course->matches->count() > 3)
@@ -930,12 +915,7 @@
 
                                 <div class="mt-2">
                                     @foreach($course->matches->slice(3) as $match)
-                                        <div class="search-result-match">
-                                            <p>
-                                                <strong>{{ $match->property === 'learning outcome' ? 'Learning Objective' : ucfirst($match->property) }}:</strong>
-                                                @include('search.partials.highlighted-snippet', ['snippet' => $match->snippet])
-                                            </p>
-                                        </div>
+                                        @include('search.partials.result-match', ['match' => $match])
                                     @endforeach
                                 </div>
                             </details>
