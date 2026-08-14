@@ -231,7 +231,7 @@ class SearchTest extends TestCase
         );
     }
 
-    private function createIndexedMaterialContent(Course $course, string $content): void
+    private function createIndexedMaterialContent(Course $course, string $content): CourseMaterialFile
     {
         $material = CourseMaterial::factory()->create([
             'course_id' => $course->course_id,
@@ -254,6 +254,8 @@ class SearchTest extends TestCase
             'chunk_index' => 0,
             'content' => $content,
         ]);
+
+        return $file;
     }
 
 
@@ -572,7 +574,7 @@ public function test_search_finds_course_by_indexed_material_content()
         'course_title' => 'Material Content Match Course',
     ]);
 
-    $this->createIndexedMaterialContent($course, 'The lecture examines cryodendron restoration methods.');
+    $file = $this->createIndexedMaterialContent($course, 'The lecture examines cryodendron restoration methods.');
 
     $response = $this->get(route('search.index', [
         'query' => 'cryodendron',
@@ -580,7 +582,13 @@ public function test_search_finds_course_by_indexed_material_content()
 
     $response->assertStatus(200);
     $response->assertSee('Material Content Match Course');
-    $response->assertSee('Material content:');
+    $response->assertSee('Material Content:');
+    $response->assertSee('lecture.pdf, Page 1');
+    $response->assertSee(route('course.material.files.view', [
+        'course' => $course->course_id,
+        'material' => $file->course_material_id,
+        'file' => $file->course_material_file_id,
+    ]) . '#page=1', false);
     $response->assertSee('<mark>cryodendron</mark>', false);
 }
 
