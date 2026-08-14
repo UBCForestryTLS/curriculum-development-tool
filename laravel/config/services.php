@@ -44,9 +44,4 @@ return [
         'base_url' => env('TEXT_EXTRACTION_SERVICE_URL', 'http://127.0.0.1:8003'),
     ],
 
-    // When running on Windows, the php server has trouble finding pdftoppm.exe.
-    // If pdftoppm is installed in WSL, macOS, or Linux, we
-    // don't need to add the env var, it just defaults to pdftoppm.
-    'pdftoppm' => ['path' => env('PDFTOPPM_PATH', 'pdftoppm')],
-
 ];

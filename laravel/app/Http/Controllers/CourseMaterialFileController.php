@@ -9,12 +9,10 @@ use App\Models\SuggestedTopic;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use App\Support\PdfPageRenderer;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CourseMaterialFileController extends Controller
@@ -126,26 +124,6 @@ class CourseMaterialFileController extends Controller
         abort_unless(Storage::disk('local')->exists($file->file_path), 404);
 
         return Storage::disk('local')->response($file->file_path, $file->file_name);
-    }
-
-    public function thumbnail(Request $request, $course_id, $material_id, $file_id): Response
-    {
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->firstOrFail();
-
-        $absolutePath = Storage::disk('local')->path($file->file_path);
-        abort_unless(file_exists($absolutePath), 404);
-
-        $page = $request->validate(['page' => ['sometimes', 'integer', 'min:1', 'max:' . $file->page_count]])['page'] ?? 1;
-
-        $pngPath = PdfPageRenderer::pdfToImage($absolutePath, $page, 96);
-        try {
-            return response(file_get_contents($pngPath), 200)
-                ->header('Content-Type', 'image/png');
-        } finally {
-            @unlink($pngPath);
-        }
     }
 
     public function show($course_id, $material_id, $file_id)

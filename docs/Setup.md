@@ -113,12 +113,6 @@ Your active `php.ini` is the file listed as **"Loaded Configuration File"** when
 php --ini
 ```
 
-### Optional: PDF Thumbnails for Materials Search
-
-Rendering thumbnails requires `pdftoppm` from `poppler-utils`. Install via package manager or from [Poppler releases page](https://poppler.freedesktop.org/) and ensure `pdftoppm` is on your `PATH`.
-
-Verify with `pdftoppm -v`.
-
 ### Run migrations and seeders
 
 ```
