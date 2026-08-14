@@ -10,7 +10,7 @@
                         <h3>
                         Course Description
                         <div style="float: right;">
-                            <button id="tlaHelp" style="border: none; background: none; outline: none;" data-bs-toggle="modal" href="#guideModal">
+                            <button id="descriptionHelp" style="border: none; background: none; outline: none;" data-bs-toggle="modal" href="#guideModal">
                                 <i class="bi bi-question-circle" style="color:#002145;"></i>
                             </button>
                         </div>
