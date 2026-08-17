@@ -415,7 +415,15 @@
         $("#guideModal .update-content").html(`
             <h2 class="mb-4 head"><u>Course Description (Step 1)</u></h2>
             <br>
-            <p class="help-p my-3 center" style="font-size:18px;">This page is under construction.</p>
+            <p class="help-p my-3" style="font-size:18px;">The course description summarizes the course content, objectives, and expectations so students can understand what the course covers.</p>
+            <br>
+            <h2 class="text-center mb-4">How to Add a Course Description</h2>
+            <p class="help-p my-3" style="font-size:18px;">Select <b>+ Course Description</b>, enter the description, and save your changes.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseDescriptionAnnotated.png')}}" onclick="onClick(this)">
+            <br>
+            <p class="help-p my-3" style="font-size:18px;">Once it is saved, the description will appear on the course page. Select <b>Edit</b> if it needs to be updated.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseDescriptionSaved.png')}}" onclick="onClick(this)">
+            <br>
             <div class="row">
                 <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCourses()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Courses</button></div>
                 <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCourseTopics()" style="color: white;">Course Topics (Step 2) <i class="bi bi-arrow-right me-2"></i></button></div>
@@ -765,7 +773,15 @@
         $("#guideModal .update-content").html(`
             <h2 class="mb-4 head"><u>Course Topics (Step 2)</u></h2>
             <br>
-            <p class="help-p my-3 center" style="font-size:18px;">This page is under construction.</p>
+            <p class="help-p my-3" style="font-size:18px;">Course topics describe the main subjects covered in the course. These may come from the course schedule, weekly modules, lecture topics, units, or course calendar.</p>
+            <br>
+            <h2 class="text-center mb-4">How to Add Course Topics</h2>
+            <p class="help-p my-3" style="font-size:18px;">Select <b>+ Course Topics</b> to open the topic editor.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseTopicsAnnotated.png')}}" onclick="onClick(this)">
+            <br>
+            <p class="help-p my-3" style="font-size:18px;">Enter one topic at a time and select <b>Add</b>. Repeat this for each topic, remove any topics that are no longer needed, and save your changes when finished.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseTopicsModal.png')}}" onclick="onClick(this)">
+            <br>
             <div class="row">
                 <div class="col"><button class="btn btn-primary float-start w-100" onclick="setDescription()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Description (Step 1)</button></div>
                 <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCourseMaterials()" style="color: white;">Course Materials (Step 3) <i class="bi bi-arrow-right me-2"></i></button></div>
@@ -781,7 +797,15 @@
         $("#guideModal .update-content").html(`
             <h2 class="mb-4 head"><u>Course Materials (Step 3)</u></h2>
             <br>
-            <p class="help-p my-3 center" style="font-size:18px;">This page is under construction.</p>
+            <p class="help-p my-3" style="font-size:18px;">Course materials may include textbooks, articles, slides, videos, websites, datasets, and other required or recommended resources.</p>
+            <br>
+            <h2 class="text-center mb-4">How to Add Course Materials</h2>
+            <p class="help-p my-3" style="font-size:18px;">Select <b>Edit Course Materials</b>. Enter the material name, type, description, and URL, and mark it as required when applicable. Select <b>Add</b>, then save your changes when finished.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseMaterialsModal.png')}}" onclick="onClick(this)">
+            <br>
+            <p class="help-p my-3" style="font-size:18px;">Saved materials appear on the course page. Expand a material's files and select <b>+ Add File</b> to upload an associated PDF. The file section shows its processing status, page count, and available actions.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseMaterialsAnnotated.png')}}" onclick="onClick(this)">
+            <br>
             <div class="row">
                 <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCourseTopics()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Topics (Step 2)</button></div>
                 <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCLO()" style="color: white;">Course Learning Outcomes (Step 4) <i class="bi bi-arrow-right me-2"></i></button></div>
@@ -817,7 +841,10 @@
         $("#guideModal .update-content").html(`
             <h2 class="mb-4 head"><u>Syllabi</u></h2>
             <br>
-            <p class="help-p my-3 center" style="font-size:18px;">This page is under construction.</p>
+            <p class="help-p my-3" style="font-size:18px;">The Syllabus Generator provides fields for the course details, schedule, learning activities, assessments, policies, and other information needed to prepare a syllabus. Complete the fields throughout the page, paying attention to items marked as required by policy.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/SyllabusGeneratorAnnotated.png')}}" onclick="onClick(this)">
+            <br>
+            <p class="help-p my-3" style="font-size:18px;"><b>Save</b> stores the current syllabus, <b>Word</b> saves and downloads it as a Word document, and <b>Import</b> lets you select an existing course and copy relevant course information into the generator.</p>
         `);
     }
 
