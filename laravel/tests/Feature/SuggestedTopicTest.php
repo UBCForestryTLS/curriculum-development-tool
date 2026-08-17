@@ -12,6 +12,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class SuggestedTopicTest extends TestCase
@@ -497,5 +498,40 @@ class SuggestedTopicTest extends TestCase
 
         $suggested->refresh();
         $this->assertEquals(SuggestedTopic::STATUS_PENDING, $suggested->status);
+    }
+
+    public function test_material_file_must_belong_to_the_accessible_course(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create();
+        $accessibleCourse = Course::factory()->create();
+        $accessibleCourse->users()->attach($user->id, ['permission' => 1]);
+
+        $otherCourse = Course::factory()->create();
+        $material = CourseMaterial::create([
+            'course_id' => $otherCourse->course_id,
+            'name' => 'Private Material',
+            'type' => 'article',
+        ]);
+        $path = 'course-materials/' . $otherCourse->course_id . '/private.pdf';
+        Storage::disk('local')->put($path, 'private content');
+
+        $file = CourseMaterialFile::create([
+            'course_material_id' => $material->course_material_id,
+            'uploaded_by' => $user->id,
+            'file_name' => 'private.pdf',
+            'file_path' => $path,
+            'file_size' => 15,
+            'status' => CourseMaterialFile::STATUS_INDEXED,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('course.material.files.view', [
+                $accessibleCourse->course_id,
+                $material->course_material_id,
+                $file->course_material_file_id,
+            ]))
+            ->assertNotFound();
     }
 }

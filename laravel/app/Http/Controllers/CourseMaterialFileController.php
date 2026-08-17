@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\IndexCourseMaterial;
+use App\Models\CourseMaterial;
 use App\Models\CourseMaterialFile;
 use App\Models\CourseTopic;
 use App\Models\SuggestedTopic;
@@ -26,6 +27,7 @@ class CourseMaterialFileController extends Controller
     public function store(Request $request, $course_id, $material_id): RedirectResponse
     {
         $this->verifyUserIsEditor((int) $course_id);
+        $this->findMaterialForCourse((int) $course_id, (int) $material_id);
 
         $request->validate([
             'file' => ['required', 'file', 'mimes:pdf', 'max:51200'],
@@ -68,9 +70,7 @@ class CourseMaterialFileController extends Controller
     {
         $this->verifyUserIsEditor((int) $course_id);
 
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->firstOrFail();
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
 
         if (Storage::disk('local')->exists($file->file_path)) {
             Storage::disk('local')->delete($file->file_path);
@@ -86,9 +86,7 @@ class CourseMaterialFileController extends Controller
     {
         $this->verifyUserIsEditor((int) $course_id);
 
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->firstOrFail();
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
 
         $file->update([
             'status' => CourseMaterialFile::STATUS_PENDING,
@@ -106,9 +104,7 @@ class CourseMaterialFileController extends Controller
 
     public function download($course_id, $material_id, $file_id): StreamedResponse
     {
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->firstOrFail();
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
 
         abort_unless(Storage::disk('local')->exists($file->file_path), 404);
 
@@ -117,9 +113,7 @@ class CourseMaterialFileController extends Controller
 
     public function view($course_id, $material_id, $file_id): StreamedResponse
     {
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->firstOrFail();
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
 
         abort_unless(Storage::disk('local')->exists($file->file_path), 404);
 
@@ -128,15 +122,13 @@ class CourseMaterialFileController extends Controller
 
     public function show($course_id, $material_id, $file_id)
     {
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->with([
-                'courseMaterial',
-                'uploader',
-                'chunks' => fn($q) => $q->orderBy('page_number')->orderBy('chunk_index'),
-                'topics' => fn($q) => $q->orderBy('position'),
-            ])
-            ->firstOrFail();
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
+        $file->load([
+            'courseMaterial',
+            'uploader',
+            'chunks' => fn($q) => $q->orderBy('page_number')->orderBy('chunk_index'),
+            'topics' => fn($q) => $q->orderBy('position'),
+        ]);
 
         $courseTopics = CourseTopic::where('course_id', $course_id)
             ->orderBy('position')
@@ -164,9 +156,7 @@ class CourseMaterialFileController extends Controller
     {
         $this->verifyUserIsEditor((int) $course_id);
 
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->firstOrFail();
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
 
         $request->validate([
             'topic_ids' => 'required|array',
@@ -199,9 +189,7 @@ class CourseMaterialFileController extends Controller
             'decisions.*.id' => 'required|integer|exists:suggested_topics,suggested_topic_id',
             'decisions.*.action' => 'required|in:confirm,reject',
         ]);
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->firstOrFail();
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
 
 
         $decisions = $request->input('decisions');
@@ -236,9 +224,7 @@ class CourseMaterialFileController extends Controller
     {
         $this->verifyUserIsEditor((int) $course_id);
 
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->firstOrFail();
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
 
         DB::transaction(function () use ($file) {
             $topicTexts = $file->suggestedTopics()
@@ -256,9 +242,7 @@ class CourseMaterialFileController extends Controller
     {
         $this->verifyUserIsEditor((int) $course_id);
 
-        $file = CourseMaterialFile::where('course_material_file_id', $file_id)
-            ->where('course_material_id', $material_id)
-            ->firstOrFail();
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
 
         $file->suggestedTopics()
             ->where('status', SuggestedTopic::STATUS_PENDING)
@@ -331,6 +315,23 @@ class CourseMaterialFileController extends Controller
             ->where('status', SuggestedTopic::STATUS_PENDING)
             ->whereIn(DB::raw('LOWER(topic)'), $lowerKeys)
             ->delete();
+    }
+
+    private function findMaterialForCourse(int $courseId, int $materialId): CourseMaterial
+    {
+        return CourseMaterial::where('course_material_id', $materialId)
+            ->where('course_id', $courseId)
+            ->firstOrFail();
+    }
+
+    private function findFileForCourse(int $courseId, int $materialId, int $fileId): CourseMaterialFile
+    {
+        return CourseMaterialFile::where('course_material_file_id', $fileId)
+            ->where('course_material_id', $materialId)
+            ->whereHas('courseMaterial', function ($query) use ($courseId) {
+                $query->where('course_id', $courseId);
+            })
+            ->firstOrFail();
     }
 
 
