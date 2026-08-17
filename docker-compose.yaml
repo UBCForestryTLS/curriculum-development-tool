@@ -4,6 +4,7 @@ services:
   laravel:
     build:
       context: laravel/
+    env_file: laravel/.env.docker
     ports:
       - 9000:80
     volumes:
@@ -26,10 +27,7 @@ services:
     image: postgres:17.10-trixie
     volumes:
       - pgdata:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: ${DB_DATABASE:?}
-      POSTGRES_USER: ${DB_USERNAME:?}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
+    env_file: laravel/.env.postgres
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s

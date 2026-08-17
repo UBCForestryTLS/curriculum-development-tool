@@ -25,7 +25,7 @@ RUN --mount=type=bind,source=composer.json,target=composer.json \
 
 # IMPORTANT: the excludes below prevent copying over sensitive/unnecessary
 # files into container
-COPY --exclude=**/.dockerenv --exclude=**/.docker . /var/www/html
+COPY --exclude=**/.docker . /var/www/html
 
 # TODO: Figure out if this needs to be modified to support volumes
 # storage/app/public and storage/framework/sessions probably need
@@ -35,12 +35,15 @@ RUN mkdir -p storage/app/public/ \
     storage/framework/views/ \
     storage/framework/cache/
 
+# Dummy value required for the autoload to run successfully (its value
+# at this stage is seemingly not important)
+ENV APP_URL ""
+
 # required due to --no-autoloader option in the composer install layer
-# Both commands need env variables to correctly generate config, which
-# --mount makes temporarily available
-RUN --mount=type=bind,source=.dockerenv,target=.env \
-    composer dump-autoload --no-dev --optimize \
-    && php artisan optimize
+RUN composer dump-autoload --no-dev --optimize \
+    && php artisan route:cache \
+    && php artisan view:cache \
+    && php artisan vendor:publish --all
 
 # TODO: Make necessary changes to php.ini (particularly for file uploads, see docs)
 # use the production configuration file 

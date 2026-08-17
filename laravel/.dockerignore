@@ -21,7 +21,7 @@ README*
 .styleci.yml
 scripts/
 tests/
-vendor/
+**/vendor/
 
 storage/app/
 storage/framework/
