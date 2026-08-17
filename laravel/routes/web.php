@@ -294,8 +294,8 @@ Route::post('/courses/{course}/materials/{material}/files', [CourseMaterialFileC
 Route::post('/courses/{course}/materials/{material}/files/{file}/refresh', [CourseMaterialFileController::class, 'refresh'])->name('course.material.files.refresh');
 Route::post('/courses/{course}/materials/{material}/files/{file}/topics', [CourseMaterialFileController::class, 'updateTopics'])->name('course.material.files.topics.update');
 Route::post('/courses/{course}/materials/{material}/files/{file}/topics/review', [CourseMaterialFileController::class, 'reviewTopics'])->name('course.material.files.topics.review');
-Route::post('/courses/{course}/materials/{material}/files/{file}/topics/accept-all', [CourseMaterialFileController::class, 'acceptAllTopics'])->name('course.material.files.topics.accept-all'); # Could remove this if needed
-Route::post('/courses/{course}/materials/{material}/files/{file}/topics/reject-all', [CourseMaterialFileController::class, 'rejectAllTopics'])->name('course.material.files.topics.reject-all'); # Could remove this if needed
+Route::post('/courses/{course}/materials/{material}/files/{file}/topics/accept-all', [CourseMaterialFileController::class, 'acceptAllTopics'])->name('course.material.files.topics.accept-all');
+Route::post('/courses/{course}/materials/{material}/files/{file}/topics/reject-all', [CourseMaterialFileController::class, 'rejectAllTopics'])->name('course.material.files.topics.reject-all');
 Route::get('/courses/{course}/materials/{material}/files/{file}', [CourseMaterialFileController::class, 'show'])->name('course.material.files.show');
 Route::delete('/courses/{course}/materials/{material}/files/{file}', [CourseMaterialFileController::class, 'destroy'])->name('course.material.files.destroy');
 Route::get('/courses/{course}/materials/{material}/files/{file}/view', [CourseMaterialFileController::class, 'view'])->name('course.material.files.view');
