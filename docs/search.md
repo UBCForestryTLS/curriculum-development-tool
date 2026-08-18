@@ -249,6 +249,8 @@ php artisan test tests/Feature/SearchTest.php
 
 `SearchPerformanceSeeder` creates deterministic data for measuring search response times and PostgreSQL query performance. It is not included in `DatabaseSeeder` and cannot run in production.
 
+See [Search and Role Access Performance Testing](search-role-access-performance-testing.pdf) for the generated dataset, testing process, response-time results, and findings.
+
 Run the default dataset with:
 
 ```bash
