@@ -67,7 +67,6 @@ class IndexCourseMaterial implements ShouldQueue
                         'existing_topics' => $existingTopics,
                     ]);
             } else {
-                $absolutePath = Storage::disk('local')->path($file->file_path);
                 $metadata = json_encode([
                     'ocr_enabled' => (bool) $file->ocr_enabled,
                     'extraction_engine' => $file->extraction_engine,
@@ -77,7 +76,7 @@ class IndexCourseMaterial implements ShouldQueue
                 ]);
 
                 $response = Http::timeout($this->timeout)
-                    ->attach('file', fopen($absolutePath, 'r'), basename($absolutePath))
+                    ->attach('file', Storage::get($file->file_path), $file->file_name)
                     ->post(config('services.text_extraction.base_url') . '/extract', [
                         'metadata' => $metadata,
                     ]);

@@ -51,9 +51,10 @@ async def extract(
         )
 
     if request_metadata.extraction_engine == "textract" and not (settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY):
+        logger.error("Textract extraction requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
         raise HTTPException(
             status_code=501,
-            detail="Textract extraction requires AWS credentials; configure AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.",
+            detail="Textract extraction is not configured.",
         )
     try:
         handler = type_specific_handlers.get_handler(request_metadata.material_type)
