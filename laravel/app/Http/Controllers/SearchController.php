@@ -272,7 +272,7 @@ class SearchController extends Controller
 
         if (in_array('material_content', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchMaterialContent($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds)
+                $this->searchMaterialContent($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds, $user)
             );
         }
 
@@ -546,15 +546,17 @@ class SearchController extends Controller
      * @param array $courseCodes The selected course codes.
      * @param array $courseLevels The selected course number levels.
      * @param array $selectedProgramIds The selected program IDs used to restrict matching courses.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return Collection The matching material content with its course, file, page, and snippet details.
      */
-    public function searchMaterialContent(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds){
+    public function searchMaterialContent(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds, User $user){
         $query = DB::table('course_material_chunks')
             ->join('course_material_files', 'course_material_files.course_material_file_id', '=', 'course_material_chunks.course_material_file_id')
             ->join('course_materials', 'course_materials.course_material_id', '=', 'course_material_files.course_material_id')
             ->join('courses', 'courses.course_id', '=', 'course_materials.course_id');
 
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
