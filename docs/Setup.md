@@ -32,7 +32,7 @@ npm install
 cp .env.example .env
 ```
 
-The committed `.env.example` is the template every developer starts from. Its relevant database section is:
+Use `.env.example` as a template for `.env`, and modify values as required.
 
 ```
 DB_CONNECTION=pgsql
@@ -76,13 +76,13 @@ If you see `psql: command not found`, PostgreSQL is not installed; install it fi
 
 #### Create the `root` role
 
-`initdb` creates the `postgres` superuser but not `root`. Since `.env.example` ships with `DB_USERNAME=root`, create that role once:
+Create the root role:
 
 ```
 psql -U postgres -h 127.0.0.1 -c "CREATE ROLE root LOGIN PASSWORD '';"
 ```
 
-The empty password matches `DB_PASSWORD=` in the template. // TODO Check this
+The above command has a blank password. If setting a password, also set it in `.env`, under `DB_PASSWORD=`
 
 #### Create the application database
 
@@ -95,6 +95,22 @@ psql -U postgres -h 127.0.0.1 -c "CREATE DATABASE laravel OWNER root;"
 
 ```
 php artisan storage:link
+```
+
+### Optional: PHP upload limits (required for Course Material File uploads)
+
+The Course Material File extraction feature lets users upload PDF course materials. PHP's default limits are small, so set these larger values in your active `php.ini`:
+
+```ini
+upload_max_filesize = 50M
+post_max_size = 60M
+memory_limit = 256M
+```
+
+Your active `php.ini` is the file listed as **"Loaded Configuration File"** when you run
+
+```
+php --ini
 ```
 
 ### Run migrations and seeders
@@ -131,6 +147,11 @@ Start the queue worker in one terminal:
 
 ``` 
 php artisan queue:work
+```
+
+Note: If you need OCR, add this flag
+``` 
+php artisan queue:work --memory=2048
 ```
 
 Run the application in another:
@@ -227,6 +248,7 @@ python -m venv env
 ``` 
 pip install -r requirements.txt
 ```
+Also check the service's documentation under `docs/` for additional specific setup steps.
 
 ### Run the Service
 

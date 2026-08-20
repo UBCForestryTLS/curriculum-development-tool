@@ -907,7 +907,7 @@ public function step10($course_id, Request $request)
         }
     }
 
-    $courseMaterials = $course->courseMaterials->sortBy('position')->values();
+    $courseMaterials = $course->courseMaterials()->with('files')->orderBy('position')->get();
 
     $standard_categories = DB::table('standard_categories')->get();
 

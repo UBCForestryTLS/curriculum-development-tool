@@ -119,6 +119,7 @@ class SearchController extends Controller
             'assessments' => 0,
             'descriptions' => 0,
             'materials' => 0,
+            'material_content' => 0,
         ];
 
         $presetApplied = (bool) $request->session()->get('preset_applied', false);
@@ -248,6 +249,12 @@ class SearchController extends Controller
         if (in_array('materials', $selectedProperties)) {
             $searchResults = $searchResults->merge(
                 $this->searchMaterials($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds)
+            );
+        }
+
+        if (in_array('material_content', $selectedProperties)) {
+            $searchResults = $searchResults->merge(
+                $this->searchMaterialContent($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds)
             );
         }
 
@@ -507,6 +514,52 @@ class SearchController extends Controller
     }
 
     /**
+     * Searches text extracted from indexed course material files.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     * @param array $courseCodes The selected course codes.
+     * @param array $courseLevels The selected course number levels.
+     * @param array $selectedProgramIds The selected program IDs used to restrict matching courses.
+     *
+     * @return Collection The matching material content with its course, file, page, and snippet details.
+     */
+    public function searchMaterialContent(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds){
+        $query = DB::table('course_material_chunks')
+            ->join('course_material_files', 'course_material_files.course_material_file_id', '=', 'course_material_chunks.course_material_file_id')
+            ->join('course_materials', 'course_materials.course_material_id', '=', 'course_material_files.course_material_id')
+            ->join('courses', 'courses.course_id', '=', 'course_materials.course_id');
+
+        $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
+        $query = $this->filterByProgramIds($query, $selectedProgramIds);
+
+        return $query
+            ->where('course_material_files.status', 'INDEXED')
+            ->whereRaw(
+                "course_material_chunks.content_tsv @@ websearch_to_tsquery('english', ?)",
+                [$searchTerm]
+            )
+            ->selectRaw("
+                courses.course_id,
+                courses.course_code,
+                courses.course_num,
+                courses.course_title,
+                course_materials.course_material_id,
+                course_material_files.course_material_file_id as file_id,
+                course_material_files.file_name,
+                course_material_chunks.page_number,
+                'material content' as property,
+                course_material_chunks.content as matched_text,
+                ts_headline(
+                    'english',
+                    course_material_chunks.content,
+                    websearch_to_tsquery('english', ?),
+                    'StartSel=<mark>, StopSel=</mark>, MaxFragments=2, MinWords=4, MaxWords=20'
+                ) as snippet
+            ", [$searchTerm])
+            ->get();
+    }
+
+    /**
      * Finds assessment methods matching the search term and creates highlighted result snippets.
      *
      * @param string $searchTerm The normalized text to search for.
@@ -725,9 +778,10 @@ class SearchController extends Controller
             'learning outcome' => 40,
             'assessment' => 30,
             'description' => 20,
+            'material content' => 15,
             'material' => 10,
             //these weights determine the score added to each match so courses with higher priority property matches
-            //show up first - the priority order, from highest to lowest is: Topics, LOs, assesments, description, material.
+            //show up first - the priority order, from highest to lowest is: Topics, LOs, assessments, description, material content, material.
         ];
 
         $propertyStatKeys = [
@@ -735,6 +789,7 @@ class SearchController extends Controller
             'learning outcome' => 'learning_outcomes',
             'assessment' => 'assessments',
             'description' => 'descriptions',
+            'material content' => 'material_content',
             'material' => 'materials',
 
             // Maps each raw match property name to the matching per-course stats key
@@ -762,6 +817,7 @@ class SearchController extends Controller
                         'assessments' => 0,
                         'descriptions' => 0,
                         'materials' => 0,
+                        'material_content' => 0,
                     ],
                     'matches' => collect(),
                 ];
@@ -785,9 +841,14 @@ class SearchController extends Controller
             }
 
             $combinedResults[$courseId]->matches->push((object) [
+                'course_id' => $match->course_id,
                 'property' => $match->property,
                 'matched_text' => $match->matched_text,
                 'snippet' => $match->snippet,
+                'course_material_id' => $match->course_material_id ?? null,
+                'file_id' => $match->file_id ?? null,
+                'file_name' => $match->file_name ?? null,
+                'page_number' => $match->page_number ?? null,
             ]);
 
         }
@@ -816,7 +877,8 @@ class SearchController extends Controller
             'learning_outcomes' => $rawCourseMatches->where('property', 'learning outcome')->count(),
             'assessments' => $rawCourseMatches->where('property', 'assessment')->count(),
             'descriptions' => $rawCourseMatches->where('property', 'description')->count(),
-            'materials' => $rawCourseMatches->where('property', 'material')->count(),];
+            'materials' => $rawCourseMatches->where('property', 'material')->count(),
+            'material_content' => $rawCourseMatches->where('property', 'material content')->count(),];
     }   
 
 

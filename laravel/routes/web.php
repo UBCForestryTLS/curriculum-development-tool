@@ -5,13 +5,14 @@ use App\Http\Controllers\AdminEmailController;
 use App\Http\Controllers\AdminAssignRoleController;
 use App\Http\Controllers\AssessmentMethodController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\CourseMaterialController;
+use App\Http\Controllers\CourseMaterialFileController;
 use App\Http\Controllers\CourseProgramController;
 use App\Http\Controllers\CourseUserController;
 use App\Http\Controllers\CourseWizardController;
 use App\Http\Controllers\CustomAssessmentMethodsController;
 use App\Http\Controllers\CustomLearningActivitiesController;
 use App\Http\Controllers\CourseTopicController;
-use App\Http\Controllers\CourseMaterialController;
 use App\Http\Controllers\FAQController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InviteController;
@@ -287,6 +288,18 @@ Route::post('courseWizard/{courseId}/{programId}/aiSuggestion', [CourseProgramCo
 Route::post('courseWizard/{courseId}/{programId}/generate-ai-suggestions', [CourseProgramController::class, 'generateAiSuggestions']);
 Route::post('courseWizard/{courseId}/{programId}/check-ai-results', [CourseProgramController::class, 'checkAiResults']);
 Route::post('courseWizard/{courseId}/{programId}/check-in-flight', [CourseProgramController::class, 'checkInFlight']);
+
+// Course materials (wizard metadata) + file uploads
+Route::post('/courses/{course}/materials/{material}/files', [CourseMaterialFileController::class, 'store'])->name('course.material.files.store');
+Route::post('/courses/{course}/materials/{material}/files/{file}/refresh', [CourseMaterialFileController::class, 'refresh'])->name('course.material.files.refresh');
+Route::post('/courses/{course}/materials/{material}/files/{file}/topics', [CourseMaterialFileController::class, 'updateTopics'])->name('course.material.files.topics.update');
+Route::post('/courses/{course}/materials/{material}/files/{file}/topics/review', [CourseMaterialFileController::class, 'reviewTopics'])->name('course.material.files.topics.review');
+Route::post('/courses/{course}/materials/{material}/files/{file}/topics/accept-all', [CourseMaterialFileController::class, 'acceptAllTopics'])->name('course.material.files.topics.accept-all');
+Route::post('/courses/{course}/materials/{material}/files/{file}/topics/reject-all', [CourseMaterialFileController::class, 'rejectAllTopics'])->name('course.material.files.topics.reject-all');
+Route::get('/courses/{course}/materials/{material}/files/{file}', [CourseMaterialFileController::class, 'show'])->name('course.material.files.show');
+Route::delete('/courses/{course}/materials/{material}/files/{file}', [CourseMaterialFileController::class, 'destroy'])->name('course.material.files.destroy');
+Route::get('/courses/{course}/materials/{material}/files/{file}/view', [CourseMaterialFileController::class, 'view'])->name('course.material.files.view');
+Route::get('/courses/{course}/materials/{material}/files/{file}/download', [CourseMaterialFileController::class, 'download'])->name('course.material.files.download');
 
 Route::post('/courseDescription/{course}/store', [\App\Http\Controllers\CourseDescriptionController::class, 'store'])->name('courseDescription.store');
 

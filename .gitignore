@@ -16,6 +16,7 @@ laravel/database/seeders/LocalSearchSeeder.php
 laravel/resources/views/emails/
 laravel/.phpunit.cache
 .phpunit.result.cache
+laravel/.phpunit.cache
 
 laravel/tests/Browser/Screenshots
 
@@ -38,6 +39,7 @@ experiments/llm-evaluation/venv
 python/services/logs/
 python/services/*/env/
 python/services/lo_mapping_service/app/services/batch_inputs/**
+python/services/lo_mapping_service/deploy/*.zip
 **.env
 python/services/lo_mapping_service/deploy/*.zip
 python/services/lo_mapping_service/env
