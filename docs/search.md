@@ -90,6 +90,8 @@ Direct course access only checks whether the `course_users` row exists. It does 
 
 Role-based search access uses the same materialized `course_user_role` rows as the dashboard and course-page access. Search does not recalculate access from program, department, or faculty relationships. These rows must therefore stay synchronized when roles and course relationships change.
 
+The same access restrictions apply to every searchable course property, including text extracted from indexed course material files.
+
 ## Request Flow
 
 The processing flow is:
@@ -241,6 +243,7 @@ The tests cover:
 - searching each course property
 - direct course and direct program matches
 - direct course access, Program Director access, and Department Head access
+- indexed material content only appearing for accessible courses
 - ranking behavior
 - safe highlighted snippets
 - search stats

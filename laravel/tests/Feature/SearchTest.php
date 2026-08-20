@@ -991,6 +991,34 @@ public function test_search_finds_course_by_indexed_material_content()
     $response->assertSee('<mark>cryodendron</mark>', false);
 }
 
+public function test_material_content_search_only_returns_accessible_courses()
+{
+    $this->createCourseScaleCategory();
+
+    $regularUser = User::factory()->create();
+    $this->actingAs($regularUser);
+
+    $accessibleCourse = $this->createSearchCourse('OPEN', 813, 'Accessible Material Content Course');
+    $inaccessibleCourse = $this->createSearchCourse('HIDE', 814, 'Inaccessible Material Content Course');
+
+    $this->giveUserDirectCourseAccess($regularUser, $accessibleCourse, 3);
+    $this->createIndexedMaterialContent($accessibleCourse, 'The lecture examines verdantaccessium restoration methods.');
+    $this->createIndexedMaterialContent($inaccessibleCourse, 'The lecture examines verdantaccessium restoration methods.');
+
+    $response = $this->get(route('search.index', [
+        'query' => 'verdantaccessium',
+        'property_filters_applied' => 1,
+        'properties' => ['material_content'],
+    ]));
+
+    $response->assertStatus(200);
+    $this->assertSearchVisibility($response, [
+        'Accessible Material Content Course',
+    ], [
+        'Inaccessible Material Content Course',
+    ]);
+}
+
 public function test_material_content_is_not_searched_when_property_is_not_selected()
 {
     $this->createCourseScaleCategory();
