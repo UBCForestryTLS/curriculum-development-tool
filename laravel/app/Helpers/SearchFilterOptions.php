@@ -13,6 +13,7 @@ class SearchFilterOptions
             'assessments' => 'Assessments',
             'descriptions' => 'Descriptions',
             'materials' => 'Materials',
+            'material_content' => 'Material Content',
         ];
     }
 

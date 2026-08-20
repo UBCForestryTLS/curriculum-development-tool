@@ -8,6 +8,8 @@ use Tests\TestCase;
 use App\Models\AssessmentMethod;
 use App\Models\Course;
 use App\Models\CourseMaterial;
+use App\Models\CourseMaterialChunk;
+use App\Models\CourseMaterialFile;
 use App\Models\CourseTopic;
 use App\Models\LearningOutcome;
 use App\Models\User;
@@ -701,6 +703,33 @@ class SearchTest extends TestCase
         }
     }
 
+    private function createIndexedMaterialContent(Course $course, string $content): CourseMaterialFile
+    {
+        $material = CourseMaterial::factory()->create([
+            'course_id' => $course->course_id,
+            'name' => 'Indexed lecture material',
+            'type' => 'slides',
+        ]);
+
+        $file = CourseMaterialFile::create([
+            'course_material_id' => $material->course_material_id,
+            'uploaded_by' => $this->searchUser->id,
+            'file_name' => 'lecture.pdf',
+            'file_path' => "course-materials/{$course->course_id}/lecture.pdf",
+            'file_size' => 1024,
+            'status' => CourseMaterialFile::STATUS_INDEXED,
+        ]);
+
+        CourseMaterialChunk::create([
+            'course_material_file_id' => $file->course_material_file_id,
+            'page_number' => 1,
+            'chunk_index' => 0,
+            'content' => $content,
+        ]);
+
+        return $file;
+    }
+
 
     //Search Topics Querying tests
     public function test_search_finds_course_by_topic(){
@@ -934,6 +963,77 @@ public function test_search_only_returns_course_with_matching_material()
     $response->assertDontSee('Material Non Match Course');
 }
 
+public function test_search_finds_course_by_indexed_material_content()
+{
+    $this->createCourseScaleCategory();
+
+    $course = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 810,
+        'course_title' => 'Material Content Match Course',
+    ]);
+
+    $file = $this->createIndexedMaterialContent($course, 'The lecture examines cryodendron restoration methods.');
+
+    $response = $this->get(route('search.index', [
+        'query' => 'cryodendron',
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertSee('Material Content Match Course');
+    $response->assertSee('Material Content:');
+    $response->assertSee('lecture.pdf, Page 1');
+    $response->assertSee(route('course.material.files.view', [
+        'course' => $course->course_id,
+        'material' => $file->course_material_id,
+        'file' => $file->course_material_file_id,
+    ]) . '#page=1', false);
+    $response->assertSee('<mark>cryodendron</mark>', false);
+}
+
+public function test_material_content_is_not_searched_when_property_is_not_selected()
+{
+    $this->createCourseScaleCategory();
+
+    $course = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 811,
+        'course_title' => 'Excluded Material Content Course',
+    ]);
+
+    $this->createIndexedMaterialContent($course, 'The lecture examines luminara restoration methods.');
+
+    $response = $this->get(route('search.index', [
+        'query' => 'luminara',
+        'property_filters_applied' => 1,
+        'properties' => ['materials'],
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertDontSee('Excluded Material Content Course');
+}
+
+public function test_material_content_from_pending_file_is_not_searched()
+{
+    $this->createCourseScaleCategory();
+
+    $course = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 812,
+        'course_title' => 'Pending Material Content Course',
+    ]);
+
+    $file = $this->createIndexedMaterialContent($course, 'The lecture examines solavine restoration methods.');
+    $file->update(['status' => CourseMaterialFile::STATUS_PENDING]);
+
+    $response = $this->get(route('search.index', [
+        'query' => 'solavine',
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertDontSee('Pending Material Content Course');
+}
+
 public function test_search_finds_course_by_assessment()
 {
     $this->createCourseScaleCategory();
@@ -1017,6 +1117,8 @@ public function test_topic_match_ranks_above_material_match()
         'Material Match Course',
     ]);
 }
+
+
 
 public function test_multiple_lower_weight_matches_can_outrank_single_topic_match()
 {
@@ -1126,6 +1228,31 @@ public function test_search_stats_show_total_matches_by_property()
     $response->assertSee('Assessments: 1');
     $response->assertSee('Descriptions: 1');
     $response->assertSee('Materials: 1');
+}
+
+public function test_material_content_match_is_included_in_search_statistics()
+{
+    $this->createCourseScaleCategory();
+
+    $course = Course::factory()->create([
+        'course_code' => 'TEST',
+        'course_num' => 112,
+        'course_title' => 'Material Content Stats Course',
+    ]);
+
+    $this->createIndexedMaterialContent($course, 'The uploaded document discusses statstone restoration.');
+
+    $response = $this->get(route('search.index', [
+        'query' => 'statstone',
+    ]));
+
+    $stats = $response->viewData('stats');
+    $result = $response->viewData('results')->first();
+
+    $response->assertStatus(200);
+    $this->assertSame(1, $stats['material_content']);
+    $this->assertSame(1, $result->match_stats['material_content']);
+    $response->assertSee('Material Content: 1');
 }
 
 public function test_search_stats_count_distinct_courses_and_total_topic_matches()
@@ -1438,6 +1565,7 @@ public function test_search_defaults_to_all_properties()
         'assessments',
         'descriptions',
         'materials',
+        'material_content',
     ]);
 }
 
