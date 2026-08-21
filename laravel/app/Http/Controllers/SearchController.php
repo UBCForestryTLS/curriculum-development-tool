@@ -126,40 +126,20 @@ class SearchController extends Controller
         $searchPerformed = $searchTerm !== '' && ! $presetApplied;
 
         if($searchPerformed){
-            $resultsAndStats = $this->searchCourses(
+            $searchData = $this->buildSearchResults(
                 $searchTerm,
+                $selectedView,
                 $selectedProperties,
                 $selectedCourseCodes,
                 $selectedCourseLevels,
                 $selectedProgramIds,
             );
-            $results = $resultsAndStats['results'];
-            $stats = $resultsAndStats['stats'];
-            $courseQuickLinks = $results;
-            $programQuickLinks = $results
-                ->flatMap(fn ($course) => $course->programs)
-                ->unique('program_id')
-                ->values();
-
-            if ($selectedView === 'programs') {
-                $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels);
-                $programResults = $this->groupCourseResultsByProgram($results, $programMatches, $selectedProgramIds);
-                $stats['programs'] = $programResults->count();
-                $programQuickLinks = $programResults;
-
-                $stats['courses'] = $programResults
-                    ->flatMap(fn ($program) => $program->courses)
-                    ->pluck('course_id')
-                    ->unique()
-                    ->count();
-                    //for the program view, only courses assigned to a program are counted in the statistics
-
-                $courseQuickLinks = $programResults
-                    ->flatMap(fn ($program) => $program->courses)
-                    ->unique('course_id')
-                    ->values();
-            }
-
+            $results = $searchData['results'];
+            $programMatches = $searchData['programMatches'];
+            $programResults = $searchData['programResults'];
+            $courseQuickLinks = $searchData['courseQuickLinks'];
+            $programQuickLinks = $searchData['programQuickLinks'];
+            $stats = $searchData['stats'];
         }
 
         $results = $this->paginateResults($results, $request); //handle many restults via pagination
@@ -194,6 +174,72 @@ class SearchController extends Controller
         ]);
         
 }
+
+    /**
+     * Builds the complete course or program result collection before pagination is applied.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     * @param string $selectedView The selected course or program result view.
+     * @param array $selectedProperties The course properties included in the search.
+     * @param array $selectedCourseCodes The course codes included in the search.
+     * @param array $selectedCourseLevels The course number levels included in the search.
+     * @param array $selectedProgramIds The program IDs included in the search.
+     *
+     * @return array The unpaginated results, statistics, and quick-link collections.
+     */
+    private function buildSearchResults(
+        string $searchTerm,
+        string $selectedView,
+        array $selectedProperties,
+        array $selectedCourseCodes,
+        array $selectedCourseLevels,
+        array $selectedProgramIds,
+    ): array {
+        $resultsAndStats = $this->searchCourses(
+            $searchTerm,
+            $selectedProperties,
+            $selectedCourseCodes,
+            $selectedCourseLevels,
+            $selectedProgramIds,
+        );
+        $results = $resultsAndStats['results'];
+        $stats = $resultsAndStats['stats'];
+        $programMatches = collect();
+        $programResults = collect();
+        $courseQuickLinks = $results;
+        $programQuickLinks = $results
+            ->flatMap(fn ($course) => $course->programs)
+            ->unique('program_id')
+            ->values();
+
+        if ($selectedView === 'programs') {
+            $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels);
+            $programResults = $this->groupCourseResultsByProgram($results, $programMatches, $selectedProgramIds);
+            $stats['programs'] = $programResults->count();
+            $programQuickLinks = $programResults;
+
+            $stats['courses'] = $programResults
+                ->flatMap(fn ($program) => $program->courses)
+                ->pluck('course_id')
+                ->unique()
+                ->count();
+                //for the program view, only courses assigned to a program are counted in the statistics
+
+            $courseQuickLinks = $programResults
+                ->flatMap(fn ($program) => $program->courses)
+                ->unique('course_id')
+                ->values();
+        }
+
+        return [
+            'results' => $results,
+            'programMatches' => $programMatches,
+            'programResults' => $programResults,
+            'courseQuickLinks' => $courseQuickLinks,
+            'programQuickLinks' => $programQuickLinks,
+            'stats' => $stats,
+        ];
+    }
 
     /**
      * searches the selected course properties (if selected) and prepares combined results and statistics
