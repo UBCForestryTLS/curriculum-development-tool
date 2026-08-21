@@ -69,7 +69,7 @@ class CourseController extends Controller
     public function __construct()
     {
         $this->middleware(['auth', 'verified']);
-        $this->middleware('course')->only(['show', 'pdf', 'edit', 'submit', 'outcomeDetails']);
+        $this->middleware('course')->only(['show', 'pdf', 'dataSpreadsheet', 'deletePDF', 'deleteDataSpreadsheet', 'edit', 'submit', 'outcomeDetails']);
         $this->roleAssignmentHelper = new RoleAssignmentHelpers();
     }
 
