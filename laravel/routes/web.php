@@ -127,6 +127,7 @@ Route::get('/programs/{program}/downloadUserGuide', [ProgramController::class, '
 
 // Program Summary raw data spreadsheet routes
 Route::get('/programs/{program}/dataSpreadsheet', [ProgramController::class, 'dataSpreadsheet'])->name('programs.dataSpreadsheet');
+Route::delete('/programs/{program}/dataSpreadsheet', [ProgramController::class, 'deleteDataSpreadsheet'])->name('programs.delete.dataSpreadsheet');
 
 Route::get('/programs/{program}/duplicate', [ProgramController::class, 'duplicate'])->name('programs.duplicate');
 
@@ -149,6 +150,7 @@ Route::get('/courses/{course}/pdf', [CourseController::class, 'pdf'])->name('cou
 
 // Route for spreadsheet download in course
 Route::get('/courses/{course}/dataSpreadsheet', [CourseController::class, 'dataSpreadsheet'])->name('courses.dataSpreadsheet');
+Route::delete('/courses/{course}/dataSpreadsheet', [CourseController::class, 'deleteDataSpreadsheet'])->name('courses.delete.dataSpreadsheet');
 
 Route::delete('/courses/{course}/pdf', [CourseController::class, 'deletePDF'])->name('courses.delete.pdf');
 Route::get('/courses/{course}/remove', [CourseController::class, 'removeFromProgram'])->name('courses.remove');
