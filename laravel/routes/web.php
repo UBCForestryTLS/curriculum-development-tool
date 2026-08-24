@@ -265,6 +265,9 @@ Route::get('/courseWizard/{course}/step10', [CourseWizardController::class, 'ste
 Route::get('/search', [SearchController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('search.index');
+Route::get('/search/export/pdf', [SearchController::class, 'exportPdf'])
+    ->middleware(['auth', 'verified'])
+    ->name('search.export.pdf');
 
 
 

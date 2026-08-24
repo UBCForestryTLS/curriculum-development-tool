@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder; //Builder is for a DB query that is still being constructed
+use PDF;
 
 class SearchController extends Controller
 
@@ -174,6 +175,109 @@ class SearchController extends Controller
         ]);
         
 }
+
+    /**
+     * Downloads all matching Course View results as a PDF.
+     *
+     * @param Request $request The incoming request containing the search query and selected filters.
+     *
+     * @return \Illuminate\Http\Response The generated PDF download response.
+     */
+    public function exportPdf(Request $request)
+    {
+        $filters = $this->getCourseExportFilters($request);
+        $searchData = $this->buildSearchResults(
+            $filters['searchTerm'],
+            'courses',
+            $filters['selectedProperties'],
+            $filters['selectedCourseCodes'],
+            $filters['selectedCourseLevels'],
+            $filters['selectedProgramIds'],
+        );
+
+        $selectedProgramNames = DB::table('programs')
+            ->whereIn('program_id', $filters['selectedProgramIds'])
+            ->orderBy('program')
+            ->pluck('program')
+            ->all();
+
+        $filterSummary = [
+            'Properties' => collect($filters['selectedProperties'])
+                ->map(fn ($property) => SearchFilterOptions::properties()[$property] ?? $property)
+                ->implode(', ') ?: 'None',
+            'Course Codes' => implode(', ', $filters['selectedCourseCodes']) ?: 'All',
+            'Course Levels' => implode(', ', $filters['selectedCourseLevels']) ?: 'All',
+            'Programs' => empty($filters['selectedProgramIds'])
+                ? 'All'
+                : (implode(', ', $selectedProgramNames) ?: 'Selected programs unavailable'),
+        ];
+
+        return PDF::loadView('search.exports.course-results', [
+            'searchTerm' => $filters['searchTerm'],
+            'results' => $searchData['results'],
+            'filterSummary' => $filterSummary,
+        ])->download('course-search-results-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    /**
+     * Validates and normalizes the filters used by Course View exports.
+     *
+     * @param Request $request The incoming request containing the search query and selected filters.
+     *
+     * @return array The normalized query, property filters, course filters, and program filters.
+     */
+    private function getCourseExportFilters(Request $request): array
+    {
+        $validated = $request->validate([
+            'query' => ['required', 'string', 'max:200', 'regex:/\S/'],
+            'view' => ['nullable', 'in:courses'],
+            'property_filters_applied' => ['nullable', 'boolean'],
+            'properties' => ['nullable', 'array'],
+            'properties.*' => [SearchFilterOptions::propertyValidationRule()],
+            'course_filters_applied' => ['nullable', 'boolean'],
+            'course_codes' => ['nullable', 'array'],
+            'course_codes.*' => ['nullable', 'string', 'max:10'],
+            'course_levels' => ['nullable', 'array'],
+            'course_levels.*' => ['nullable', 'in:100,200,300,400,500,600'],
+            'program_filters_applied' => ['nullable', 'boolean'],
+            'program_ids' => ['nullable', 'array'],
+            'program_ids.*' => ['nullable', 'integer'],
+        ]);
+
+        $propertyFiltersApplied = (bool) ($validated['property_filters_applied'] ?? false);
+        $courseFiltersApplied = (bool) ($validated['course_filters_applied'] ?? false);
+        $programFiltersApplied = (bool) ($validated['program_filters_applied'] ?? false);
+
+        return [
+            'searchTerm' => preg_replace('/\s+/', ' ', trim($validated['query'])),
+            'selectedProperties' => $propertyFiltersApplied
+                ? ($validated['properties'] ?? [])
+                : SearchFilterOptions::propertyKeys(),
+            'selectedCourseCodes' => $courseFiltersApplied
+                ? collect($validated['course_codes'] ?? [])
+                    ->filter(fn ($code) => is_string($code) && trim($code) !== '')
+                    ->map(fn ($code) => strtoupper(trim($code)))
+                    ->unique()
+                    ->values()
+                    ->all()
+                : [],
+            'selectedCourseLevels' => $courseFiltersApplied
+                ? collect($validated['course_levels'] ?? [])
+                    ->filter(fn ($level) => is_string($level) && trim($level) !== '')
+                    ->unique()
+                    ->values()
+                    ->all()
+                : [],
+            'selectedProgramIds' => $programFiltersApplied
+                ? collect($validated['program_ids'] ?? [])
+                    ->filter(fn ($programId) => is_numeric($programId))
+                    ->map(fn ($programId) => (int) $programId)
+                    ->unique()
+                    ->values()
+                    ->all()
+                : [],
+        ];
+    }
 
     /**
      * Builds the complete course or program result collection before pagination is applied.
