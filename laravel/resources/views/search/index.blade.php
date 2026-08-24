@@ -801,6 +801,19 @@
         <p class="text-center">No matches found.</p>
     @endif
 
+    @if($searchPerformed && $hasSelectedResults)
+        <div class="text-end mb-2">
+            <a
+                href="{{ route('search.export.pdf', request()->except('page')) }}"
+                class="btn btn-outline-primary btn-sm"
+                title="Download all matching results as a PDF"
+            >
+                <i class="bi bi-file-earmark-pdf me-1"></i>
+                Download PDF
+            </a>
+        </div>
+    @endif
+
     @if($selectedView === 'courses')
         @foreach($results as $result)
             <div class="border-bottom py-3">
