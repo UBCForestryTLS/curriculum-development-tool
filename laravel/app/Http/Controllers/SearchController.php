@@ -177,7 +177,7 @@ class SearchController extends Controller
 }
 
     /**
-     * Downloads all matching Course View results as a PDF.
+     * Downloads all matching Course View or Program View results as a PDF.
      *
      * @param Request $request The incoming request containing the search query and selected filters.
      *
@@ -185,10 +185,10 @@ class SearchController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        $filters = $this->getCourseExportFilters($request);
+        $filters = $this->getExportFilters($request);
         $searchData = $this->buildSearchResults(
             $filters['searchTerm'],
-            'courses',
+            $filters['selectedView'],
             $filters['selectedProperties'],
             $filters['selectedCourseCodes'],
             $filters['selectedCourseLevels'],
@@ -212,6 +212,14 @@ class SearchController extends Controller
                 : (implode(', ', $selectedProgramNames) ?: 'Selected programs unavailable'),
         ];
 
+        if ($filters['selectedView'] === 'programs') {
+            return PDF::loadView('search.exports.program-results', [
+                'searchTerm' => $filters['searchTerm'],
+                'programResults' => $searchData['programResults'],
+                'filterSummary' => $filterSummary,
+            ])->download('program-search-results-'.now()->format('Y-m-d').'.pdf');
+        }
+
         return PDF::loadView('search.exports.course-results', [
             'searchTerm' => $filters['searchTerm'],
             'results' => $searchData['results'],
@@ -220,17 +228,17 @@ class SearchController extends Controller
     }
 
     /**
-     * Validates and normalizes the filters used by Course View exports.
+     * Validates and normalizes the filters used by search result exports.
      *
      * @param Request $request The incoming request containing the search query and selected filters.
      *
      * @return array The normalized query, property filters, course filters, and program filters.
      */
-    private function getCourseExportFilters(Request $request): array
+    private function getExportFilters(Request $request): array
     {
         $validated = $request->validate([
             'query' => ['required', 'string', 'max:200', 'regex:/\S/'],
-            'view' => ['nullable', 'in:courses'],
+            'view' => ['nullable', 'in:courses,programs'],
             'property_filters_applied' => ['nullable', 'boolean'],
             'properties' => ['nullable', 'array'],
             'properties.*' => [SearchFilterOptions::propertyValidationRule()],
@@ -250,6 +258,7 @@ class SearchController extends Controller
 
         return [
             'searchTerm' => preg_replace('/\s+/', ' ', trim($validated['query'])),
+            'selectedView' => $validated['view'] ?? 'courses',
             'selectedProperties' => $propertyFiltersApplied
                 ? ($validated['properties'] ?? [])
                 : SearchFilterOptions::propertyKeys(),
