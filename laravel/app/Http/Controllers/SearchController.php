@@ -6,6 +6,7 @@ use App\Helpers\SearchFilterOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder; //Builder is for a DB query that is still being constructed
 use PDF;
@@ -211,20 +212,21 @@ class SearchController extends Controller
                 ? 'All'
                 : (implode(', ', $selectedProgramNames) ?: 'Selected programs unavailable'),
         ];
+        $querySlug = trim(Str::limit(Str::slug($filters['searchTerm']), 50, ''), '-') ?: 'filtered';
 
         if ($filters['selectedView'] === 'programs') {
             return PDF::loadView('search.exports.program-results', [
                 'searchTerm' => $filters['searchTerm'],
                 'programResults' => $searchData['programResults'],
                 'filterSummary' => $filterSummary,
-            ])->download('program-search-results-'.now()->format('Y-m-d').'.pdf');
+            ])->download($querySlug.'-program-search-results-'.now()->format('Y-m-d').'.pdf');
         }
 
         return PDF::loadView('search.exports.course-results', [
             'searchTerm' => $filters['searchTerm'],
             'results' => $searchData['results'],
             'filterSummary' => $filterSummary,
-        ])->download('course-search-results-'.now()->format('Y-m-d').'.pdf');
+        ])->download($querySlug.'-course-search-results-'.now()->format('Y-m-d').'.pdf');
     }
 
     /**

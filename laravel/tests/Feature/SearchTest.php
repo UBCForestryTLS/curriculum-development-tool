@@ -134,23 +134,23 @@ class SearchTest extends TestCase
         $course = Course::factory()->create([
             'course_code' => 'FRST',
             'course_num' => 321,
-            'course_title' => 'Zephyrexport Forestry',
+            'course_title' => 'Zephyr Export Forestry',
         ]);
 
         PDF::shouldReceive('loadView')
             ->once()
             ->with('search.exports.course-results', \Mockery::on(fn ($data) =>
-                $data['searchTerm'] === 'zephyrexport'
+                $data['searchTerm'] === 'zephyr export'
                 && $data['results']->contains('course_id', $course->course_id)
             ))
             ->andReturnSelf();
         PDF::shouldReceive('download')
             ->once()
-            ->with('course-search-results-'.now()->format('Y-m-d').'.pdf')
+            ->with('zephyr-export-course-search-results-'.now()->format('Y-m-d').'.pdf')
             ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
 
         $response = $this->get(route('search.export.pdf', [
-            'query' => 'zephyrexport',
+            'query' => 'zephyr export',
             'view' => 'courses',
         ]));
 
@@ -185,7 +185,7 @@ class SearchTest extends TestCase
             ->andReturnSelf();
         PDF::shouldReceive('download')
             ->once()
-            ->with('program-search-results-'.now()->format('Y-m-d').'.pdf')
+            ->with('auralithpdfexport-program-search-results-'.now()->format('Y-m-d').'.pdf')
             ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
 
         $response = $this->get(route('search.export.pdf', [

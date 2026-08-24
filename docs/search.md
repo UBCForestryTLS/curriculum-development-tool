@@ -174,7 +174,7 @@ After a search returns results, the page displays a **Download PDF** button. The
 
 Course view exports use `search.exports.course-results` and list courses with their related programs, match counts, and all matching snippets. Program view exports use `search.exports.program-results` and group matching courses and snippets under each program. Material Content matches include the source filename and page number in both exports.
 
-The response downloads as either `course-search-results-YYYY-MM-DD.pdf` or `program-search-results-YYYY-MM-DD.pdf`.
+The response filename includes a safe, shortened version of the query, such as `climate-change-course-search-results-YYYY-MM-DD.pdf` or `climate-change-program-search-results-YYYY-MM-DD.pdf`.
 
 ## Saved Filter Presets
 
