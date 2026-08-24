@@ -14,6 +14,7 @@ use App\Models\CourseTopic;
 use App\Models\LearningOutcome;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use PDF;
 
 class SearchTest extends TestCase
 {
@@ -125,6 +126,74 @@ class SearchTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSessionHasNoErrors();
+    }
+
+    public function test_course_search_results_can_be_exported_as_pdf(): void
+    {
+        $this->createCourseScaleCategory();
+        $course = Course::factory()->create([
+            'course_code' => 'FRST',
+            'course_num' => 321,
+            'course_title' => 'Zephyrexport Forestry',
+        ]);
+
+        PDF::shouldReceive('loadView')
+            ->once()
+            ->with('search.exports.course-results', \Mockery::on(fn ($data) =>
+                $data['searchTerm'] === 'zephyrexport'
+                && $data['results']->contains('course_id', $course->course_id)
+            ))
+            ->andReturnSelf();
+        PDF::shouldReceive('download')
+            ->once()
+            ->with('course-search-results-'.now()->format('Y-m-d').'.pdf')
+            ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
+
+        $response = $this->get(route('search.export.pdf', [
+            'query' => 'zephyrexport',
+            'view' => 'courses',
+        ]));
+
+        $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_program_search_results_can_be_exported_as_pdf(): void
+    {
+        $this->createCourseScaleCategory();
+        $course = Course::factory()->create([
+            'course_title' => 'Auralithpdfexport Course',
+        ]);
+        $programId = DB::table('programs')->insertGetId([
+            'program' => 'Auralithpdfexport Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], 'program_id');
+        DB::table('course_programs')->insert([
+            'course_id' => $course->course_id,
+            'program_id' => $programId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        PDF::shouldReceive('loadView')
+            ->once()
+            ->with('search.exports.program-results', \Mockery::on(fn ($data) =>
+                $data['programResults']->contains('program_id', $programId)
+            ))
+            ->andReturnSelf();
+        PDF::shouldReceive('download')
+            ->once()
+            ->with('program-search-results-'.now()->format('Y-m-d').'.pdf')
+            ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
+
+        $response = $this->get(route('search.export.pdf', [
+            'query' => 'auralithpdfexport',
+            'view' => 'programs',
+        ]));
+
+        $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
     }
 
     public function test_search_finds_course_by_compact_course_code(){
