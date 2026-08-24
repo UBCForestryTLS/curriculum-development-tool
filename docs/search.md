@@ -12,6 +12,8 @@ This feature is implemented primarily under:
 - [`laravel/app/Http/Controllers/SavedSearchFilterController.php`](../laravel/app/Http/Controllers/SavedSearchFilterController.php)
 - [`laravel/app/Helpers/SearchFilterOptions.php`](../laravel/app/Helpers/SearchFilterOptions.php)
 - [`laravel/resources/views/search/index.blade.php`](../laravel/resources/views/search/index.blade.php)
+- [`laravel/resources/views/search/exports/course-results.blade.php`](../laravel/resources/views/search/exports/course-results.blade.php)
+- [`laravel/resources/views/search/exports/program-results.blade.php`](../laravel/resources/views/search/exports/program-results.blade.php)
 - [`laravel/resources/views/search/partials/highlighted-snippet.blade.php`](../laravel/resources/views/search/partials/highlighted-snippet.blade.php)
 - [`laravel/resources/views/search/partials/result-match.blade.php`](../laravel/resources/views/search/partials/result-match.blade.php)
 - [`laravel/tests/Feature/SearchTest.php`](../laravel/tests/Feature/SearchTest.php)
@@ -32,6 +34,7 @@ The feature is responsible for:
 - searching program names
 - filtering results by course code, course level, program, and searchable property
 - showing results in either Course view or Program view
+- exporting Course view and Program view results as PDF files
 - saving, applying, and deleting user-specific search filter presets
 
 ## Routes
@@ -40,7 +43,10 @@ The main search page is:
 
 ```php
 GET /search
+GET /search/export/pdf
 ```
+
+The PDF route exports the current search query, selected view, and filters.
 
 The saved filter preset routes are:
 
@@ -162,6 +168,14 @@ Program view groups matching courses under their programs. Program results can c
 
 Material Content matches also show the source PDF filename and page number. The source link opens the uploaded PDF at the matching page in a new tab.
 
+## PDF Export
+
+After a search returns results, the page displays a **Download PDF** button. The export preserves the current query, result view, property filters, course filters, and program filters. Pagination is not included, so the PDF contains the complete matching result collection instead of only the current page.
+
+Course view exports use `search.exports.course-results` and list courses with their related programs, match counts, and all matching snippets. Program view exports use `search.exports.program-results` and group matching courses and snippets under each program. Material Content matches include the source filename and page number in both exports.
+
+The response downloads as either `course-search-results-YYYY-MM-DD.pdf` or `program-search-results-YYYY-MM-DD.pdf`.
+
 ## Saved Filter Presets
 
 Authenticated users can save named filter presets.
@@ -227,6 +241,7 @@ The tests cover:
 - search stats
 - course and program pagination
 - course code, course level, and program filters
+- Course view and Program view PDF exports
 - saved filter saving, applying, deleting, ownership restrictions, and current preset display
 
 Run the search tests with:
@@ -245,5 +260,6 @@ Few constraints that might be important to consider for this feature:
 - search result links go to existing course and program wizard routes
 - only files with an `INDEXED` status are included in Material Content searches
 - PHP-side grouping and pagination is fine for a small dataset, but may need refactoring if the database grows extremely large, which is unlikely
+- PDF exports render all matching results through Dompdf, so very broad searches may need to be narrowed if they exceed the server's available memory
 - empty-query listing is not currently implemented
 - if new searchable fields are added, update `SearchFilterOptions`, migrations, controller search methods, tests, and this doc
