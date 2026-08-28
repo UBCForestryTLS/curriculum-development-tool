@@ -285,6 +285,7 @@ class SearchPerformanceSeeder extends Seeder
         $timestamp = now();
         $rows = [];
 
+        // Cycle names, levels, and departments by index for the same balanced distribution on every run.
         for ($index = 1; $index <= $this->programCount; $index++) {
             $rows[] = [
                 'program' => $this->programName($index),
@@ -319,6 +320,7 @@ class SearchPerformanceSeeder extends Seeder
         $timestamp = now();
         $rows = [];
 
+        // Cycle course details by index so levels, terms, sections, and departments stay repeatable.
         for ($index = 1; $index <= $this->courseCount; $index++) {
             $rows[] = [
                 'course_code' => $this->courseCode($index),
@@ -391,6 +393,9 @@ class SearchPerformanceSeeder extends Seeder
         for ($index = 1; $index <= $this->courseCount; $index++) {
             $courseId = $courseIds[$index];
             $label = str_pad((string) $index, 5, '0', STR_PAD_LEFT);
+
+            // Alternate climate and forest across courses, add watershed every twentieth course,
+            // and reserve cryosphere for one course to produce predictable query result sizes.
             $primaryTerm = $index % 2 === 0 ? 'climate' : 'forest';
             $secondaryTerm = $index % 20 === 0 ? 'watershed' : 'policy';
             $rareTerm = $index === $this->rareCourseIndex() ? ' cryosphere' : '';
@@ -488,6 +493,7 @@ class SearchPerformanceSeeder extends Seeder
         $timestamp = now();
         $courseRows = [];
 
+        // Give the owner every generated record and limit the direct-access account to the first 100.
         foreach ($courseIds as $courseId) {
             $courseRows[] = [
                 'course_id' => $courseId,
@@ -546,6 +552,9 @@ class SearchPerformanceSeeder extends Seeder
     ): void {
         $timestamp = now();
         $primaryDepartment = $organization['departments'][0];
+
+        // Give the Program Director the first 20% of generated programs so the account always
+        // receives a predictable role-based subset, even when custom dataset sizes are used.
         $directorProgramCount = max(1, (int) ceil($this->programCount * 0.2));
 
         DB::table('department_head')->insert([
@@ -565,6 +574,7 @@ class SearchPerformanceSeeder extends Seeder
             ],
         ]);
 
+        // Limit the Department Head to Department A while materializing faculty-wide access for all records.
         $programRoleRows = [];
         for ($index = 1; $index <= $this->programCount; $index++) {
             if ($index <= $directorProgramCount) {
@@ -604,6 +614,7 @@ class SearchPerformanceSeeder extends Seeder
         for ($index = 1; $index <= $this->courseCount; $index++) {
             $courseId = $courseIds[$index];
 
+            // Materialize course access when the course belongs to one of the director's programs.
             foreach ($this->programIndexesForCourse($index) as $programIndex) {
                 if ($programIndex <= $directorProgramCount) {
                     $courseRoleRows[] = [
@@ -664,6 +675,7 @@ class SearchPerformanceSeeder extends Seeder
 
     private function insertInChunks(string $table, array $rows): void
     {
+        // Keep insert queries bounded when custom dataset sizes generate large row collections.
         foreach (array_chunk($rows, self::CHUNK_SIZE) as $chunk) {
             DB::table($table)->insert($chunk);
         }
@@ -671,6 +683,8 @@ class SearchPerformanceSeeder extends Seeder
 
     private function departmentForIndex(array $organization, int $index): array
     {
+        // Assign courses and programs in blocks of ten, alternating between the two departments
+        // to create a balanced and repeatable Department Head access distribution.
         return $organization['departments'][intdiv($index - 1, 10) % 2];
     }
 
@@ -681,6 +695,8 @@ class SearchPerformanceSeeder extends Seeder
 
     private function programIndexesForCourse(int $courseIndex): array
     {
+        // Assign each course to one program round-robin, then use a fixed multiplier for a
+        // repeatable secondary program that spreads course-program relationships more broadly.
         $programIndexes = [$this->primaryProgramIndex($courseIndex)];
 
         if ($this->programCount > 1) {
@@ -730,6 +746,8 @@ class SearchPerformanceSeeder extends Seeder
 
     private function courseCode(int $index): string
     {
+        // Cycle through 100 reusable course codes so each code groups multiple courses for
+        // filter testing while still supporting custom course counts.
         $codeIndex = ($index - 1) % 100;
 
         return 'PF'.chr(65 + intdiv($codeIndex, 26)).chr(65 + ($codeIndex % 26));
