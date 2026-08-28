@@ -684,9 +684,14 @@ class SearchController extends Controller
                 [$searchTerm]
             );
 
-        // Non-admin users need at least one accessible course in the program.
-        // Course filters also require a matching course, even for admins.
-        if (!$user->hasRole('administrator') || !empty($selectedCourseCodes) || !empty($selectedCourseLevels)) {
+        $courseFiltersApplied = !empty($selectedCourseCodes) || !empty($selectedCourseLevels);
+
+        if (!$user->hasRole('administrator') && !$courseFiltersApplied) {
+            SearchCourseAccess::applyProgramAccess($query, $user);
+        }
+
+        // Course filters require an accessible matching course, even for a direct program match.
+        if ($courseFiltersApplied) {
             $query->whereExists(function (Builder $courseFilterQuery) use ($selectedCourseCodes, $selectedCourseLevels, $user) {
                 $courseFilterQuery->select(DB::raw(1))
                     ->from('course_programs')

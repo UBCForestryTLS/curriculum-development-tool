@@ -24,7 +24,7 @@ class SearchCourseAccess
     }
 
     /**
-     * Limits program lists to programs that contain at least one accessible course.
+     * Limits program lists to accessible programs or programs containing an accessible course.
      */
     public static function applyProgramAccess(Builder $query, User $user): Builder
     {
@@ -32,13 +32,18 @@ class SearchCourseAccess
             return $query;
         }
 
-        return $query->whereExists(function (Builder $programAccessQuery) use ($user) {
-            $programAccessQuery->select(DB::raw(1))
-                ->from('course_programs as access_program_courses')
-                ->join('courses', 'courses.course_id', '=', 'access_program_courses.course_id')
-                ->whereColumn('access_program_courses.program_id', 'programs.program_id');
+        $programAccessIds = $user->allPrograms()->pluck('program_id');
 
-            self::applyCourseAccess($programAccessQuery, $user);
+        return $query->where(function (Builder $programQuery) use ($programAccessIds, $user) {
+            $programQuery->whereIn('programs.program_id', $programAccessIds)
+                ->orWhereExists(function (Builder $programAccessQuery) use ($user) {
+                    $programAccessQuery->select(DB::raw(1))
+                        ->from('course_programs as access_program_courses')
+                        ->join('courses', 'courses.course_id', '=', 'access_program_courses.course_id')
+                        ->whereColumn('access_program_courses.program_id', 'programs.program_id');
+
+                    self::applyCourseAccess($programAccessQuery, $user);
+                });
         });
     }
 
