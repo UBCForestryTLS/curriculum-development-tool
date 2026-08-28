@@ -187,6 +187,64 @@ class SearchTest extends TestCase
         $this->assertSame(0, $response->viewData('results')->total());
     }
 
+    public function test_non_admin_can_see_direct_program_match_without_course_access()
+    {
+        $regularUser = User::factory()->create();
+        $this->actingAs($regularUser);
+
+        $visibleProgramId = $this->createProgram('Directonly Visible Program');
+        $this->createProgram('Directonly Hidden Program');
+        $this->giveUserDirectProgramAccess($regularUser, $visibleProgramId, 3);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'directonly',
+            'view' => 'programs',
+        ]));
+        $programResults = $response->viewData('programResults');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $programResults);
+        $this->assertSame($visibleProgramId, $programResults->first()->program_id);
+        $this->assertCount(0, $programResults->first()->courses);
+        $this->assertSearchVisibility($response, [
+            'Directonly Visible Program',
+        ], [
+            'Directonly Hidden Program',
+        ]);
+    }
+
+    public function test_program_director_can_search_courses_from_multiple_directed_programs()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->actingAs($programDirector);
+
+        $firstProgramId = $this->createProgram('First Multi Director Program');
+        $secondProgramId = $this->createProgram('Second Multi Director Program');
+        $firstCourse = $this->createSearchCourse('MULT', 301, 'Multidirectorium First Course');
+        $secondCourse = $this->createSearchCourse('MULT', 302, 'Multidirectorium Second Course');
+
+        $this->attachCourseToProgram($firstCourse, $firstProgramId);
+        $this->attachCourseToProgram($secondCourse, $secondProgramId);
+        $this->giveUserProgramDirectorAccess($programDirector, $firstProgramId);
+        $this->giveUserProgramDirectorAccess($programDirector, $secondProgramId);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'multidirectorium',
+            'view' => 'programs',
+        ]));
+        $programResults = collect($response->viewData('programResults')->items());
+        $programIds = $programResults->pluck('program_id')->all();
+
+        $response->assertStatus(200);
+        $this->assertCount(2, $programIds);
+        $this->assertContains($firstProgramId, $programIds);
+        $this->assertContains($secondProgramId, $programIds);
+        $response->assertSee('Multidirectorium First Course');
+        $response->assertSee('Multidirectorium Second Course');
+    }
+
     public function test_program_director_keeps_direct_course_access_outside_directed_program()
     {
         $this->createCourseScaleCategory();
@@ -311,6 +369,28 @@ class SearchTest extends TestCase
         $response->assertStatus(200);
         $this->assertSame(['PDIR'], $response->viewData('availableCourseCodes'));
         $this->assertSame(['Visible Filter Program'], $availablePrograms);
+    }
+
+    public function test_program_director_filter_options_include_role_and_direct_program_access()
+    {
+        $programDirector = User::factory()->create();
+        $this->actingAs($programDirector);
+
+        $directedProgramId = $this->createProgram('Directed Filter Program');
+        $directProgramId = $this->createProgram('Direct Filter Program');
+        $this->createProgram('Hidden Filter Program');
+
+        $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
+        $this->giveUserDirectProgramAccess($programDirector, $directProgramId, 3);
+
+        $response = $this->get(route('search.index'));
+        $availablePrograms = $response->viewData('availablePrograms')->pluck('program')->all();
+
+        $response->assertStatus(200);
+        $this->assertSame([
+            'Direct Filter Program',
+            'Directed Filter Program',
+        ], $availablePrograms);
     }
 
     public function test_program_director_direct_program_match_requires_accessible_course()
@@ -591,6 +671,21 @@ class SearchTest extends TestCase
         DB::table('course_users')->updateOrInsert(
             [
                 'course_id' => $course->course_id,
+                'user_id' => $user->id,
+            ],
+            [
+                'permission' => $permission,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+    }
+
+    private function giveUserDirectProgramAccess(User $user, int $programId, int $permission): void
+    {
+        DB::table('program_users')->updateOrInsert(
+            [
+                'program_id' => $programId,
                 'user_id' => $user->id,
             ],
             [
