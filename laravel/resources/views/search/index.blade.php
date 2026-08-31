@@ -493,7 +493,7 @@
                             Course Search looks across course identity, topics, learning objectives,
                             assessments, descriptions, materials, and program names. Use the settings
                             menu to choose the result view and narrow results by property, course code,
-                            course level, or program.
+                            course level, or program. Results only include courses you have access to.
                         </p>
 
                         <h6 class="fw-semibold search-info-modal-title">Query Tips</h6>
@@ -786,9 +786,13 @@
                     <div class="modal-body search-stats-modal-list">
                         @forelse($programQuickLinks as $program)
                             <div class="mb-2">
-                                <a href="{{ route('programWizard.step1', $program->program_id) }}">
+                                @if(in_array((int) $program->program_id, $programPageAccessIds, true))
+                                    <a href="{{ route('programWizard.step1', $program->program_id) }}">
+                                @endif
                                     {{ $program->program }}
-                                </a>
+                                @if(in_array((int) $program->program_id, $programPageAccessIds, true))
+                                    </a>
+                                @endif
                             </div>
                         @empty
                             <p class="mb-0 text-muted">No matching programs found.</p>
@@ -818,7 +822,12 @@
                     <div class="small mb-2">
                         <span class="text-muted">Programs:</span>
                         @foreach($result->programs as $program)
-                            <a href="{{ route('programWizard.step1', $program->program_id) }}">{{ $program->program }}</a>@if(!$loop->last), @endif
+                            @if(in_array((int) $program->program_id, $programPageAccessIds, true))
+                                <a href="{{ route('programWizard.step1', $program->program_id) }}">{{ $program->program }}</a>
+                            @else
+                                {{ $program->program }}
+                            @endif
+                            @if(!$loop->last), @endif
                         @endforeach
                     </div>
                 @endif
@@ -880,13 +889,17 @@
         @foreach($programResults as $programResult)
             <div class="border-bottom py-3">
                 <h3 class="mb-1">
-                    <a href="{{ route('programWizard.step1', $programResult->program_id) }}">
+                    @if(in_array((int) $programResult->program_id, $programPageAccessIds, true))
+                        <a href="{{ route('programWizard.step1', $programResult->program_id) }}">
+                    @endif
                         @if($programResult->program_match_snippet)
                             @include('search.partials.highlighted-snippet', ['snippet' => $programResult->program_match_snippet])
                         @else
                             {{ $programResult->program }}
                         @endif
-                    </a>
+                    @if(in_array((int) $programResult->program_id, $programPageAccessIds, true))
+                        </a>
+                    @endif
                 </h3>
 
                 <div class="small text-muted mb-2">

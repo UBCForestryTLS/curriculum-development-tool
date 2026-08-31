@@ -28,7 +28,10 @@ class SearchTest extends TestCase
         // After merging dev's package updates, tests need this so they do not look for built Vite files
         $this->withoutVite();
 
+        // Existing search tests focus on ranking/filter behavior, so they use admin access.
+        // The regular-user access rules are covered separately below.
         $this->searchUser = User::factory()->create();
+        $this->assignRoleToUser($this->searchUser, 'administrator');
         $this->actingAs($this->searchUser);
     }
 
@@ -59,6 +62,432 @@ class SearchTest extends TestCase
         $response = $this->get(route('search.index'));
 
         $response->assertRedirect(route('login'));
+    }
+
+    public function test_regular_user_only_sees_directly_accessible_courses()
+    {
+        $this->createCourseScaleCategory();
+
+        $regularUser = User::factory()->create();
+        $this->actingAs($regularUser);
+
+        $accessibleCourse = $this->createSearchCourse('OPEN', 101, 'Accessium Visible Course');
+        $otherAccessibleCourse = $this->createSearchCourse('EDIT', 102, 'Accessium Editor Course');
+        $this->createSearchCourse('HIDE', 202, 'Accessium Hidden Course');
+
+        $this->giveUserDirectCourseAccess($regularUser, $accessibleCourse, 3);
+        $this->giveUserDirectCourseAccess($regularUser, $otherAccessibleCourse, 2);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'accessium',
+        ]));
+
+        $response->assertStatus(200);
+        $this->assertSearchVisibility($response, [
+            'Accessium Visible Course',
+            'Accessium Editor Course',
+        ], [
+            'Accessium Hidden Course',
+        ]);
+        $response->assertSee('Courses: 2');
+        $this->assertSame(['EDIT', 'OPEN'], $response->viewData('availableCourseCodes'));
+    }
+
+    public function test_regular_user_without_access_does_not_see_courses()
+    {
+        $this->createCourseScaleCategory();
+
+        $regularUser = User::factory()->create();
+        $this->actingAs($regularUser);
+
+        $this->createSearchCourse('HIDE', 202, 'Noaccessium Hidden Course');
+
+        $response = $this->get(route('search.index', [
+            'query' => 'noaccessium',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertDontSee('Noaccessium Hidden Course');
+        $this->assertSame(0, $response->viewData('results')->total());
+        $this->assertSame([], $response->viewData('availableCourseCodes'));
+    }
+
+    public function test_admin_can_search_courses_without_direct_access()
+    {
+        $this->createCourseScaleCategory();
+
+        $this->createSearchCourse('ADMN', 303, 'Adminium Visible Course');
+
+        $response = $this->get(route('search.index', [
+            'query' => 'adminium',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertSee('Adminium Visible Course');
+    }
+
+    public function test_program_director_can_search_courses_in_directed_program()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->assignRoleToUser($programDirector, 'program director');
+        $this->actingAs($programDirector);
+
+        $directedProgramId = $this->createProgram('Visible Director Program');
+        $otherProgramId = $this->createProgram('Hidden Director Program');
+
+        $visibleCourse = $this->createSearchCourse('PDIR', 301, 'Directorium Visible Course');
+        $hiddenCourse = $this->createSearchCourse('HIDE', 302, 'Directorium Hidden Course');
+
+        $this->attachCourseToProgram($visibleCourse, $directedProgramId);
+        $this->attachCourseToProgram($hiddenCourse, $otherProgramId);
+
+        $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'directorium',
+        ]));
+
+        $response->assertStatus(200);
+        $this->assertSearchVisibility($response, [
+            'Directorium Visible Course',
+        ], [
+            'Directorium Hidden Course',
+        ]);
+        $response->assertSee('Courses: 1');
+    }
+
+    public function test_program_role_without_course_role_does_not_grant_search_access()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->actingAs($programDirector);
+
+        $programId = $this->createProgram('Unmaterialized Director Program');
+        $course = $this->createSearchCourse('MISS', 301, 'Unmaterialized Hidden Course');
+        $this->attachCourseToProgram($course, $programId);
+
+        $roleId = $this->assignRoleToUser($programDirector, 'program director');
+        DB::table('program_user_role')->insert([
+            'program_id' => $programId,
+            'user_id' => $programDirector->id,
+            'role_id' => $roleId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'unmaterialized',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertDontSee('Unmaterialized Hidden Course');
+        $this->assertSame(0, $response->viewData('results')->total());
+    }
+
+    public function test_non_admin_can_see_direct_program_match_without_course_access()
+    {
+        $regularUser = User::factory()->create();
+        $this->actingAs($regularUser);
+
+        $visibleProgramId = $this->createProgram('Directonly Visible Program');
+        $this->createProgram('Directonly Hidden Program');
+        $this->giveUserDirectProgramAccess($regularUser, $visibleProgramId, 3);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'directonly',
+            'view' => 'programs',
+        ]));
+        $programResults = $response->viewData('programResults');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $programResults);
+        $this->assertSame($visibleProgramId, $programResults->first()->program_id);
+        $this->assertCount(0, $programResults->first()->courses);
+        $this->assertSearchVisibility($response, [
+            'Directonly Visible Program',
+        ], [
+            'Directonly Hidden Program',
+        ]);
+    }
+
+    public function test_program_director_can_search_courses_from_multiple_directed_programs()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->actingAs($programDirector);
+
+        $firstProgramId = $this->createProgram('First Multi Director Program');
+        $secondProgramId = $this->createProgram('Second Multi Director Program');
+        $firstCourse = $this->createSearchCourse('MULT', 301, 'Multidirectorium First Course');
+        $secondCourse = $this->createSearchCourse('MULT', 302, 'Multidirectorium Second Course');
+
+        $this->attachCourseToProgram($firstCourse, $firstProgramId);
+        $this->attachCourseToProgram($secondCourse, $secondProgramId);
+        $this->giveUserProgramDirectorAccess($programDirector, $firstProgramId);
+        $this->giveUserProgramDirectorAccess($programDirector, $secondProgramId);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'multidirectorium',
+            'view' => 'programs',
+        ]));
+        $programResults = collect($response->viewData('programResults')->items());
+        $programIds = $programResults->pluck('program_id')->all();
+
+        $response->assertStatus(200);
+        $this->assertCount(2, $programIds);
+        $this->assertContains($firstProgramId, $programIds);
+        $this->assertContains($secondProgramId, $programIds);
+        $response->assertSee('Multidirectorium First Course');
+        $response->assertSee('Multidirectorium Second Course');
+    }
+
+    public function test_program_director_keeps_direct_course_access_outside_directed_program()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->assignRoleToUser($programDirector, 'program director');
+        $this->actingAs($programDirector);
+
+        $directedProgramId = $this->createProgram('Director Access Program');
+
+        $programCourse = $this->createSearchCourse('PDIR', 401, 'Accessblend Program Course');
+        $directCourse = $this->createSearchCourse('OPEN', 402, 'Accessblend Direct Course');
+        $this->createSearchCourse('HIDE', 403, 'Accessblend Hidden Course');
+
+        $this->attachCourseToProgram($programCourse, $directedProgramId);
+
+        $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
+        $this->giveUserDirectCourseAccess($programDirector, $directCourse, 3);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'accessblend',
+        ]));
+
+        $response->assertStatus(200);
+        $this->assertSearchVisibility($response, [
+            'Accessblend Program Course',
+            'Accessblend Direct Course',
+        ], [
+            'Accessblend Hidden Course',
+        ]);
+        $response->assertSee('Courses: 2');
+    }
+
+    public function test_department_head_can_search_materialized_faculty_course_access()
+    {
+        $this->createCourseScaleCategory();
+
+        $departmentHead = User::factory()->create();
+        $this->actingAs($departmentHead);
+
+        $campusId = DB::table('campuses')->max('campus_id') + 1;
+        $facultyId = DB::table('faculties')->max('faculty_id') + 1;
+        $departmentId = DB::table('departments')->max('department_id') + 1;
+
+        DB::table('campuses')->insert([
+            'campus_id' => $campusId,
+            'campus' => 'Faculty Access Campus',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('faculties')->insert([
+            'faculty_id' => $facultyId,
+            'campus_id' => $campusId,
+            'faculty' => 'Faculty Access Faculty',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('departments')->insert([
+            'department_id' => $departmentId,
+            'faculty_id' => $facultyId,
+            'department' => 'Faculty Access Department',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('department_head')->insert([
+            'department_id' => $departmentId,
+            'user_id' => $departmentHead->id,
+            'has_access_to_all_courses_in_faculty' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->assignRoleToUser($departmentHead, 'department head');
+        $facultyCourse = $this->createSearchCourse('FACC', 411, 'Facultium Faculty Course');
+        $this->createSearchCourse('HIDE', 412, 'Facultium Hidden Course');
+
+        DB::table('faculty_course_codes')->insert([
+            'faculty_id' => $facultyId,
+            'course_code' => 'FACC',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // The role assignment flow materializes faculty-wide access in course_user_role.
+        $this->giveUserDepartmentHeadCourseAccess($departmentHead, $facultyCourse);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'facultium',
+        ]));
+
+        $response->assertStatus(200);
+        $this->assertSearchVisibility($response, [
+            'Facultium Faculty Course',
+        ], [
+            'Facultium Hidden Course',
+        ]);
+    }
+
+    public function test_program_director_filter_options_only_show_accessible_courses_and_programs()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->actingAs($programDirector);
+
+        $directedProgramId = $this->createProgram('Visible Filter Program');
+        $otherProgramId = $this->createProgram('Hidden Filter Program');
+
+        $visibleCourse = $this->createSearchCourse('PDIR', 301, 'Filter Option Visible Course');
+        $hiddenCourse = $this->createSearchCourse('HIDE', 302, 'Filter Option Hidden Course');
+
+        $this->attachCourseToProgram($visibleCourse, $directedProgramId);
+        $this->attachCourseToProgram($hiddenCourse, $otherProgramId);
+        $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
+
+        $response = $this->get(route('search.index'));
+        $availablePrograms = $response->viewData('availablePrograms')->pluck('program')->all();
+
+        $response->assertStatus(200);
+        $this->assertSame(['PDIR'], $response->viewData('availableCourseCodes'));
+        $this->assertSame(['Visible Filter Program'], $availablePrograms);
+    }
+
+    public function test_program_director_filter_options_include_role_and_direct_program_access()
+    {
+        $programDirector = User::factory()->create();
+        $this->actingAs($programDirector);
+
+        $directedProgramId = $this->createProgram('Directed Filter Program');
+        $directProgramId = $this->createProgram('Direct Filter Program');
+        $this->createProgram('Hidden Filter Program');
+
+        $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
+        $this->giveUserDirectProgramAccess($programDirector, $directProgramId, 3);
+
+        $response = $this->get(route('search.index'));
+        $availablePrograms = $response->viewData('availablePrograms')->pluck('program')->all();
+
+        $response->assertStatus(200);
+        $this->assertSame([
+            'Direct Filter Program',
+            'Directed Filter Program',
+        ], $availablePrograms);
+    }
+
+    public function test_program_director_direct_program_match_requires_accessible_course()
+    {
+        $this->createCourseScaleCategory();
+
+        $programDirector = User::factory()->create();
+        $this->actingAs($programDirector);
+
+        $directedProgramId = $this->createProgram('Terraria Visible Program');
+        $otherProgramId = $this->createProgram('Terraria Hidden Program');
+
+        $visibleCourse = $this->createSearchCourse('PDIR', 401, 'Program Match Visible Course');
+        $hiddenCourse = $this->createSearchCourse('HIDE', 402, 'Program Match Hidden Course');
+
+        $this->attachCourseToProgram($visibleCourse, $directedProgramId);
+        $this->attachCourseToProgram($hiddenCourse, $otherProgramId);
+        $this->giveUserProgramDirectorAccess($programDirector, $directedProgramId);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'terraria',
+            'view' => 'programs',
+        ]));
+        $programResults = $response->viewData('programResults');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $programResults);
+        $this->assertSame($directedProgramId, $programResults->first()->program_id);
+        $this->assertSearchVisibility($response, [
+            'Terraria Visible Program',
+        ], [
+            'Terraria Hidden Program',
+        ]);
+        $response->assertSee(route('programWizard.step1', $directedProgramId));
+    }
+
+    public function test_department_head_can_search_courses_with_role_and_direct_access()
+    {
+        $this->createCourseScaleCategory();
+
+        $departmentHead = User::factory()->create();
+        $this->actingAs($departmentHead);
+
+        $accessibleCourse = $this->createSearchCourse('DHED', 301, 'Headium Visible Course');
+        $directCourse = $this->createSearchCourse('OPEN', 302, 'Headium Direct Course');
+        $this->createSearchCourse('HIDE', 303, 'Headium Hidden Course');
+
+        $this->giveUserDepartmentHeadCourseAccess($departmentHead, $accessibleCourse);
+        $this->giveUserDirectCourseAccess($departmentHead, $directCourse, 3);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'headium',
+        ]));
+
+        $response->assertStatus(200);
+        $this->assertSearchVisibility($response, [
+            'Headium Visible Course',
+            'Headium Direct Course',
+        ], [
+            'Headium Hidden Course',
+        ]);
+        $response->assertSee('Courses: 2');
+        $this->assertSame(['DHED', 'OPEN'], $response->viewData('availableCourseCodes'));
+    }
+
+    public function test_department_head_direct_program_match_requires_accessible_course()
+    {
+        $this->createCourseScaleCategory();
+
+        $departmentHead = User::factory()->create();
+        $this->actingAs($departmentHead);
+
+        $visibleProgramId = $this->createProgram('Terraria Department Program');
+        $hiddenProgramId = $this->createProgram('Terraria Hidden Department Program');
+
+        $accessibleCourse = $this->createSearchCourse('DHED', 401, 'Department Program Visible Course');
+        $hiddenCourse = $this->createSearchCourse('HIDE', 402, 'Department Program Hidden Course');
+
+        $this->attachCourseToProgram($accessibleCourse, $visibleProgramId);
+        $this->attachCourseToProgram($hiddenCourse, $hiddenProgramId);
+        $this->giveUserDepartmentHeadCourseAccess($departmentHead, $accessibleCourse);
+
+        $response = $this->get(route('search.index', [
+            'query' => 'terraria',
+            'view' => 'programs',
+        ]));
+        $programResults = $response->viewData('programResults');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $programResults);
+        $this->assertSame($visibleProgramId, $programResults->first()->program_id);
+        $this->assertSearchVisibility($response, [
+            'Terraria Department Program',
+        ], [
+            'Terraria Hidden Department Program',
+        ]);
+        $response->assertDontSee(route('programWizard.step1', $visibleProgramId));
     }
 
     public function test_program_view_selection_is_preserved(){
@@ -130,11 +559,7 @@ class SearchTest extends TestCase
     public function test_search_finds_course_by_compact_course_code(){
         $this->createCourseScaleCategory();
 
-        Course::factory()->create([
-            'course_code' => 'CONS',
-            'course_num' => 123,
-            'course_title' => 'Compact Code Match Course',
-        ]);
+        $this->createSearchCourse('CONS', 123, 'Compact Code Match Course');
 
         $response = $this->get(route('search.index', [
             'query' => 'CONS123',
@@ -166,11 +591,7 @@ class SearchTest extends TestCase
     public function test_search_finds_course_by_course_title(){
         $this->createCourseScaleCategory();
 
-        Course::factory()->create([
-            'course_code' => 'FRST',
-            'course_num' => 321,
-            'course_title' => 'Auralith Forest Policy',
-        ]);
+        $this->createSearchCourse('FRST', 321, 'Auralith Forest Policy');
 
         $response = $this->get(route('search.index', [
             'query' => 'auralith',
@@ -185,17 +606,9 @@ class SearchTest extends TestCase
     public function test_direct_course_matches_appear_before_content_only_matches(){
         $this->createCourseScaleCategory();
 
-        Course::factory()->create([
-            'course_code' => 'CONS',
-            'course_num' => 123,
-            'course_title' => 'Actual Course Match',
-        ]);
+        $this->createSearchCourse('CONS', 123, 'Actual Course Match');
 
-        $contentOnlyCourse = Course::factory()->create([
-            'course_code' => 'FRST',
-            'course_num' => 456,
-            'course_title' => 'Description Mention Course',
-        ]);
+        $contentOnlyCourse = $this->createSearchCourse('FRST', 456, 'Description Mention Course');
 
         DB::table('course_description')->insert([
             'course_id' => $contentOnlyCourse->course_id,
@@ -231,6 +644,160 @@ class SearchTest extends TestCase
         );
     }
 
+    private function assignRoleToUser(User $user, string $roleName): int
+    {
+        $roleId = DB::table('roles')->where('role', $roleName)->value('id');
+
+        if (!$roleId) {
+            $roleId = DB::table('roles')->insertGetId([
+                'role' => $roleName,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        DB::table('role_user')->insertOrIgnore([
+            'role_id' => $roleId,
+            'user_id' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $roleId;
+    }
+
+    private function giveUserDirectCourseAccess(User $user, Course $course, int $permission): void
+    {
+        DB::table('course_users')->updateOrInsert(
+            [
+                'course_id' => $course->course_id,
+                'user_id' => $user->id,
+            ],
+            [
+                'permission' => $permission,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+    }
+
+    private function giveUserDirectProgramAccess(User $user, int $programId, int $permission): void
+    {
+        DB::table('program_users')->updateOrInsert(
+            [
+                'program_id' => $programId,
+                'user_id' => $user->id,
+            ],
+            [
+                'permission' => $permission,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+    }
+
+    private function giveUserProgramDirectorAccess(User $user, int $programId): void
+    {
+        $programDirectorRoleId = $this->assignRoleToUser($user, 'program director');
+
+        DB::table('program_user_role')->updateOrInsert(
+            [
+                'program_id' => $programId,
+                'user_id' => $user->id,
+                'role_id' => $programDirectorRoleId,
+            ],
+            [
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        $courseIds = DB::table('course_programs')
+            ->where('program_id', $programId)
+            ->pluck('course_id');
+
+        foreach ($courseIds as $courseId) {
+            DB::table('course_user_role')->updateOrInsert(
+                [
+                    'course_id' => $courseId,
+                    'user_id' => $user->id,
+                    'role_id' => $programDirectorRoleId,
+                    'program_id' => $programId,
+                ],
+                [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
+    }
+
+    private function giveUserDepartmentHeadCourseAccess(User $user, Course $course): void
+    {
+        $departmentHeadRoleId = $this->assignRoleToUser($user, 'department head');
+
+        DB::table('course_user_role')->updateOrInsert(
+            [
+                'course_id' => $course->course_id,
+                'user_id' => $user->id,
+                'role_id' => $departmentHeadRoleId,
+            ],
+            [
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+    }
+
+    private function createSearchCourse(string $courseCode, int $courseNumber, string $courseTitle, array $attributes = []): Course
+    {
+        return Course::factory()->create(array_merge([
+            'course_code' => $courseCode,
+            'course_num' => $courseNumber,
+            'course_title' => $courseTitle,
+        ], $attributes));
+    }
+
+    private function createCourseTopic(Course $course, string $topic): CourseTopic
+    {
+        return CourseTopic::factory()->create([
+            'course_id' => $course->course_id,
+            'topic' => $topic,
+        ]);
+    }
+
+    private function createProgram(string $programName, array $attributes = []): int
+    {
+        return DB::table('programs')->insertGetId(array_merge([
+            'program' => $programName,
+            'level' => 'Bachelors',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $attributes), 'program_id');
+    }
+
+    private function attachCourseToProgram(Course $course, int $programId): void
+    {
+        DB::table('course_programs')->insert([
+            'course_id' => $course->course_id,
+            'program_id' => $programId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function assertSearchVisibility($response, array $visibleText, array $hiddenText): void
+    {
+        foreach ($visibleText as $text) {
+            $response->assertSee($text);
+        }
+
+        foreach ($hiddenText as $text) {
+            $response->assertDontSee($text);
+        }
+    }
+
     private function createIndexedMaterialContent(Course $course, string $content): CourseMaterialFile
     {
         $material = CourseMaterial::factory()->create([
@@ -263,16 +830,9 @@ class SearchTest extends TestCase
     public function test_search_finds_course_by_topic(){
         $this->createCourseScaleCategory();
 
-        $course = Course::factory()->create([
-            'course_code' => 'TEST',
-            'course_num' => 101,
-            'course_title' => 'Test Course',
-        ]);
+        $course = $this->createSearchCourse('TEST', 101, 'Test Course');
 
-        CourseTopic::factory()->create([
-            'course_id' => $course->course_id,
-            'topic' => 'Climate change adaptaion of something something'
-        ]);
+        $this->createCourseTopic($course, 'Climate change adaptaion of something something');
 
         $response = $this->get(route('search.index', [
             'query' => 'climate change',
@@ -287,16 +847,9 @@ class SearchTest extends TestCase
     public function test_search_does_not_show_course_when_topic_does_not_match(){
     $this->createCourseScaleCategory();
 
-    $course = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 101,
-        'course_title' => 'Nonmatching Sentence',
-    ]);
+    $course = $this->createSearchCourse('TEST', 101, 'Nonmatching Sentence');
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Forest ecology and biodiversity',
-    ]);
+    $this->createCourseTopic($course, 'Forest ecology and biodiversity');
 
     $response = $this->get(route('search.index', [
         'query' => 'climate change',
@@ -310,27 +863,13 @@ public function test_search_only_returns_course_with_matching_topic()
 {
     $this->createCourseScaleCategory();
 
-    $matchingCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 101,
-        'course_title' => 'Matching Course',
-    ]);
+    $matchingCourse = $this->createSearchCourse('TEST', 101, 'Matching Course');
 
-    $nonMatchingCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 202,
-        'course_title' => 'Non Matching Course',
-    ]);
+    $nonMatchingCourse = $this->createSearchCourse('TEST', 202, 'Non Matching Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $matchingCourse->course_id,
-        'topic' => 'Climate change adaptation strategies',
-    ]);
+    $this->createCourseTopic($matchingCourse, 'Climate change adaptation strategies');
 
-    CourseTopic::factory()->create([
-        'course_id' => $nonMatchingCourse->course_id,
-        'topic' => 'Forest inventory and timber supply',
-    ]);
+    $this->createCourseTopic($nonMatchingCourse, 'Forest inventory and timber supply');
 
     $response = $this->get(route('search.index', [
         'query' => 'climate change',
@@ -345,26 +884,13 @@ public function test_search_returns_multiple_matching_topics_for_same_course()
 {
     $this->createCourseScaleCategory();
 
-    $course = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 101,
-        'course_title' => 'Climate Course',
-    ]);
+    $course = $this->createSearchCourse('TEST', 101, 'Climate Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Climate change adaptation strategies',
-    ]);
+    $this->createCourseTopic($course, 'Climate change adaptation strategies');
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Climate change impacts on forests',
-    ]);
+    $this->createCourseTopic($course, 'Climate change impacts on forests');
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Soil classification methods',
-    ]);
+    $this->createCourseTopic($course, 'Soil classification methods');
 
     $response = $this->get(route('search.index', [
         'query' => 'climate change',
@@ -392,11 +918,7 @@ public function test_search_finds_course_by_description()
 {
     $this->createCourseScaleCategory();
 
-    $course = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 303,
-        'course_title' => 'Description Match Course',
-    ]);
+    $course = $this->createSearchCourse('TEST', 303, 'Description Match Course');
 
     DB::table('course_description')->insert([
         'course_id' => $course->course_id,
@@ -419,17 +941,9 @@ public function test_search_only_returns_course_with_matching_learning_objective
 {
     $this->createCourseScaleCategory();
 
-    $matchingCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 606,
-        'course_title' => 'Learning Objective Match Course',
-    ]);
+    $matchingCourse = $this->createSearchCourse('TEST', 606, 'Learning Objective Match Course');
 
-    $nonMatchingCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 607,
-        'course_title' => 'Learning Objective Non Match Course',
-    ]);
+    $nonMatchingCourse = $this->createSearchCourse('TEST', 607, 'Learning Objective Non Match Course');
 
     LearningOutcome::create([
         'course_id' => $matchingCourse->course_id,
@@ -458,17 +972,9 @@ public function test_search_only_returns_course_with_matching_description()
 {
     $this->createCourseScaleCategory();
 
-    $matchingCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 707,
-        'course_title' => 'Description Only Match Course',
-    ]);
+    $matchingCourse = $this->createSearchCourse('TEST', 707, 'Description Only Match Course');
 
-    $nonMatchingCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 708,
-        'course_title' => 'Description Non Match Course',
-    ]);
+    $nonMatchingCourse = $this->createSearchCourse('TEST', 708, 'Description Non Match Course');
 
     DB::table('course_description')->insert([
         [
@@ -500,11 +1006,7 @@ public function test_search_finds_course_by_material()
 {
     $this->createCourseScaleCategory();
 
-    $course = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 404,
-        'course_title' => 'Material Match Course',
-    ]);
+    $course = $this->createSearchCourse('TEST', 404, 'Material Match Course');
 
     CourseMaterial::factory()->create([
         'course_id' => $course->course_id,
@@ -527,17 +1029,9 @@ public function test_search_only_returns_course_with_matching_material()
 {
     $this->createCourseScaleCategory();
 
-    $matchingCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 808,
-        'course_title' => 'Material Only Match Course',
-    ]);
+    $matchingCourse = $this->createSearchCourse('TEST', 808, 'Material Only Match Course');
 
-    $nonMatchingCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 809,
-        'course_title' => 'Material Non Match Course',
-    ]);
+    $nonMatchingCourse = $this->createSearchCourse('TEST', 809, 'Material Non Match Course');
 
     CourseMaterial::factory()->create([
         'course_id' => $matchingCourse->course_id,
@@ -592,6 +1086,34 @@ public function test_search_finds_course_by_indexed_material_content()
     $response->assertSee('<mark>cryodendron</mark>', false);
 }
 
+public function test_material_content_search_only_returns_accessible_courses()
+{
+    $this->createCourseScaleCategory();
+
+    $regularUser = User::factory()->create();
+    $this->actingAs($regularUser);
+
+    $accessibleCourse = $this->createSearchCourse('OPEN', 813, 'Accessible Material Content Course');
+    $inaccessibleCourse = $this->createSearchCourse('HIDE', 814, 'Inaccessible Material Content Course');
+
+    $this->giveUserDirectCourseAccess($regularUser, $accessibleCourse, 3);
+    $this->createIndexedMaterialContent($accessibleCourse, 'The lecture examines verdantaccessium restoration methods.');
+    $this->createIndexedMaterialContent($inaccessibleCourse, 'The lecture examines verdantaccessium restoration methods.');
+
+    $response = $this->get(route('search.index', [
+        'query' => 'verdantaccessium',
+        'property_filters_applied' => 1,
+        'properties' => ['material_content'],
+    ]));
+
+    $response->assertStatus(200);
+    $this->assertSearchVisibility($response, [
+        'Accessible Material Content Course',
+    ], [
+        'Inaccessible Material Content Course',
+    ]);
+}
+
 public function test_material_content_is_not_searched_when_property_is_not_selected()
 {
     $this->createCourseScaleCategory();
@@ -639,11 +1161,7 @@ public function test_search_finds_course_by_assessment()
 {
     $this->createCourseScaleCategory();
 
-    $course = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 505,
-        'course_title' => 'Assessment Match Course',
-    ]);
+    $course = $this->createSearchCourse('TEST', 505, 'Assessment Match Course');
 
     AssessmentMethod::create([
         'course_id' => $course->course_id,
@@ -666,17 +1184,9 @@ public function test_search_only_returns_course_with_matching_assessment()
 {
     $this->createCourseScaleCategory();
 
-    $matchingCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 909,
-        'course_title' => 'Assessment Only Match Course',
-    ]);
+    $matchingCourse = $this->createSearchCourse('TEST', 909, 'Assessment Only Match Course');
 
-    $nonMatchingCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 910,
-        'course_title' => 'Assessment Non Match Course',
-    ]);
+    $nonMatchingCourse = $this->createSearchCourse('TEST', 910, 'Assessment Non Match Course');
 
     AssessmentMethod::create([
         'course_id' => $matchingCourse->course_id,
@@ -707,22 +1217,11 @@ public function test_topic_match_ranks_above_material_match()
 {
     $this->createCourseScaleCategory();
 
-    $topicCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 111,
-        'course_title' => 'Topic Match Course',
-    ]);
+    $topicCourse = $this->createSearchCourse('TEST', 111, 'Topic Match Course');
 
-    $materialCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 222,
-        'course_title' => 'Material Match Course',
-    ]);
+    $materialCourse = $this->createSearchCourse('TEST', 222, 'Material Match Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $topicCourse->course_id,
-        'topic' => 'Zenthos climate adaptation',
-    ]);
+    $this->createCourseTopic($topicCourse, 'Zenthos climate adaptation');
 
     CourseMaterial::factory()->create([
         'course_id' => $materialCourse->course_id,
@@ -748,22 +1247,11 @@ public function test_multiple_lower_weight_matches_can_outrank_single_topic_matc
 {
     $this->createCourseScaleCategory();
 
-    $topicCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 333,
-        'course_title' => 'Single Topic Course',
-    ]);
+    $topicCourse = $this->createSearchCourse('TEST', 333, 'Single Topic Course');
 
-    $materialCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 444,
-        'course_title' => 'Multiple Material Matches Course',
-    ]);
+    $materialCourse = $this->createSearchCourse('TEST', 444, 'Multiple Material Matches Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $topicCourse->course_id,
-        'topic' => 'Vorlan sustainability systems',
-    ]);
+    $this->createCourseTopic($topicCourse, 'Vorlan sustainability systems');
 
     for ($index = 0; $index < 6; $index++) {
         CourseMaterial::factory()->create([
@@ -789,27 +1277,13 @@ public function test_direct_course_match_ranks_above_higher_content_score()
 {
     $this->createCourseScaleCategory();
 
-    Course::factory()->create([
-        'course_code' => 'CONS',
-        'course_num' => 123,
-        'course_title' => 'Direct Course Match',
-    ]);
+    $this->createSearchCourse('CONS', 123, 'Direct Course Match');
 
-    $contentCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 555,
-        'course_title' => 'High Content Match Course',
-    ]);
+    $contentCourse = $this->createSearchCourse('TEST', 555, 'High Content Match Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $contentCourse->course_id,
-        'topic' => 'CONS123 policy topic',
-    ]);
+    $this->createCourseTopic($contentCourse, 'CONS123 policy topic');
 
-    CourseTopic::factory()->create([
-        'course_id' => $contentCourse->course_id,
-        'topic' => 'CONS123 advanced topic',
-    ]);
+    $this->createCourseTopic($contentCourse, 'CONS123 advanced topic');
 
     CourseMaterial::factory()->create([
         'course_id' => $contentCourse->course_id,
@@ -833,21 +1307,11 @@ public function test_search_stats_show_total_matches_by_property()
 {
     $this->createCourseScaleCategory();
 
-    $course = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 111,
-        'course_title' => 'Stats Match Course',
-    ]);
+    $course = $this->createSearchCourse('TEST', 111, 'Stats Match Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Glacier adaptation topic one',
-    ]);
+    $this->createCourseTopic($course, 'Glacier adaptation topic one');
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Glacier adaptation topic two',
-    ]);
+    $this->createCourseTopic($course, 'Glacier adaptation topic two');
 
     LearningOutcome::create([
         'course_id' => $course->course_id,
@@ -918,32 +1382,15 @@ public function test_search_stats_count_distinct_courses_and_total_topic_matches
 {
     $this->createCourseScaleCategory();
 
-    $firstCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 222,
-        'course_title' => 'First Stats Course',
-    ]);
+    $firstCourse = $this->createSearchCourse('TEST', 222, 'First Stats Course');
 
-    $secondCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 333,
-        'course_title' => 'Second Stats Course',
-    ]);
+    $secondCourse = $this->createSearchCourse('TEST', 333, 'Second Stats Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $firstCourse->course_id,
-        'topic' => 'Hydrology climate topic one',
-    ]);
+    $this->createCourseTopic($firstCourse, 'Hydrology climate topic one');
 
-    CourseTopic::factory()->create([
-        'course_id' => $firstCourse->course_id,
-        'topic' => 'Hydrology climate topic two',
-    ]);
+    $this->createCourseTopic($firstCourse, 'Hydrology climate topic two');
 
-    CourseTopic::factory()->create([
-        'course_id' => $secondCourse->course_id,
-        'topic' => 'Hydrology climate topic three',
-    ]);
+    $this->createCourseTopic($secondCourse, 'Hydrology climate topic three');
 
     $response = $this->get(route('search.index', [
         'query' => 'hydrology climate',
@@ -962,21 +1409,11 @@ public function test_course_result_shows_per_course_match_statistics()
 {
     $this->createCourseScaleCategory();
 
-    $course = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 555,
-        'course_title' => 'Per Course Stats Course',
-    ]);
+    $course = $this->createSearchCourse('TEST', 555, 'Per Course Stats Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Watershed resilience planning topic one',
-    ]);
+    $this->createCourseTopic($course, 'Watershed resilience planning topic one');
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Watershed resilience planning topic two',
-    ]);
+    $this->createCourseTopic($course, 'Watershed resilience planning topic two');
 
     CourseMaterial::factory()->create([
         'course_id' => $course->course_id,
@@ -1003,11 +1440,7 @@ public function test_search_stats_show_zero_when_query_has_no_results()
 {
     $this->createCourseScaleCategory();
 
-    Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 444,
-        'course_title' => 'No Match Course',
-    ]);
+    $this->createSearchCourse('TEST', 444, 'No Match Course');
 
     $response = $this->get(route('search.index', [
         'query' => 'nonexistentsearchterm',
@@ -1028,16 +1461,9 @@ public function test_search_results_are_paginated_with_ten_courses_per_page()
     $this->createCourseScaleCategory();
 
     for ($index = 1; $index <= 11; $index++) {
-        $course = Course::factory()->create([
-            'course_code' => 'PAGE',
-            'course_num' => 100 + $index,
-            'course_title' => "Pagination Course {$index}",
-        ]);
+        $course = $this->createSearchCourse('PAGE', 100 + $index, "Pagination Course {$index}");
 
-        CourseTopic::factory()->create([
-            'course_id' => $course->course_id,
-            'topic' => 'Pagination testing topic',
-        ]);
+        $this->createCourseTopic($course, 'Pagination testing topic');
     }
 
     $firstPage = $this->get(route('search.index', [
@@ -1067,31 +1493,13 @@ public function test_search_result_shows_the_course_program()
 {
     $this->createCourseScaleCategory();
 
-    $course = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 901,
-        'course_title' => 'Program Display Course',
-    ]);
+    $course = $this->createSearchCourse('TEST', 901, 'Program Display Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Astronomy program search topic',
-    ]);
+    $this->createCourseTopic($course, 'Astronomy program search topic');
 
-    $programId = DB::table('programs')->insertGetId([
-        'program' => 'Astronomy Program',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
-
-    DB::table('course_programs')->insert([
-        'course_id' => $course->course_id,
-        'program_id' => $programId,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+    $programId = $this->createProgram('Astronomy Program');
+    $this->attachCourseToProgram($course, $programId);
+    $this->searchUser->programs()->attach($programId, ['permission' => 3]);
 
     $response = $this->get(route('search.index', [
         'query' => 'astronomy',
@@ -1107,40 +1515,16 @@ public function test_search_stats_count_distinct_programs()
 {
     $this->createCourseScaleCategory();
 
-    $firstCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 902,
-        'course_title' => 'First Program Stats Course',
-    ]);
+    $firstCourse = $this->createSearchCourse('TEST', 902, 'First Program Stats Course');
 
-    $secondCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 903,
-        'course_title' => 'Second Program Stats Course',
-    ]);
+    $secondCourse = $this->createSearchCourse('TEST', 903, 'Second Program Stats Course');
 
     foreach ([$firstCourse, $secondCourse] as $course) {
-        CourseTopic::factory()->create([
-            'course_id' => $course->course_id,
-            'topic' => 'Geophysics program statistics topic',
-        ]);
+        $this->createCourseTopic($course, 'Geophysics program statistics topic');
     }
 
-    $firstProgramId = DB::table('programs')->insertGetId([
-        'program' => 'First Geophysics Program',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
-
-    $secondProgramId = DB::table('programs')->insertGetId([
-        'program' => 'Second Geophysics Program',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
+    $firstProgramId = $this->createProgram('First Geophysics Program');
+    $secondProgramId = $this->createProgram('Second Geophysics Program');
 
     DB::table('course_programs')->insert([
         [
@@ -1174,13 +1558,8 @@ public function test_search_stats_count_distinct_programs()
 
 public function test_search_finds_program_directly_by_name()
 {
-    $matchingProgramId = DB::table('programs')->insertGetId([
-        'program' => 'Quasar Studies',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
+    $matchingProgramId = $this->createProgram('Quasar Studies');
+    $this->searchUser->programs()->attach($matchingProgramId, ['permission' => 3]);
 
     DB::table('programs')->insert([
         'program' => 'Marine Biology',
@@ -1210,42 +1589,17 @@ public function test_search_groups_matching_courses_under_their_program()
 {
     $this->createCourseScaleCategory();
 
-    $programId = DB::table('programs')->insertGetId([
-        'program' => 'Quantum Studies',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
+    $programId = $this->createProgram('Quantum Studies');
 
-    $course = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 904,
-        'course_title' => 'Quantum Course',
-    ]);
+    $course = $this->createSearchCourse('TEST', 904, 'Quantum Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Quantum systems and applications',
-    ]);
+    $this->createCourseTopic($course, 'Quantum systems and applications');
 
-    $unassignedCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 905,
-        'course_title' => 'Unassigned Quantum Course',
-    ]);
+    $unassignedCourse = $this->createSearchCourse('TEST', 905, 'Unassigned Quantum Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $unassignedCourse->course_id,
-        'topic' => 'Quantum theory without a program assignment',
-    ]);
+    $this->createCourseTopic($unassignedCourse, 'Quantum theory without a program assignment');
 
-    DB::table('course_programs')->insert([
-        'course_id' => $course->course_id,
-        'program_id' => $programId,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+    $this->attachCourseToProgram($course, $programId);
 
     $response = $this->get(route('search.index', [
         'query' => 'quantum',
@@ -1307,22 +1661,11 @@ public function test_search_defaults_to_all_properties()
 {
     $this->createCourseScaleCategory();
 
-    $topicCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 910,
-        'course_title' => 'Default Topic Filter Course',
-    ]);
+    $topicCourse = $this->createSearchCourse('TEST', 910, 'Default Topic Filter Course');
 
-    $descriptionCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 911,
-        'course_title' => 'Default Description Filter Course',
-    ]);
+    $descriptionCourse = $this->createSearchCourse('TEST', 911, 'Default Description Filter Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $topicCourse->course_id,
-        'topic' => 'Filterium topic applications',
-    ]);
+    $this->createCourseTopic($topicCourse, 'Filterium topic applications');
 
     DB::table('course_description')->insert([
         'course_id' => $descriptionCourse->course_id,
@@ -1353,22 +1696,11 @@ public function test_topic_only_filter_excludes_description_matches()
 {
     $this->createCourseScaleCategory();
 
-    $topicCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 912,
-        'course_title' => 'Topic Only Filter Course',
-    ]);
+    $topicCourse = $this->createSearchCourse('TEST', 912, 'Topic Only Filter Course');
 
-    $descriptionCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 913,
-        'course_title' => 'Excluded Description Filter Course',
-    ]);
+    $descriptionCourse = $this->createSearchCourse('TEST', 913, 'Excluded Description Filter Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $topicCourse->course_id,
-        'topic' => 'Filterium topic applications',
-    ]);
+    $this->createCourseTopic($topicCourse, 'Filterium topic applications');
 
     DB::table('course_description')->insert([
         'course_id' => $descriptionCourse->course_id,
@@ -1393,22 +1725,11 @@ public function test_multiple_property_filters_work_together()
 {
     $this->createCourseScaleCategory();
 
-    $topicCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 914,
-        'course_title' => 'Multiple Topic Filter Course',
-    ]);
+    $topicCourse = $this->createSearchCourse('TEST', 914, 'Multiple Topic Filter Course');
 
-    $descriptionCourse = Course::factory()->create([
-        'course_code' => 'TEST',
-        'course_num' => 915,
-        'course_title' => 'Multiple Description Filter Course',
-    ]);
+    $descriptionCourse = $this->createSearchCourse('TEST', 915, 'Multiple Description Filter Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $topicCourse->course_id,
-        'topic' => 'Filterium topic applications',
-    ]);
+    $this->createCourseTopic($topicCourse, 'Filterium topic applications');
 
     DB::table('course_description')->insert([
         'course_id' => $descriptionCourse->course_id,
@@ -1433,27 +1754,13 @@ public function test_course_code_filter_excludes_other_course_codes()
 {
     $this->createCourseScaleCategory();
 
-    $consCourse = Course::factory()->create([
-        'course_code' => 'CONS',
-        'course_num' => 221,
-        'course_title' => 'Selected Code Course',
-    ]);
+    $consCourse = $this->createSearchCourse('CONS', 221, 'Selected Code Course');
 
-    $frstCourse = Course::factory()->create([
-        'course_code' => 'FRST',
-        'course_num' => 222,
-        'course_title' => 'Excluded Code Course',
-    ]);
+    $frstCourse = $this->createSearchCourse('FRST', 222, 'Excluded Code Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $consCourse->course_id,
-        'topic' => 'Codefilterium conservation methods',
-    ]);
+    $this->createCourseTopic($consCourse, 'Codefilterium conservation methods');
 
-    CourseTopic::factory()->create([
-        'course_id' => $frstCourse->course_id,
-        'topic' => 'Codefilterium forestry methods',
-    ]);
+    $this->createCourseTopic($frstCourse, 'Codefilterium forestry methods');
 
     $response = $this->get(route('search.index', [
         'query' => 'codefilterium',
@@ -1470,29 +1777,14 @@ public function test_multiple_course_code_filters_return_selected_codes()
 {
     $this->createCourseScaleCategory();
 
-    $consCourse = Course::factory()->create([
-        'course_code' => 'CONS',
-        'course_num' => 321,
-        'course_title' => 'Selected CONS Course',
-    ]);
+    $consCourse = $this->createSearchCourse('CONS', 321, 'Selected CONS Course');
 
-    $frstCourse = Course::factory()->create([
-        'course_code' => 'FRST',
-        'course_num' => 322,
-        'course_title' => 'Selected FRST Course',
-    ]);
+    $frstCourse = $this->createSearchCourse('FRST', 322, 'Selected FRST Course');
 
-    $bestCourse = Course::factory()->create([
-        'course_code' => 'BEST',
-        'course_num' => 323,
-        'course_title' => 'Excluded BEST Course',
-    ]);
+    $bestCourse = $this->createSearchCourse('BEST', 323, 'Excluded BEST Course');
 
     foreach ([$consCourse, $frstCourse, $bestCourse] as $course) {
-        CourseTopic::factory()->create([
-            'course_id' => $course->course_id,
-            'topic' => 'Multicodefilterium search topic',
-        ]);
+        $this->createCourseTopic($course, 'Multicodefilterium search topic');
     }
 
     $response = $this->get(route('search.index', [
@@ -1514,27 +1806,13 @@ public function test_course_level_filter_excludes_other_levels()
 {
     $this->createCourseScaleCategory();
 
-    $lowerLevelCourse = Course::factory()->create([
-        'course_code' => 'FRST',
-        'course_num' => 150,
-        'course_title' => 'Excluded Lower Level Course',
-    ]);
+    $lowerLevelCourse = $this->createSearchCourse('FRST', 150, 'Excluded Lower Level Course');
 
-    $selectedLevelCourse = Course::factory()->create([
-        'course_code' => 'FRST',
-        'course_num' => 350,
-        'course_title' => 'Selected Upper Level Course',
-    ]);
+    $selectedLevelCourse = $this->createSearchCourse('FRST', 350, 'Selected Upper Level Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $lowerLevelCourse->course_id,
-        'topic' => 'Levelfilterium introductory methods',
-    ]);
+    $this->createCourseTopic($lowerLevelCourse, 'Levelfilterium introductory methods');
 
-    CourseTopic::factory()->create([
-        'course_id' => $selectedLevelCourse->course_id,
-        'topic' => 'Levelfilterium advanced methods',
-    ]);
+    $this->createCourseTopic($selectedLevelCourse, 'Levelfilterium advanced methods');
 
     $response = $this->get(route('search.index', [
         'query' => 'levelfilterium',
@@ -1551,27 +1829,13 @@ public function test_all_course_levels_does_not_restrict_results()
 {
     $this->createCourseScaleCategory();
 
-    $lowerLevelCourse = Course::factory()->create([
-        'course_code' => 'CONS',
-        'course_num' => 151,
-        'course_title' => 'All Levels Lower Course',
-    ]);
+    $lowerLevelCourse = $this->createSearchCourse('CONS', 151, 'All Levels Lower Course');
 
-    $upperLevelCourse = Course::factory()->create([
-        'course_code' => 'CONS',
-        'course_num' => 351,
-        'course_title' => 'All Levels Upper Course',
-    ]);
+    $upperLevelCourse = $this->createSearchCourse('CONS', 351, 'All Levels Upper Course');
 
-    CourseTopic::factory()->create([
-        'course_id' => $lowerLevelCourse->course_id,
-        'topic' => 'Alllevelium introductory methods',
-    ]);
+    $this->createCourseTopic($lowerLevelCourse, 'Alllevelium introductory methods');
 
-    CourseTopic::factory()->create([
-        'course_id' => $upperLevelCourse->course_id,
-        'topic' => 'Alllevelium advanced methods',
-    ]);
+    $this->createCourseTopic($upperLevelCourse, 'Alllevelium advanced methods');
 
     $response = $this->get(route('search.index', [
         'query' => 'alllevelium',
@@ -1588,29 +1852,14 @@ public function test_course_code_and_level_filters_work_together()
 {
     $this->createCourseScaleCategory();
 
-    $lowerConsCourse = Course::factory()->create([
-        'course_code' => 'CONS',
-        'course_num' => 152,
-        'course_title' => 'Excluded CONS Lower Course',
-    ]);
+    $lowerConsCourse = $this->createSearchCourse('CONS', 152, 'Excluded CONS Lower Course');
 
-    $upperConsCourse = Course::factory()->create([
-        'course_code' => 'CONS',
-        'course_num' => 352,
-        'course_title' => 'Selected CONS Upper Course',
-    ]);
+    $upperConsCourse = $this->createSearchCourse('CONS', 352, 'Selected CONS Upper Course');
 
-    $upperFrstCourse = Course::factory()->create([
-        'course_code' => 'FRST',
-        'course_num' => 352,
-        'course_title' => 'Excluded FRST Upper Course',
-    ]);
+    $upperFrstCourse = $this->createSearchCourse('FRST', 352, 'Excluded FRST Upper Course');
 
     foreach ([$lowerConsCourse, $upperConsCourse, $upperFrstCourse] as $course) {
-        CourseTopic::factory()->create([
-            'course_id' => $course->course_id,
-            'topic' => 'Combinedfilterium course methods',
-        ]);
+        $this->createCourseTopic($course, 'Combinedfilterium course methods');
     }
 
     $response = $this->get(route('search.index', [
@@ -1644,58 +1893,19 @@ public function test_selected_course_level_is_preserved_and_displayed()
 
 public function test_program_filter_only_returns_courses_in_selected_program()
 {
-    $selectedProgramId = DB::table('programs')->insertGetId([
-        'program' => 'Forest Sciences',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
+    $selectedProgramId = $this->createProgram('Forest Sciences');
+    $otherProgramId = $this->createProgram('Bioeconomy Sciences');
 
-    $otherProgramId = DB::table('programs')->insertGetId([
-        'program' => 'Bioeconomy Sciences',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
+    $matchingCourse = $this->createSearchCourse('FRST', 302, 'Forest Genetics');
 
-    $matchingCourse = Course::factory()->create([
-        'course_code' => 'FRST',
-        'course_num' => 302,
-        'course_title' => 'Forest Genetics',
-    ]);
+    $excludedCourse = $this->createSearchCourse('BEST', 300, 'Climate Adaptation');
 
-    $excludedCourse = Course::factory()->create([
-        'course_code' => 'BEST',
-        'course_num' => 300,
-        'course_title' => 'Climate Adaptation',
-    ]);
+    $this->attachCourseToProgram($matchingCourse, $selectedProgramId);
+    $this->attachCourseToProgram($excludedCourse, $otherProgramId);
 
-    DB::table('course_programs')->insert([
-        [
-            'course_id' => $matchingCourse->course_id,
-            'program_id' => $selectedProgramId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-        [
-            'course_id' => $excludedCourse->course_id,
-            'program_id' => $otherProgramId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-    ]);
+    $this->createCourseTopic($matchingCourse, 'climate adaptation in forest ecosystems');
 
-    CourseTopic::factory()->create([
-        'course_id' => $matchingCourse->course_id,
-        'topic' => 'climate adaptation in forest ecosystems',
-    ]);
-
-    CourseTopic::factory()->create([
-        'course_id' => $excludedCourse->course_id,
-        'topic' => 'climate adaptation in forest ecosystems',
-    ]);
+    $this->createCourseTopic($excludedCourse, 'climate adaptation in forest ecosystems');
 
     $response = $this->get(route('search.index', [
         'query' => 'climate adaptation',
@@ -1712,49 +1922,17 @@ public function test_program_filter_only_returns_courses_in_selected_program()
 
 public function test_program_filter_only_groups_course_under_selected_program()
 {
-    $selectedProgramId = DB::table('programs')->insertGetId([
-        'program' => 'Selected Forest Program',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
+    $selectedProgramId = $this->createProgram('Selected Forest Program');
+    $otherProgramId = $this->createProgram('Unselected Climate Program');
 
-    $otherProgramId = DB::table('programs')->insertGetId([
-        'program' => 'Unselected Climate Program',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
+    $course = $this->createSearchCourse('FRST', 303, 'Climate Resilient Forests');
 
-    $course = Course::factory()->create([
-        'course_code' => 'FRST',
-        'course_num' => 303,
-        'course_title' => 'Climate Resilient Forests',
-    ]);
-
-    DB::table('course_programs')->insert([
-        [
-            'course_id' => $course->course_id,
-            'program_id' => $selectedProgramId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-        [
-            'course_id' => $course->course_id,
-            'program_id' => $otherProgramId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-    ]);
+    $this->attachCourseToProgram($course, $selectedProgramId);
+    $this->attachCourseToProgram($course, $otherProgramId);
 
 
 
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'Climate resilience in managed forests',
-    ]);
+    $this->createCourseTopic($course, 'Climate resilience in managed forests');
 
     $parameters = [
         'query' => 'climate',
@@ -1820,13 +1998,7 @@ public function test_authenticated_user_can_save_search_filter(): void{
 public function test_authenticated_user_can_apply_saved_search_filter(): void
 {
     $user = User::factory()->create();
-    $programId = DB::table('programs')->insertGetId([
-        'program' => 'Forest Sciences',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
+    $programId = $this->createProgram('Forest Sciences');
 
     $savedFilter = $user->savedSearchFilters()->create([
         'name' => 'Forest Program Preset',
@@ -1944,15 +2116,8 @@ public function test_applied_saved_filter_is_shown_as_the_current_preset(): void
 {
     $user = User::factory()->create();
     $this->createCourseScaleCategory();
-    $course = Course::factory()->create([
-        'course_code' => 'FRST',
-        'course_num' => 300,
-        'course_title' => 'Climate Forestry',
-    ]);
-    CourseTopic::factory()->create([
-        'course_id' => $course->course_id,
-        'topic' => 'climate adaptation',
-    ]);
+    $course = $this->createSearchCourse('FRST', 300, 'Climate Forestry');
+    $this->createCourseTopic($course, 'climate adaptation');
     $savedFilter = $user->savedSearchFilters()->create([
         'name' => 'Forestry Topics',
         'filters' => [
@@ -1981,51 +2146,16 @@ public function test_applied_saved_filter_is_shown_as_the_current_preset(): void
 
 public function test_applied_course_filters_show_correct_programs_in_program_view(){
 
-    $selectedProgramId = DB::table('programs')->insertGetId([
-        'program' => 'Terraria Program',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
+    $selectedProgramId = $this->createProgram('Terraria Program');
+    $otherProgramId = $this->createProgram('Different terraria program');
 
-    $otherProgramId = DB::table('programs')->insertGetId([
-        'program' => 'Different terraria program',
-        'level' => 'Bachelors',
-        'status' => 1,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ], 'program_id');
+    $matchingFilterCourse = $this->createSearchCourse('FRST', 303, 'Climate Resilient');
 
-    $matchingFilterCourse = Course::factory()->create([
-        'course_code' => 'FRST',
-        'course_num' => 303,
-        'course_title' => 'Climate Resilient',
-    ]);
+    $this->attachCourseToProgram($matchingFilterCourse, $selectedProgramId);
 
-    DB::table('course_programs')->insert([
-        [
-            'course_id' => $matchingFilterCourse->course_id,
-            'program_id' => $selectedProgramId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-    ]);
+    $excludedFilterCourse = $this->createSearchCourse('CONS', 303, 'Climate Resilient');
 
-    $excludedFilterCourse = Course::factory()->create([
-        'course_code' => 'CONS',
-        'course_num' => 303,
-        'course_title' => 'Climate Resilient',
-    ]);
-
-    DB::table('course_programs')->insert([
-        [
-            'course_id' => $excludedFilterCourse->course_id,
-            'program_id' => $otherProgramId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-    ]);
+    $this->attachCourseToProgram($excludedFilterCourse, $otherProgramId);
 
     $parameters = [
         'view' => 'courses',
