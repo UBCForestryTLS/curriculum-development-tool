@@ -10,6 +10,7 @@ This feature is implemented primarily under:
 
 - [`laravel/app/Http/Controllers/SearchController.php`](../laravel/app/Http/Controllers/SearchController.php)
 - [`laravel/app/Http/Controllers/SavedSearchFilterController.php`](../laravel/app/Http/Controllers/SavedSearchFilterController.php)
+- [`laravel/app/Helpers/SearchCourseAccess.php`](../laravel/app/Helpers/SearchCourseAccess.php)
 - [`laravel/app/Helpers/SearchFilterOptions.php`](../laravel/app/Helpers/SearchFilterOptions.php)
 - [`laravel/resources/views/search/index.blade.php`](../laravel/resources/views/search/index.blade.php)
 - [`laravel/resources/views/search/exports/course-results.blade.php`](../laravel/resources/views/search/exports/course-results.blade.php)
@@ -77,6 +78,25 @@ Program names are searched directly from `programs.program` when Program view is
 Topics accepted from course material suggestions are stored in `course_topics`, so they are included through the existing Topics property instead of a separate filter.
 
 The filter values and UI labels are defined in `SearchFilterOptions`, which is used by both search controllers and the Blade view. This keeps property validation, defaults, and display labels in one place.
+
+## Search Access
+
+Search results are scoped to the logged-in user's course access. The access rule is applied in the database query before results, stats, filter options, and Program view groups are returned.
+
+Current supported access:
+
+- administrators can search all courses
+- regular users can search courses they have direct access to through `course_users`
+- program directors and department heads can search courses assigned to them through `course_user_role`
+- faculty-wide access also depends on the access rows created in `course_user_role` by the existing role-assignment flows
+
+The search access logic lives in `SearchCourseAccess`. It uses `whereExists` subqueries so inaccessible courses are filtered out before the controller combines matches or paginates results.
+
+Direct course access only checks whether the `course_users` row exists. It does not enforce owner, editor, or viewer permissions because search only controls whether a course can be discovered. Course action permissions are handled by the existing course pages after a user opens a result.
+
+Role-based search access uses the same materialized `course_user_role` rows as the dashboard and course-page access. Search does not recalculate access from program, department, or faculty relationships. These rows must therefore stay synchronized when roles and course relationships change.
+
+The same access restrictions apply to every searchable course property, including text extracted from indexed course material files.
 
 ## Request Flow
 
@@ -236,6 +256,8 @@ The tests cover:
 - query validation and whitespace normalization
 - searching each course property
 - direct course and direct program matches
+- direct course access, Program Director access, and Department Head access
+- indexed material content only appearing for accessible courses
 - ranking behavior
 - safe highlighted snippets
 - search stats
@@ -250,6 +272,31 @@ Run the search tests with:
 cd laravel
 php artisan test tests/Feature/SearchTest.php
 ```
+
+## Optional Performance Data
+
+`SearchPerformanceSeeder` creates deterministic data for measuring search response times and PostgreSQL query performance. It is not included in `DatabaseSeeder` and cannot run in production.
+
+See [Search and Role Access Performance Testing](search-role-access-performance-testing.pdf) for the generated dataset, testing process, response-time results, and findings.
+
+Run the default dataset with:
+
+```bash
+cd laravel
+php artisan db:seed --class=SearchPerformanceSeeder
+```
+
+The default dataset contains 2,000 courses and 1,500 programs. Each course has seven topics, six learning outcomes, four assessments, two materials, and one description, along with program relationships and direct and role-based access rows. Rerunning the seeder replaces only its own `Performance Test` data.
+
+Dataset size can be changed when running the command:
+
+```bash
+SEARCH_PERFORMANCE_COURSES=5000 SEARCH_PERFORMANCE_PROGRAMS=2500 php artisan db:seed --class=SearchPerformanceSeeder
+```
+
+All generated accounts use the password `password` and verified `@example.test` email addresses. Accounts cover no access, limited and broad direct access, Program Director access, Department Head access, faculty-wide access, and administrator access. The full account list is printed after seeding.
+
+Repeatable search terms are `climate` for many matches, `watershed` for fewer matches, and `cryosphere` for a rare match.
 
 ## Operational Notes
 

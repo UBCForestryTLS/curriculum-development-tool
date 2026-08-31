@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\SearchFilterOptions;
+use App\Helpers\SearchCourseAccess;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
@@ -45,6 +47,7 @@ class SearchController extends Controller
         // The query is optional, and the result view must be one of the supported options
         // we also validate property filters applied
 
+        $user = $request->user();
         $searchTerm = $validated['query'] ?? '';
         $searchTerm = trim($searchTerm);
         $searchTerm = preg_replace('/\s+/', ' ', $searchTerm); #for normalizing internal whitepace
@@ -56,7 +59,8 @@ class SearchController extends Controller
         $propertyFiltersApplied = (bool) ($validated['property_filters_applied'] ?? false);
         $selectedProperties = $propertyFiltersApplied ? ($validated['properties'] ?? []) : $availableProperties;
 
-        $availableCourseCodes = DB::table('courses')
+        $availableCourseCodesQuery = DB::table('courses');
+        $availableCourseCodes = SearchCourseAccess::applyCourseAccess($availableCourseCodesQuery, $user)
             //instead of having fixed course codes, we take avaialble courses from what is already in the DB,
             //since only those need to be searchable
             ->whereNotNull('course_code')
@@ -88,10 +92,16 @@ class SearchController extends Controller
                 ->all()
             : [];
 
-        $availablePrograms = DB::table('programs')
-            ->select('program_id', 'program')
+        $availableProgramsQuery = DB::table('programs')
+            ->select('program_id', 'program');
+        $availablePrograms = SearchCourseAccess::applyProgramAccess($availableProgramsQuery, $user)
             ->orderBy('program')
             ->get();
+
+        // Program page access can come from direct permissions or an elevated role.
+        $programPageAccessIds = $user->allPrograms()
+            ->pluck('program_id')
+            ->all();
 
         $programFiltersApplied = (bool) ($validated['program_filters_applied'] ?? false);
         $selectedProgramIds = $programFiltersApplied
@@ -135,6 +145,7 @@ class SearchController extends Controller
                 $selectedCourseCodes,
                 $selectedCourseLevels,
                 $selectedProgramIds,
+                $user,
             );
             $results = $searchData['results'];
             $programMatches = $searchData['programMatches'];
@@ -168,6 +179,7 @@ class SearchController extends Controller
             'selectedCourseCodes' => $selectedCourseCodes,
             'selectedCourseLevels' => $selectedCourseLevels,
             'availablePrograms' => $availablePrograms,
+            'programPageAccessIds' => $programPageAccessIds,
             'selectedProgramIds' => $selectedProgramIds,
             'selectedProgramNames' => $selectedProgramNames,
             'savedSearchFilters' => $savedSearchFilters,
@@ -194,6 +206,7 @@ class SearchController extends Controller
             $filters['selectedCourseCodes'],
             $filters['selectedCourseLevels'],
             $filters['selectedProgramIds'],
+            $request->user(),
         );
 
         $selectedProgramNames = DB::table('programs')
@@ -299,6 +312,7 @@ class SearchController extends Controller
      * @param array $selectedCourseCodes The course codes included in the search.
      * @param array $selectedCourseLevels The course number levels included in the search.
      * @param array $selectedProgramIds The program IDs included in the search.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return array The unpaginated results, statistics, and quick-link collections.
      */
@@ -309,6 +323,7 @@ class SearchController extends Controller
         array $selectedCourseCodes,
         array $selectedCourseLevels,
         array $selectedProgramIds,
+        User $user,
     ): array {
         $resultsAndStats = $this->searchCourses(
             $searchTerm,
@@ -316,6 +331,7 @@ class SearchController extends Controller
             $selectedCourseCodes,
             $selectedCourseLevels,
             $selectedProgramIds,
+            $user,
         );
         $results = $resultsAndStats['results'];
         $stats = $resultsAndStats['stats'];
@@ -328,7 +344,7 @@ class SearchController extends Controller
             ->values();
 
         if ($selectedView === 'programs') {
-            $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels);
+            $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $user);
             $programResults = $this->groupCourseResultsByProgram($results, $programMatches, $selectedProgramIds);
             $stats['programs'] = $programResults->count();
             $programQuickLinks = $programResults;
@@ -364,6 +380,7 @@ class SearchController extends Controller
      * @param array $selectedCourseCodes The course codes included in the search.
      * @param array $selectedCourseLevels The course number levels included in the search.
      * @param array $selectedProgramIds The program IDs included in the search.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return array The combined course results and overall search statistics.
      */
@@ -373,49 +390,50 @@ class SearchController extends Controller
         array $selectedCourseCodes,
         array $selectedCourseLevels,
         array $selectedProgramIds,
+        User $user,
     ){
         $searchResults = collect(); 
 
         //if the property is selected in filters, only then call search and merge
         if (in_array('course', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchCourseNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds)
+                $this->searchCourseNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds, $user)
             );
         }
 
         if (in_array('topics', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchTopics($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds)
+                $this->searchTopics($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds, $user)
             );
         }
 
         if (in_array('learning_outcomes', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchLearningObjectives($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds)
+                $this->searchLearningObjectives($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds, $user)
             );
         }
 
         if (in_array('assessments', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchAssessments($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds)
+                $this->searchAssessments($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds, $user)
             );
         }
 
         if (in_array('descriptions', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchDescriptions($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds)
+                $this->searchDescriptions($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds, $user)
             );
         }
 
         if (in_array('materials', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchMaterials($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds)
+                $this->searchMaterials($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds, $user)
             );
         }
 
         if (in_array('material_content', $selectedProperties)) {
             $searchResults = $searchResults->merge(
-                $this->searchMaterialContent($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds)
+                $this->searchMaterialContent($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $selectedProgramIds, $user)
             );
         }
 
@@ -527,13 +545,15 @@ class SearchController extends Controller
      * @param array $courseCodes The selected course codes.
      * @param array $courseLevels The selected course number levels.
      * @param array $selectedProgramIds The selected program IDs used to restrict matching courses.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return Collection The matching topic records with their course details and snippets.
      */
-    public function searchTopics(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds){
+    public function searchTopics(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds, User $user){
         $query = DB::table('course_topics')
             ->join('courses', 'courses.course_id', '=', 'course_topics.course_id');
 
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
@@ -567,13 +587,15 @@ class SearchController extends Controller
      * @param array $courseCodes The selected course codes.
      * @param array $courseLevels The selected course number levels.
      * @param array $selectedProgramIds The selected program IDs used to restrict matching courses.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return Collection The matching learning outcomes with their course details and snippets.
      */
-    public function searchLearningObjectives(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds){
+    public function searchLearningObjectives(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds, User $user){
         $query = DB::table('learning_outcomes')
             ->join('courses', 'courses.course_id', '=', 'learning_outcomes.course_id');
 
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
@@ -605,13 +627,15 @@ class SearchController extends Controller
      * @param array $courseCodes The selected course codes.
      * @param array $courseLevels The selected course number levels.
      * @param array $selectedProgramIds The selected program IDs used to restrict matching courses.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return Collection The matching descriptions with their course details and snippets.
      */
-    public function searchDescriptions(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds){
+    public function searchDescriptions(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds, User $user){
         $query = DB::table('course_description')
             ->join('courses', 'courses.course_id', '=', 'course_description.course_id');
 
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
@@ -643,13 +667,15 @@ class SearchController extends Controller
      * @param array $courseCodes The selected course codes.
      * @param array $courseLevels The selected course number levels.
      * @param array $selectedProgramIds The selected program IDs used to restrict matching courses.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return Collection The matching materials with their course details and snippets.
      */
-    public function searchMaterials(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds){
+    public function searchMaterials(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds, User $user){
         $query = DB::table('course_materials')
             ->join('courses', 'courses.course_id', '=', 'course_materials.course_id');
 
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
@@ -681,15 +707,17 @@ class SearchController extends Controller
      * @param array $courseCodes The selected course codes.
      * @param array $courseLevels The selected course number levels.
      * @param array $selectedProgramIds The selected program IDs used to restrict matching courses.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return Collection The matching material content with its course, file, page, and snippet details.
      */
-    public function searchMaterialContent(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds){
+    public function searchMaterialContent(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds, User $user){
         $query = DB::table('course_material_chunks')
             ->join('course_material_files', 'course_material_files.course_material_file_id', '=', 'course_material_chunks.course_material_file_id')
             ->join('course_materials', 'course_materials.course_material_id', '=', 'course_material_files.course_material_id')
             ->join('courses', 'courses.course_id', '=', 'course_materials.course_id');
 
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
@@ -727,13 +755,15 @@ class SearchController extends Controller
      * @param array $courseCodes The selected course codes.
      * @param array $courseLevels The selected course number levels.
      * @param array $selectedProgramIds The selected program IDs used to restrict matching courses.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return Collection The matching assessments with their course details and snippets.
      */
-    public function searchAssessments(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds){
+    public function searchAssessments(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds, User $user){
         $query = DB::table('assessment_methods')
             ->join('courses', 'courses.course_id', '=', 'assessment_methods.course_id');
 
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
@@ -765,15 +795,17 @@ class SearchController extends Controller
      * @param array $courseCodes The selected course codes.
      * @param array $courseLevels The selected course number levels.
      * @param array $selectedProgramIds The selected program IDs used to restrict matching courses.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return Collection The matching courses with highlighted course snippets.
      */
-    public function searchCourseNames(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds){
+    public function searchCourseNames(string $searchTerm, array $courseCodes, array $courseLevels, array $selectedProgramIds, User $user){
         $searchText = "concat_ws(' ', courses.course_code, courses.course_num, courses.course_title)";
         $normalizedSearchTerm = preg_replace('/^([A-Za-z]+(?:_[A-Za-z]+)?)\s*(\d+)\b/', '$1 $2', $searchTerm); //normalize compact course codes at the start of a query
 
         $query = DB::table('courses');
 
+        $query = SearchCourseAccess::applyCourseAccess($query, $user);
         $query = $this->applyCourseFilters($query, $courseCodes, $courseLevels);
         $query = $this->filterByProgramIds($query, $selectedProgramIds);
 
@@ -804,25 +836,34 @@ class SearchController extends Controller
      * Searches program names for direct program matches.
      *
      * @param string $searchTerm The normalized text to search for.
+     * @param array $selectedCourseCodes The selected course codes used to restrict direct program matches.
+     * @param array $selectedCourseLevels The selected course levels used to restrict direct program matches.
+     * @param User $user The logged-in user whose course access should be respected.
      *
      * @return Collection The matching programs with highlighted name snippets.
      */
-    public function searchProgramNames(string $searchTerm, array $selectedCourseCodes, array $selectedCourseLevels){
+    public function searchProgramNames(string $searchTerm, array $selectedCourseCodes, array $selectedCourseLevels, User $user){
         $query = DB::table('programs')
             ->whereRaw(
                 "programs.search_vector @@ websearch_to_tsquery('english', ?)",
                 [$searchTerm]
             );
 
-        // If course filters are active, a direct program-name match should only remain
-        // if the program has at least one course that matches those selected course filters.
-        if (!empty($selectedCourseCodes) || !empty($selectedCourseLevels)) {
-            $query->whereExists(function (Builder $courseFilterQuery) use ($selectedCourseCodes, $selectedCourseLevels) {
+        $courseFiltersApplied = !empty($selectedCourseCodes) || !empty($selectedCourseLevels);
+
+        if (!$user->hasRole('administrator') && !$courseFiltersApplied) {
+            SearchCourseAccess::applyProgramAccess($query, $user);
+        }
+
+        // Course filters require an accessible matching course, even for a direct program match.
+        if ($courseFiltersApplied) {
+            $query->whereExists(function (Builder $courseFilterQuery) use ($selectedCourseCodes, $selectedCourseLevels, $user) {
                 $courseFilterQuery->select(DB::raw(1))
                     ->from('course_programs')
                     ->join('courses', 'courses.course_id', '=', 'course_programs.course_id')
                     ->whereColumn('course_programs.program_id', 'programs.program_id');
 
+                SearchCourseAccess::applyCourseAccess($courseFilterQuery, $user);
                 $this->applyCourseFilters($courseFilterQuery, $selectedCourseCodes, $selectedCourseLevels);
             });
         }
