@@ -5,9 +5,83 @@ namespace App\Helpers;
 use App\Models\Program;
 use App\Models\ProgramLearningOutcome;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ProgramGapCoverage
 {
+    /**
+     * Checks whether every course CLO has a mapping row for every program PLO.
+     */
+    public static function mappingCompleteness(Program $program): array
+    {
+        $programLearningOutcomeIds = ProgramLearningOutcome::where('program_id', $program->program_id)
+            ->pluck('pl_outcome_id');
+        $programLearningOutcomeCount = $programLearningOutcomeIds->count();
+
+        $programCourses = DB::table('course_programs')
+            ->join('courses', 'course_programs.course_id', '=', 'courses.course_id')
+            ->leftJoin('learning_outcomes', 'courses.course_id', '=', 'learning_outcomes.course_id')
+            ->where('course_programs.program_id', $program->program_id)
+            ->select([
+                'courses.course_id',
+                'courses.course_code',
+                'courses.course_num',
+                'courses.course_title',
+                DB::raw('COUNT(DISTINCT learning_outcomes.l_outcome_id) as clo_count'),
+            ])
+            ->groupBy('courses.course_id', 'courses.course_code', 'courses.course_num', 'courses.course_title')
+            ->orderBy('courses.course_code')
+            ->orderBy('courses.course_num')
+            ->get();
+
+        $actualMappingCounts = collect();
+        if ($programLearningOutcomeIds->isNotEmpty()) {
+            $actualMappingCounts = DB::table('outcome_maps')
+                ->join('learning_outcomes', 'outcome_maps.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')
+                ->join('course_programs', function ($join) use ($program) {
+                    $join->on('learning_outcomes.course_id', '=', 'course_programs.course_id')
+                        ->where('course_programs.program_id', $program->program_id);
+                })
+                ->whereIn('outcome_maps.pl_outcome_id', $programLearningOutcomeIds)
+                ->select('learning_outcomes.course_id', DB::raw('COUNT(*) as mapping_count'))
+                ->groupBy('learning_outcomes.course_id')
+                ->pluck('mapping_count', 'learning_outcomes.course_id');
+        }
+
+        $courseMappingCounts = $programCourses->map(function ($course) use ($actualMappingCounts, $programLearningOutcomeCount) {
+            $cloCount = (int) $course->clo_count;
+            // A course without CLOs still needs attention when the program has PLOs.
+            $expectedMappingCount = $cloCount === 0
+                ? $programLearningOutcomeCount
+                : $cloCount * $programLearningOutcomeCount;
+            $actualMappingCount = (int) ($actualMappingCounts[$course->course_id] ?? 0);
+
+            return [
+                'course_id' => (int) $course->course_id,
+                'course_code' => $course->course_code,
+                'course_num' => $course->course_num,
+                'course_title' => $course->course_title,
+                'clo_count' => $cloCount,
+                'expected_mapping_count' => $expectedMappingCount,
+                'actual_mapping_count' => $actualMappingCount,
+                'missing_mapping_count' => max(0, $expectedMappingCount - $actualMappingCount),
+                'is_complete' => $expectedMappingCount === $actualMappingCount,
+            ];
+        });
+
+        $incompleteCourses = $courseMappingCounts
+            ->where('is_complete', false)
+            ->values();
+
+        return [
+            'is_complete' => $incompleteCourses->isEmpty(),
+            'has_incomplete_mappings' => $incompleteCourses->isNotEmpty(),
+            'expected_counts' => $courseMappingCounts->pluck('expected_mapping_count', 'course_id')->all(),
+            'actual_counts' => $courseMappingCounts->pluck('actual_mapping_count', 'course_id')->all(),
+            'incomplete_courses' => $incompleteCourses->all(),
+        ];
+    }
+
     /**
      * Builds the raw course and CLO coverage data for each PLO in a program.
      */

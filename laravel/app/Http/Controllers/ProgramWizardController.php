@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ProgramGapCoverage;
 use App\Models\AssessmentMethod;
 use App\Models\Campus;
 use App\Models\Course;
@@ -239,38 +240,9 @@ class ProgramWizardController extends Controller
         // Returns all standard categories in the DB
         $standard_categories = DB::table('standard_categories')->get();
 
-        // All Learning Outcomes for program courses
-        $LearningOutcomesForProgramCourses = [];
-        foreach ($programCourses as $programCourse) {
-            $LearningOutcomesForProgramCourses[$programCourse->course_id] = LearningOutcome::where('course_id', $programCourse->course_id)->pluck('l_outcome_id')->toArray();
-        }
-
-        // ploCount * cloCount = number of outcome map results for course and program
-        $expectedTotalOutcomes = [];
-        foreach ($programCourses as $programCourse) {
-            $expectedTotalOutcomes[$programCourse->course_id] = (count(LearningOutcome::where('course_id', $programCourse->course_id)->pluck('l_outcome_id')->toArray()) == 0) ? $ploCount : count(LearningOutcome::where('course_id', $programCourse->course_id)->pluck('l_outcome_id')->toArray()) * $ploCount;
-        }
-
-        // Get all PLO Id's
-        $arrayPLOutcomeIds = ProgramLearningOutcome::where('program_id', $program_id)->pluck('pl_outcome_id')->toArray();
-
-        // Loop through All Learning Outcomes for program courses
-        $actualTotalOutcomes = [];
-        foreach ($LearningOutcomesForProgramCourses as $courseId => $courseLOs) {
-            // Loop through each of the CLO IDs
-            $count = 0;
-            foreach ($courseLOs as $lo_Id) {
-                // loop through all of the PLO ID's
-                foreach ($arrayPLOutcomeIds as $pl_id) {
-                    // If entry for an Outcome map [l_outcome_id, pl_outcome_id] exists increment counter
-                    if (OutcomeMap::where('l_outcome_id', $lo_Id)->where('pl_outcome_id', $pl_id)->exists()) {
-                        $count++;
-                    }
-                }
-            }
-            // stores total count
-            $actualTotalOutcomes[$courseId] = $count;
-        }
+        $mappingCompleteness = ProgramGapCoverage::mappingCompleteness($program);
+        $expectedTotalOutcomes = $mappingCompleteness['expected_counts'];
+        $actualTotalOutcomes = $mappingCompleteness['actual_counts'];
 
         return view('programs.wizard.step3')->with('program', $program)->with('programCoursesUsers', $programCoursesUsers)
             ->with('faculties', $faculties)->with('departments', $departments)->with('campuses', $campuses)->with('levels', $levels)->with('user', $user)->with('programUsers', $programUsers)
@@ -318,46 +290,8 @@ class ProgramWizardController extends Controller
         // get all the courses this program belongs to
         $programCourses = $program->courses()->orderBy('course_code', 'asc')->orderBy('course_num', 'asc')->get();
 
-        // All Learning Outcomes for program courses
-        $LearningOutcomesForProgramCourses = [];
-        foreach ($programCourses as $programCourse) {
-            $LearningOutcomesForProgramCourses[$programCourse->course_id] = LearningOutcome::where('course_id', $programCourse->course_id)->pluck('l_outcome_id')->toArray();
-        }
-
-        // ploCount * cloCount = number of outcome map results for course and program
-        $expectedTotalOutcomes = [];
-        foreach ($programCourses as $programCourse) {
-            $expectedTotalOutcomes[$programCourse->course_id] = (count(LearningOutcome::where('course_id', $programCourse->course_id)->pluck('l_outcome_id')->toArray()) == 0) ? $ploCount : count(LearningOutcome::where('course_id', $programCourse->course_id)->pluck('l_outcome_id')->toArray()) * $ploCount;
-        }
-
-        // Get all PLO Id's
-        $arrayPLOutcomeIds = ProgramLearningOutcome::where('program_id', $program_id)->pluck('pl_outcome_id')->toArray();
-
-        // Loop through All Learning Outcomes for program courses
-        $actualTotalOutcomes = [];
-        foreach ($LearningOutcomesForProgramCourses as $courseId => $courseLOs) {
-            // Loop through each of the CLO IDs
-            $count = 0;
-            foreach ($courseLOs as $lo_Id) {
-                // loop through all of the PLO ID's
-                foreach ($arrayPLOutcomeIds as $pl_id) {
-                    // If entry for an Outcome map [l_outcome_id, pl_outcome_id] exists increment counter
-                    if (OutcomeMap::where('l_outcome_id', $lo_Id)->where('pl_outcome_id', $pl_id)->exists()) {
-                        $count++;
-                    }
-                }
-            }
-            // stores total count
-            $actualTotalOutcomes[$courseId] = $count;
-        }
-
-        $hasUnMappedCourses = false;
-        foreach ($expectedTotalOutcomes as $courseID => $expectedTotalOutcome) {
-            if ($expectedTotalOutcome != $actualTotalOutcomes[$courseID]) {
-                $hasUnMappedCourses = true;
-                break;
-            }
-        }
+        $mappingCompleteness = ProgramGapCoverage::mappingCompleteness($program);
+        $hasUnMappedCourses = $mappingCompleteness['has_incomplete_mappings'];
 
         // get all categories for program
         $ploCategories = PLOCategory::where('program_id', $program_id)->get();
