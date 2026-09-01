@@ -9,6 +9,7 @@ use App\Models\LearningOutcome;
 use App\Models\MappingScale;
 use App\Models\Program;
 use App\Models\ProgramLearningOutcome;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -16,6 +17,49 @@ use Tests\TestCase;
 class ProgramGapCoverageTest extends TestCase
 {
     use DatabaseTransactions;
+
+    public function test_authorized_user_can_get_gap_coverage_report(): void
+    {
+        $program = Program::create([
+            'program' => 'Gap Coverage Endpoint Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+        ]);
+        $programLearningOutcome = ProgramLearningOutcome::create([
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'Interpret program coverage evidence.',
+            'plo_shortphrase' => 'Coverage Evidence',
+        ]);
+        $user = User::factory()->create();
+
+        DB::table('program_users')->insert([
+            'program_id' => $program->program_id,
+            'user_id' => $user->id,
+            'permission' => 3,
+        ]);
+
+        $response = $this->actingAs($user)->getJson(route('programWizard.gapCoverage', $program->program_id));
+
+        $response->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('mapping_completeness.is_complete', true)
+            ->assertJsonPath('coverage.0.pl_outcome_id', $programLearningOutcome->pl_outcome_id)
+            ->assertJsonPath('coverage.0.mapped_clo_count', 0);
+    }
+
+    public function test_user_without_program_access_cannot_get_gap_coverage_report(): void
+    {
+        $program = Program::create([
+            'program' => 'Restricted Gap Coverage Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+        ]);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('programWizard.gapCoverage', $program->program_id));
+
+        $response->assertRedirect(route('home'));
+    }
 
     public function test_it_identifies_incomplete_course_mappings(): void
     {

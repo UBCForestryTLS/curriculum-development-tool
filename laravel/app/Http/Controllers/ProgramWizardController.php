@@ -399,6 +399,20 @@ class ProgramWizardController extends Controller
             ->with(compact('programMappingScales'))->with(compact('programMappingScalesColours'))->with(compact('plosInOrder'))->with(compact('freqForMS'))->with('hasUnMappedCourses', $hasUnMappedCourses)->with('defaultShortForms', $defaultShortForms)->with('defaultShortFormsIndex', $defaultShortFormsIndex);
     }
 
+    /**
+     * Returns the raw gap coverage data used by the Program Overview report.
+     */
+    public function getGapCoverage($program_id): JsonResponse
+    {
+        $program = Program::findOrFail($program_id);
+
+        return response()->json([
+            'program_id' => (int) $program->program_id,
+            'mapping_completeness' => ProgramGapCoverage::mappingCompleteness($program),
+            'coverage' => ProgramGapCoverage::analyze($program),
+        ]);
+    }
+
     public function resetKeys($array)
     {
         $newArray = [];

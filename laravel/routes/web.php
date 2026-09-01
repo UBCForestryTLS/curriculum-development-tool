@@ -206,6 +206,7 @@ Route::get('/programWizard/{program}/step1', [ProgramWizardController::class, 's
 Route::get('/programWizard/{program}/step2', [ProgramWizardController::class, 'step2'])->name('programWizard.step2');
 Route::get('/programWizard/{program}/step3', [ProgramWizardController::class, 'step3'])->name('programWizard.step3');
 Route::get('/programWizard/{program}/step4', [ProgramWizardController::class, 'step4'])->name('programWizard.step4');
+Route::get('/programWizard/{program}/gap-coverage', [ProgramWizardController::class, 'getGapCoverage'])->name('programWizard.gapCoverage');
 
 // Program step3 add existing courses to a program
 Route::post('/programWizard/{program}/step3/addCoursesToProgram', [CourseProgramController::class, 'addCoursesToProgram'])->name('courseProgram.addCoursesToProgram');
