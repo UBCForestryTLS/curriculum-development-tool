@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error during application startup: {e}")
         raise e
+    
     scheduler = create_scheduler()
     scheduler.start()
     logger.info("APScheduler started.")
@@ -55,8 +56,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"]
 )
 
@@ -104,8 +105,7 @@ async def map_program_outcomes(request: OutcomeMappingRequest)-> dict:
             response = lambda_client.invoke(
                 FunctionName="start-batch-transform-job",
                 InvocationType="RequestResponse",
-                Payload=json.dumps({"record_id": record["request_id"]
-                                    }).encode("utf-8")
+                Payload=json.dumps({"record_id": record["request_id"]}).encode("utf-8")
             )
 
             if response["StatusCode"] != 200:

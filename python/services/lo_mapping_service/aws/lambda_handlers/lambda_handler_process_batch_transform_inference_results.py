@@ -2,31 +2,25 @@ import boto3
 import json
 import logging
 import os
-import urllib.request
-import urllib.error
 from datetime import datetime
+
 from boto3.dynamodb.conditions import Key
-import re
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-ACCESS_KEY = os.getenv("ACCESS_KEY")
-SECRET_KEY = os.getenv("SECRET_KEY")
-SAGEMAKER_ROLE_ARN = os.getenv("IAM_ROLE_ARN")
+#ACCESS_KEY = os.getenv("ACCESS_KEY")
+#SECRET_KEY = os.getenv("SECRET_KEY")
+#SAGEMAKER_ROLE_ARN = os.getenv("IAM_ROLE_ARN")
+AWS_REGION = os.getenv("AWS_REGION")
 
-boto_session = boto3.Session(
-    aws_access_key_id=ACCESS_KEY,
-    aws_secret_access_key=SECRET_KEY,
-    region_name= "ca-central-1"
-)
+boto_session = boto3.Session(region_name=AWS_REGION)
 
 dynamodb      = boto_session.resource("dynamodb")
 lambda_client = boto_session.client("lambda")
 
 DYNAMODB_TABLE        = os.environ["DYNAMODB_TABLE"]
 START_JOB_LAMBDA_NAME = os.environ["START_JOB_LAMBDA_NAME"]   # first Lambda's function name
-#FASTAPI_ENDPOINT      = os.environ["FASTAPI_ENDPOINT"]   # No longer needed with scheduled job and manual endpoint handling post-processing      
 STATUS_INDEX          = os.environ.get("STATUS_INDEX", "status-createdAt-index")
 JOB_NAME_PREFIX       = os.environ.get("JOB_NAME_PREFIX", "hf-batch-transform")
 
@@ -104,7 +98,7 @@ def get_all_awaiting_completion(table) -> list:
 
     return items
 
-def trigger_start_job_lambda(record_id: str):
+def invoke_start_job_lambda(record_id: str):
     """Invoke the first Lambda asynchronously to start the next batch job."""
     response = lambda_client.invoke(
         FunctionName=START_JOB_LAMBDA_NAME,
@@ -119,49 +113,49 @@ def trigger_start_job_lambda(record_id: str):
  
  
 ## No longer needed with scheduled job and manual endpoint handling post-processing 
-def notify_fastapi(records: list):
-    """
-    POST all AWAITING_COMPLETION or AWAITING_COMPLETION_FAILED records to FastAPI.
-    """
+# def notify_fastapi(records: list):
+#     """
+#     POST all AWAITING_COMPLETION or AWAITING_COMPLETION_FAILED records to FastAPI.
+#     """
     
-    lof_awating_processing_records = []
-    for r in records:
-        lof_awating_processing_records.append({
-                "request_id": r.get("request_id"),
-                "course_id": r.get("course_id"),
-                "program_id": r.get("program_id"),
-                "status": r.get("status"),
-                "transform_job_name": r.get("transform_job_name"),
-                "created_at": r.get("created_at"),
-                "updated_at": r.get("updated_at"),
-                "input_s3_path": r.get("input_s3_path"),
-                "output_s3_path": r.get("output_s3_path"),
-            })
+#     lof_awating_processing_records = []
+#     for r in records:
+#         lof_awating_processing_records.append({
+#                 "request_id": r.get("request_id"),
+#                 "course_id": r.get("course_id"),
+#                 "program_id": r.get("program_id"),
+#                 "status": r.get("status"),
+#                 "transform_job_name": r.get("transform_job_name"),
+#                 "created_at": r.get("created_at"),
+#                 "updated_at": r.get("updated_at"),
+#                 "input_s3_path": r.get("input_s3_path"),
+#                 "output_s3_path": r.get("output_s3_path"),
+#             })
     
-    payload = json.dumps({
-        "recordsAwaitingProcessing": lof_awating_processing_records
-    }).encode("utf-8")
+#     payload = json.dumps({
+#         "recordsAwaitingProcessing": lof_awating_processing_records
+#     }).encode("utf-8")
 
-    req = urllib.request.Request(
-        FASTAPI_ENDPOINT,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+#     req = urllib.request.Request(
+#         FASTAPI_ENDPOINT,
+#         data=payload,
+#         headers={"Content-Type": "application/json"},
+#         method="POST",
+#     )
 
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            logger.info(
-                "FastAPI notified — HTTP %s, %d record(s) sent.",
-                resp.status,
-                len(records),
-            )
-    except urllib.error.HTTPError as e:
-        logger.error("FastAPI returned HTTP %s: %s", e.code, e.read().decode())
-        raise
-    except urllib.error.URLError as e:
-        logger.error("Failed to reach FastAPI: %s", e.reason)
-        raise
+#     try:
+#         with urllib.request.urlopen(req, timeout=30) as resp:
+#             logger.info(
+#                 "FastAPI notified — HTTP %s, %d record(s) sent.",
+#                 resp.status,
+#                 len(records),
+#             )
+#     except urllib.error.HTTPError as e:
+#         logger.error("FastAPI returned HTTP %s: %s", e.code, e.read().decode())
+#         raise
+#     except urllib.error.URLError as e:
+#         logger.error("Failed to reach FastAPI: %s", e.reason)
+#         raise
 
 def parse_job_name(job_name: str) -> tuple[str, str]:
     try:
@@ -237,7 +231,7 @@ def lambda_handler(event, context) -> dict:
             oldest_pending["request_id"],
             oldest_pending.get("created_at"),
         )
-        trigger_start_job_lambda(oldest_pending["request_id"])
+        invoke_start_job_lambda(oldest_pending["request_id"])
     else:
         logger.info("No PENDING records found — queue is empty.")
     

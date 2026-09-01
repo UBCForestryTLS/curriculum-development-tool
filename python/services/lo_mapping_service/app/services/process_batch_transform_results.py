@@ -8,9 +8,11 @@ from app.core.config import settings
 from app.core.logging_config import logger
 from app.services.lo_mapping_request_dynamo_db_request import LOMappingRequestDynamoDBRecord
 
+
 boto_session = boto3.Session(
     aws_access_key_id=settings.ACCESS_KEY,
     aws_secret_access_key=settings.SECRET_KEY,
+    aws_session_token=settings.SESSION_TOKEN,
     region_name=settings.AWS_REGION,
 )
 

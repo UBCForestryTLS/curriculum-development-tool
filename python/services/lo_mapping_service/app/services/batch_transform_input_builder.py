@@ -1,9 +1,11 @@
 import json
-import os
+
 from datetime import datetime
 
-from dotenv import load_dotenv
 import boto3
+
+from app.core.logging_config import logger
+from app.core.config import Settings
 
 from app.schemas import (
     CourseLearningOutcome,
@@ -12,14 +14,14 @@ from app.schemas import (
     ProgramLearningOutcome,
 )
 
-
 class BatchTransformInputBuilder:
     """Builds batch transform input JSONL files for CLO-PLO/Standard mapping."""
 
     def __init__(self, request: OutcomeMappingRequest) -> None:
-        load_dotenv() 
+        #load_dotenv()
+        self.settings = Settings() 
         self.request = request
-        self.s3_bucket = os.getenv("BATCH_TRANSFORM_INPUT_S3_BUCKET")
+        self.s3_bucket = self.settings.BATCH_TRANSFORM_INPUT_S3_BUCKET
 
     def build_batch_prompt_records(self) -> str:
         
@@ -69,16 +71,24 @@ class BatchTransformInputBuilder:
                 raise ValueError("s3_key is required")
             if not self.s3_bucket:
                 raise ValueError("S3 bucket is not set")
-            if not os.getenv("ACCESS_KEY") or not os.getenv("SECRET_KEY") or not os.getenv("AWS_REGION"):
+            if not self.settings.ACCESS_KEY or not self.settings.SECRET_KEY or not self.settings.AWS_REGION:
                 raise ValueError("AWS credentials or region are not set in environment variables")
 
-        
-            boto_session = boto3.Session(
-                aws_access_key_id=os.getenv("ACCESS_KEY"),
-                aws_secret_access_key=os.getenv("SECRET_KEY"),
-                region_name= os.getenv("AWS_REGION")
-            )
+            session_kwargs = {
+                "aws_access_key_id": self.settings.ACCESS_KEY,
+                "aws_secret_access_key": self.settings.SECRET_KEY,
+                "region_name": self.settings.AWS_REGION
+            }
+
+            if self.settings.SESSION_TOKEN is not None:
+                session_kwargs["aws_session_token"] = self.settings.SESSION_TOKEN
+
+            boto_session = boto3.Session(**session_kwargs)
+
             s3_client = boto_session.client("s3")
+
+            logger.info(f"Uploading data to S3 bucket \"{self.s3_bucket}\"")
+
             s3_client.put_object(
                 Bucket=self.s3_bucket,
                 Key=s3_key,

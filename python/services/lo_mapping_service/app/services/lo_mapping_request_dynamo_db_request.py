@@ -18,6 +18,7 @@ class LOMappingRequestDynamoDBRecord:
         self.aws_region = self.settings.AWS_REGION
         self.aws_access_key = self.settings.ACCESS_KEY
         self.aws_secret_key = self.settings.SECRET_KEY
+        self.aws_session_token = self.settings.SESSION_TOKEN
         self.status_index = self.settings.DYNAMODB_STATUS_INDEX
         self.output_s3_uri = self.settings.OUTPUT_S3_URI
 
@@ -235,11 +236,16 @@ class LOMappingRequestDynamoDBRecord:
         if not self.aws_access_key or not self.aws_secret_key or not self.aws_region:
             raise ValueError("AWS credentials or region are not set in environment variables")
 
-        return boto3.Session(
-            aws_access_key_id=self.aws_access_key,
-            aws_secret_access_key=self.aws_secret_key,
-            region_name=self.aws_region,
-        )
+        session_kwargs = {
+            "aws_access_key_id": self.aws_access_key,
+            "aws_secret_access_key": self.aws_secret_key,
+            "region_name": self.aws_region
+        }
+
+        if self.aws_session_token is not None:
+            session_kwargs["aws_session_token"] = self.aws_session_token
+
+        return boto3.Session(**session_kwargs)
 
     def _get_table(self):
         if not self.table_name:

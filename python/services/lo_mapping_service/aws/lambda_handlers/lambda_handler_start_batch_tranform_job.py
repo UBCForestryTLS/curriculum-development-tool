@@ -10,24 +10,25 @@ from boto3.dynamodb.conditions import Key
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-ACCESS_KEY = os.getenv("ACCESS_KEY")
-SECRET_KEY = os.getenv("SECRET_KEY")
-SAGEMAKER_ROLE_ARN = os.getenv("IAM_ROLE_ARN")
+#ACCESS_KEY = os.getenv("ACCESS_KEY")
+#SECRET_KEY = os.getenv("SECRET_KEY")
+AWS_REGION = os.getenv("AWS_REGION")
+SAGEMAKER_ROLE_ARN = os.getenv("SAGEMAKER_ROLE_ARN")
 
 boto_session = boto3.Session(
-    aws_access_key_id=ACCESS_KEY,
-    aws_secret_access_key=SECRET_KEY,
-    region_name= "ca-central-1"
+    # aws_access_key_id=ACCESS_KEY,
+    # aws_secret_access_key=SECRET_KEY,
+    region_name= AWS_REGION
 )
 
 sm       = boto_session.client("sagemaker")
 dynamodb = boto_session.resource("dynamodb")
 
-REGION               = os.environ.get("AWS_REGION", "ca-central-1")
+#REGION               = os.environ.get("AWS_REGION", "ca-central-1")
 
 # HuggingFace model config
 HF_MODEL_ID          = os.getenv("HF_MODEL_ID")            
-HF_TASK              = os.environ.get("HF_TASK", "text-generation")
+HF_TASK              = os.getenv("HF_TASK", "text-generation")
 HF_IMAGE_URI         = os.getenv("HF_IMAGE_URI") 
 
 # Run this once locally (needs boto3 + sagemaker SDK installed locally only):
@@ -51,15 +52,15 @@ STATUS_INDEX      = os.getenv("DYNAMODB_STATUS_INDEX") #GSI name for status-crea
 
 hub_env = {
     "HF_MODEL_ID":          HF_MODEL_ID,
-    "HF_TASK":              "text-generation",
+    "HF_TASK":              HF_TASK,
  
     # Generation defaults — override as needed
     "OPTION_MAX_MODEL_LEN":       "2500",
     "OPTION_MAX_SEQ_LEN":         "2500",
     'SM_NUM_GPUS': json.dumps(1),
     'OPTION_ENABLE_REASONING': 'false'
-    
 }
+
 MODEL_NAME_PREFIX = os.environ.get("MODEL_NAME_PREFIX", "hf-batch-transform-model")
 
 APP_NAME = os.getenv("APP_NAME") 
@@ -70,6 +71,7 @@ def get_running_transform_job() -> dict | None:
     """Return the first InProgress/Stopping job matching our prefix, or None."""
     active_statuses = {"InProgress", "Stopping"}
     paginator = sm.get_paginator("list_transform_jobs")
+    
     for page in paginator.paginate(NameContains=JOB_NAME_PREFIX):
         for job in page["TransformJobSummaries"]:
             if job["TransformJobStatus"] in active_statuses:
@@ -288,7 +290,7 @@ def lambda_handler(event, context) -> dict:
             triggered_record.get("status"),
         )
         return {
-            "statusCode": 404,
+            "statusCode": 409,
             "body": {
                 "error": f"Record with request_id '{record_id}' is not PENDING (status: {triggered_record.get('status')}). No action taken.",
             },

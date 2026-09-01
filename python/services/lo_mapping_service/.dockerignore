@@ -1,3 +1,6 @@
+# AWS
+**/aws/
+
 # Development
 **/Dockerfile*
 **/.dockerignore
@@ -7,6 +10,7 @@
 **/.env*
 LICENSE*
 README*
+**/test_routes.py
 
 # Virtual Environments
 **/.env/

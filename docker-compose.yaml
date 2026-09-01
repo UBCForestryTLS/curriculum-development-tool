@@ -55,11 +55,29 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+  
+  lo-mapper:
+    build:
+      context: python/services/lo_mapping_service/
+    volumes:
+      - lo-mapper-logs:/usr/src/logs
+    env_file: python/services/lo_mapping_service/.env.docker
+    environment:
+      LARAVEL_API_URL: http://laravel/api/microservices/lo-mapping/ai-suggestions/store
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     
 volumes:
   pgdata:
   sessions:
   uploads:
   syllabus-parser-logs:
+  lo-mapper-logs:
 
 # TODO: Set up Python services!
