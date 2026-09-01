@@ -17,6 +17,68 @@ class ProgramGapCoverageTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_it_identifies_incomplete_course_mappings(): void
+    {
+        $program = Program::create([
+            'program' => 'Mapping Completeness Test Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+        ]);
+        $course = Course::factory()->create([
+            'course_code' => 'MCMP',
+            'course_num' => '101',
+            'course_title' => 'Mapping Completeness Course',
+        ]);
+        CourseProgram::create([
+            'program_id' => $program->program_id,
+            'course_id' => $course->course_id,
+            'course_required' => 1,
+        ]);
+
+        $firstPlo = ProgramLearningOutcome::create([
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'First completeness outcome.',
+        ]);
+        $secondPlo = ProgramLearningOutcome::create([
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'Second completeness outcome.',
+        ]);
+        $clo = LearningOutcome::create([
+            'course_id' => $course->course_id,
+            'l_outcome' => 'Demonstrate completeness.',
+        ]);
+        $mappingScale = MappingScale::create([
+            'title' => 'Mapping Completeness Scale',
+            'abbreviation' => 'MCS',
+            'description' => 'Used for the mapping completeness test.',
+            'colour' => '#80bdff',
+        ]);
+
+        DB::table('outcome_maps')->insert([
+            'l_outcome_id' => $clo->l_outcome_id,
+            'pl_outcome_id' => $firstPlo->pl_outcome_id,
+            'map_scale_id' => $mappingScale->map_scale_id,
+        ]);
+
+        $incompleteResult = ProgramGapCoverage::mappingCompleteness($program);
+
+        $this->assertTrue($incompleteResult['has_incomplete_mappings']);
+        $this->assertSame(2, $incompleteResult['expected_counts'][$course->course_id]);
+        $this->assertSame(1, $incompleteResult['actual_counts'][$course->course_id]);
+        $this->assertSame(1, $incompleteResult['incomplete_courses'][0]['missing_mapping_count']);
+
+        DB::table('outcome_maps')->insert([
+            'l_outcome_id' => $clo->l_outcome_id,
+            'pl_outcome_id' => $secondPlo->pl_outcome_id,
+            'map_scale_id' => $mappingScale->map_scale_id,
+        ]);
+
+        $completeResult = ProgramGapCoverage::mappingCompleteness($program);
+
+        $this->assertTrue($completeResult['is_complete']);
+        $this->assertEmpty($completeResult['incomplete_courses']);
+    }
+
     public function test_it_summarizes_raw_coverage_for_each_program_learning_outcome(): void
     {
         $program = Program::create([
