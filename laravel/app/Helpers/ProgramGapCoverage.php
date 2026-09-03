@@ -15,6 +15,15 @@ class ProgramGapCoverage
 
     /**
      * Classifies PLO coverage using distinct covering courses only.
+     *
+     * Future coverage rules should also consider the program's mapping-scale
+     * distribution once scale levels have an explicit, reliable ordering.
+     * Mapping scale IDs must not be compared as strength values because the
+     * application supports one-level, predefined, and custom scales whose IDs
+     * do not consistently represent low-to-high coverage. Once that ordering
+     * is available, combine course spread with evidence such as whether a PLO
+     * reaches the program's higher scales and how coverage is distributed
+     * across those scales.
      */
     public static function classifyCoverage(int $coveringCourseCount): array
     {
