@@ -14,6 +14,9 @@ use App\Models\CourseTopic;
 use App\Models\LearningOutcome;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PDF;
 
 class SearchTest extends TestCase
@@ -625,6 +628,75 @@ class SearchTest extends TestCase
         $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
     }
 
+    public function test_course_search_results_can_be_exported_as_a_spreadsheet(): void
+    {
+        $this->createCourseScaleCategory();
+        $course = $this->createSearchCourse('FRST', 322, 'Zephyr Spreadsheet Forestry');
+        $this->createCourseTopic($course, 'Zephyr spreadsheet topic');
+
+        $response = $this->get(route('search.export.spreadsheet', [
+            'query' => 'zephyr',
+            'view' => 'courses',
+        ]));
+
+        $response->assertOk()
+            ->assertDownload('zephyr-course-search-results-'.now()->format('Y-m-d').'.xlsx');
+
+        $spreadsheet = $this->loadDownloadedSpreadsheet($response);
+
+        try {
+            $this->assertSame([
+                'Search Parameters',
+                'Search Summary',
+                'Course Identity',
+                'Topics',
+            ], $spreadsheet->getSheetNames());
+            $this->assertSame('zephyr', $spreadsheet->getSheetByName('Search Parameters')->getCell('C2')->getValue());
+            $this->assertSame('Zephyr Spreadsheet Forestry', $spreadsheet->getSheetByName('Search Summary')->getCell('C2')->getValue());
+            $this->assertSame('Zephyr spreadsheet topic', $spreadsheet->getSheetByName('Topics')->getCell('E2')->getValue());
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+        }
+    }
+
+    public function test_program_search_results_can_be_exported_as_a_spreadsheet(): void
+    {
+        $this->createProgram('Auralith Spreadsheet Program');
+
+        $response = $this->get(route('search.export.spreadsheet', [
+            'query' => 'auralith spreadsheet',
+            'view' => 'programs',
+        ]));
+
+        $response->assertOk()
+            ->assertDownload('auralith-spreadsheet-program-search-results-'.now()->format('Y-m-d').'.xlsx');
+
+        $spreadsheet = $this->loadDownloadedSpreadsheet($response);
+
+        try {
+            $this->assertSame([
+                'Search Parameters',
+                'Search Summary',
+                'Program Names',
+            ], $spreadsheet->getSheetNames());
+            $this->assertSame('Auralith Spreadsheet Program', $spreadsheet->getSheetByName('Search Summary')->getCell('A2')->getValue());
+            $this->assertSame('Auralith Spreadsheet Program', $spreadsheet->getSheetByName('Program Names')->getCell('A2')->getValue());
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+        }
+    }
+
+    public function test_guest_user_cannot_export_search_results_as_a_spreadsheet(): void
+    {
+        auth()->logout();
+
+        $response = $this->get(route('search.export.spreadsheet', [
+            'query' => 'forestry',
+        ]));
+
+        $response->assertRedirect(route('login'));
+    }
+
     public function test_search_finds_course_by_compact_course_code(){
         $this->createCourseScaleCategory();
 
@@ -711,6 +783,20 @@ class SearchTest extends TestCase
             ['scale_category_id' => 1],
             ['name' => 'Test Scale Category']
         );
+    }
+
+    private function loadDownloadedSpreadsheet(TestResponse $response): Spreadsheet
+    {
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'search-export-');
+        file_put_contents($temporaryPath, $response->streamedContent());
+
+        try {
+            $this->assertSame('Xlsx', IOFactory::identify($temporaryPath));
+
+            return IOFactory::load($temporaryPath);
+        } finally {
+            unlink($temporaryPath);
+        }
     }
 
     private function assignRoleToUser(User $user, string $roleName): int

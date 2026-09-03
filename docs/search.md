@@ -10,6 +10,7 @@ This feature is implemented primarily under:
 
 - [`laravel/app/Http/Controllers/SearchController.php`](../laravel/app/Http/Controllers/SearchController.php)
 - [`laravel/app/Http/Controllers/SavedSearchFilterController.php`](../laravel/app/Http/Controllers/SavedSearchFilterController.php)
+- [`laravel/app/Exports/SearchResultsSpreadsheet.php`](../laravel/app/Exports/SearchResultsSpreadsheet.php)
 - [`laravel/app/Helpers/SearchCourseAccess.php`](../laravel/app/Helpers/SearchCourseAccess.php)
 - [`laravel/app/Helpers/SearchFilterOptions.php`](../laravel/app/Helpers/SearchFilterOptions.php)
 - [`laravel/resources/views/search/index.blade.php`](../laravel/resources/views/search/index.blade.php)
@@ -35,7 +36,7 @@ The feature is responsible for:
 - searching program names
 - filtering results by course code, course level, program, and searchable property
 - showing results in either Course view or Program view
-- exporting Course view and Program view results as PDF files
+- exporting Course view and Program view results as PDF or spreadsheet files
 - saving, applying, and deleting user-specific search filter presets
 
 ## Routes
@@ -45,9 +46,10 @@ The main search page is:
 ```php
 GET /search
 GET /search/export/pdf
+GET /search/export/spreadsheet
 ```
 
-The PDF route exports the current search query, selected view, and filters.
+The export routes preserve the current search query, selected view, and filters.
 
 The saved filter preset routes are:
 
@@ -196,6 +198,14 @@ Course view exports use `search.exports.course-results` and list courses with th
 
 The response filename includes a safe, shortened version of the query, such as `climate-change-course-search-results-YYYY-MM-DD.pdf` or `climate-change-program-search-results-YYYY-MM-DD.pdf`.
 
+## Spreadsheet Export
+
+The **Download Spreadsheet** button exports the same complete, access-controlled result collection as the PDF. Every workbook includes a **Search Parameters** sheet containing the query, filters, and overall statistics, and a **Search Summary** sheet containing each matching course or program and its match counts.
+
+Additional sheets are included only for properties with at least one match. These sheets contain the matching source text for Course Identity, Topics, Learning Objectives, Assessments, Descriptions, Materials, and Material Content. Program view can also include a Program Names sheet. Material Content rows include the source filename and page number.
+
+The workbook is streamed directly to the browser and uses the same query-based filename format with an `.xlsx` extension.
+
 ## Saved Filter Presets
 
 Authenticated users can save named filter presets.
@@ -263,7 +273,7 @@ The tests cover:
 - search stats
 - course and program pagination
 - course code, course level, and program filters
-- Course view and Program view PDF exports
+- Course view and Program view PDF and spreadsheet exports
 - saved filter saving, applying, deleting, ownership restrictions, and current preset display
 
 Run the search tests with:
