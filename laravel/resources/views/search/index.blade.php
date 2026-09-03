@@ -806,7 +806,7 @@
     @endif
 
     @if($searchPerformed && $hasSelectedResults)
-        <div class="text-end mb-2">
+        <div class="d-flex flex-wrap justify-content-end gap-2 mb-2">
             <a
                 href="{{ route('search.export.pdf', request()->except('page')) }}"
                 class="btn btn-outline-primary btn-sm"
@@ -814,6 +814,14 @@
             >
                 <i class="bi bi-file-earmark-pdf me-1"></i>
                 Download PDF
+            </a>
+            <a
+                href="{{ route('search.export.spreadsheet', request()->except('page')) }}"
+                class="btn btn-outline-primary btn-sm"
+                title="Download all matching results as a spreadsheet"
+            >
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i>
+                Download Spreadsheet
             </a>
         </div>
     @endif

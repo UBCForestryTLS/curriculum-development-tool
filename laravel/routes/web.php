@@ -268,6 +268,9 @@ Route::get('/search', [SearchController::class, 'index'])
 Route::get('/search/export/pdf', [SearchController::class, 'exportPdf'])
     ->middleware(['auth', 'verified'])
     ->name('search.export.pdf');
+Route::get('/search/export/spreadsheet', [SearchController::class, 'exportSpreadsheet'])
+    ->middleware(['auth', 'verified'])
+    ->name('search.export.spreadsheet');
 
 
 

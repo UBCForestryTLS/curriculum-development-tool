@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\SearchResultsSpreadsheet;
 use App\Helpers\SearchFilterOptions;
 use App\Helpers\SearchCourseAccess;
 use App\Models\User;
@@ -11,6 +12,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder; //Builder is for a DB query that is still being constructed
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PDF;
 
 class SearchController extends Controller
@@ -215,6 +217,37 @@ class SearchController extends Controller
             'results' => $searchData['results'],
             'filterSummary' => $exportData['filterSummary'],
         ])->download($exportData['querySlug'].'-course-search-results-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    /**
+     * Downloads all matching Course View or Program View results as a spreadsheet.
+     *
+     * @param Request $request The incoming request containing the search query and selected filters.
+     * @param SearchResultsSpreadsheet $spreadsheetExport The search workbook builder.
+     *
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse The generated spreadsheet download response.
+     */
+    public function exportSpreadsheet(Request $request, SearchResultsSpreadsheet $spreadsheetExport)
+    {
+        $exportData = $this->prepareExportData($request);
+        $filters = $exportData['filters'];
+        $spreadsheet = $spreadsheetExport->build(
+            $filters,
+            $exportData['searchData'],
+            $exportData['filterSummary'],
+        );
+        $viewName = $filters['selectedView'] === 'programs' ? 'program' : 'course';
+        $filename = $exportData['querySlug'].'-'.$viewName.'-search-results-'.now()->format('Y-m-d').'.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            try {
+                (new Xlsx($spreadsheet))->save('php://output');
+            } finally {
+                $spreadsheet->disconnectWorksheets();
+            }
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     /**
