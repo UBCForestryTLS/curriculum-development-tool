@@ -198,6 +198,34 @@ class SearchController extends Controller
      */
     public function exportPdf(Request $request)
     {
+        $exportData = $this->prepareExportData($request);
+        $filters = $exportData['filters'];
+        $searchData = $exportData['searchData'];
+
+        if ($filters['selectedView'] === 'programs') {
+            return PDF::loadView('search.exports.program-results', [
+                'searchTerm' => $filters['searchTerm'],
+                'programResults' => $searchData['programResults'],
+                'filterSummary' => $exportData['filterSummary'],
+            ])->download($exportData['querySlug'].'-program-search-results-'.now()->format('Y-m-d').'.pdf');
+        }
+
+        return PDF::loadView('search.exports.course-results', [
+            'searchTerm' => $filters['searchTerm'],
+            'results' => $searchData['results'],
+            'filterSummary' => $exportData['filterSummary'],
+        ])->download($exportData['querySlug'].'-course-search-results-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    /**
+     * Prepares the normalized filters, complete search results, statistics, and display values shared by exports.
+     *
+     * @param Request $request The incoming request containing the search query and selected filters.
+     *
+     * @return array The filters, access-controlled search data, filter summary, and filename query slug.
+     */
+    private function prepareExportData(Request $request): array
+    {
         $filters = $this->getExportFilters($request);
         $searchData = $this->buildSearchResults(
             $filters['searchTerm'],
@@ -215,31 +243,21 @@ class SearchController extends Controller
             ->pluck('program')
             ->all();
 
-        $filterSummary = [
-            'Properties' => collect($filters['selectedProperties'])
-                ->map(fn ($property) => SearchFilterOptions::properties()[$property] ?? $property)
-                ->implode(', ') ?: 'None',
-            'Course Codes' => implode(', ', $filters['selectedCourseCodes']) ?: 'All',
-            'Course Levels' => implode(', ', $filters['selectedCourseLevels']) ?: 'All',
-            'Programs' => empty($filters['selectedProgramIds'])
-                ? 'All'
-                : (implode(', ', $selectedProgramNames) ?: 'Selected programs unavailable'),
+        return [
+            'filters' => $filters,
+            'searchData' => $searchData,
+            'filterSummary' => [
+                'Properties' => collect($filters['selectedProperties'])
+                    ->map(fn ($property) => SearchFilterOptions::properties()[$property] ?? $property)
+                    ->implode(', ') ?: 'None',
+                'Course Codes' => implode(', ', $filters['selectedCourseCodes']) ?: 'All',
+                'Course Levels' => implode(', ', $filters['selectedCourseLevels']) ?: 'All',
+                'Programs' => empty($filters['selectedProgramIds'])
+                    ? 'All'
+                    : (implode(', ', $selectedProgramNames) ?: 'Selected programs unavailable'),
+            ],
+            'querySlug' => trim(Str::limit(Str::slug($filters['searchTerm']), 50, ''), '-') ?: 'filtered',
         ];
-        $querySlug = trim(Str::limit(Str::slug($filters['searchTerm']), 50, ''), '-') ?: 'filtered';
-
-        if ($filters['selectedView'] === 'programs') {
-            return PDF::loadView('search.exports.program-results', [
-                'searchTerm' => $filters['searchTerm'],
-                'programResults' => $searchData['programResults'],
-                'filterSummary' => $filterSummary,
-            ])->download($querySlug.'-program-search-results-'.now()->format('Y-m-d').'.pdf');
-        }
-
-        return PDF::loadView('search.exports.course-results', [
-            'searchTerm' => $filters['searchTerm'],
-            'results' => $searchData['results'],
-            'filterSummary' => $filterSummary,
-        ])->download($querySlug.'-course-search-results-'.now()->format('Y-m-d').'.pdf');
     }
 
     /**
