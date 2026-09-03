@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -28,6 +29,15 @@ class SearchResultsSpreadsheet
         'material_content' => 'Material Content Matches',
     ];
 
+    private const PROPERTY_SHEETS = [
+        'Topics' => 'topic',
+        'Learning Objectives' => 'learning outcome',
+        'Assessments' => 'assessment',
+        'Descriptions' => 'description',
+        'Materials' => 'material',
+        'Material Content' => 'material content',
+    ];
+
     /**
      * Builds the always-present search parameters and result summary sheets.
      *
@@ -46,6 +56,7 @@ class SearchResultsSpreadsheet
             $filterSummary,
         );
         $this->buildSummarySheet($spreadsheet->createSheet(), $filters['selectedView'], $searchData);
+        $this->buildPropertySheets($spreadsheet, $filters['selectedView'], $searchData);
 
         $spreadsheet->setActiveSheetIndex(0);
 
@@ -156,6 +167,110 @@ class SearchResultsSpreadsheet
         }
 
         $this->formatSheet($sheet, count($rows) + 1, count($headings));
+    }
+
+    private function buildPropertySheets(Spreadsheet $spreadsheet, string $selectedView, array $searchData): void
+    {
+        if ($selectedView === 'programs') {
+            $this->buildProgramNameSheet($spreadsheet, $searchData['programResults']);
+        }
+
+        $courses = $this->coursesForView($selectedView, $searchData);
+        $this->buildCourseIdentitySheet($spreadsheet, $courses);
+
+        foreach (self::PROPERTY_SHEETS as $sheetTitle => $property) {
+            $rows = $courses->flatMap(function ($course) use ($property) {
+                return $course->matches
+                    ->where('property', $property)
+                    ->map(fn ($match) => [
+                        $course->course_code,
+                        $course->course_num,
+                        $course->course_title,
+                        $course->programs->pluck('program')->implode(', '),
+                        $match->matched_text,
+                        $match->file_name,
+                        $match->page_number,
+                    ]);
+            })->values();
+
+            if ($rows->isEmpty()) {
+                continue;
+            }
+
+            $headings = ['Course Code', 'Course Number', 'Course Title', 'Programs', 'Matched Text'];
+
+            if ($property === 'material content') {
+                $headings = [...$headings, 'File Name', 'Page Number'];
+            } else {
+                $rows = $rows->map(fn ($row) => array_slice($row, 0, 5));
+            }
+
+            $sheet = $spreadsheet->createSheet();
+            $sheet->setTitle($sheetTitle);
+            $sheet->fromArray($headings, null, 'A1');
+            $sheet->fromArray($rows->all(), null, 'A2');
+            $this->formatDetailSheet($sheet, $rows->count() + 1, count($headings));
+        }
+    }
+
+    private function coursesForView(string $selectedView, array $searchData): Collection
+    {
+        if ($selectedView === 'programs') {
+            return $searchData['programResults']
+                ->flatMap(fn ($program) => $program->courses)
+                ->unique('course_id')
+                ->values();
+        }
+
+        return $searchData['results'];
+    }
+
+    private function buildProgramNameSheet(Spreadsheet $spreadsheet, Collection $programResults): void
+    {
+        $rows = $programResults
+            ->where('is_program_match', true)
+            ->map(fn ($program) => [$program->program])
+            ->values();
+
+        if ($rows->isEmpty()) {
+            return;
+        }
+
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('Program Names');
+        $sheet->fromArray(['Program'], null, 'A1');
+        $sheet->fromArray($rows->all(), null, 'A2');
+        $this->formatSheet($sheet, $rows->count() + 1, 1);
+    }
+
+    private function buildCourseIdentitySheet(Spreadsheet $spreadsheet, Collection $courses): void
+    {
+        $rows = $courses
+            ->where('is_course_match', true)
+            ->map(fn ($course) => [
+                $course->course_code,
+                $course->course_num,
+                $course->course_title,
+                $course->programs->pluck('program')->implode(', '),
+            ])
+            ->values();
+
+        if ($rows->isEmpty()) {
+            return;
+        }
+
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('Course Identity');
+        $sheet->fromArray(['Course Code', 'Course Number', 'Course Title', 'Programs'], null, 'A1');
+        $sheet->fromArray($rows->all(), null, 'A2');
+        $this->formatSheet($sheet, $rows->count() + 1, 4);
+    }
+
+    private function formatDetailSheet(Worksheet $sheet, int $lastRow, int $lastColumn): void
+    {
+        $this->formatSheet($sheet, $lastRow, $lastColumn);
+        $sheet->getColumnDimension('E')->setAutoSize(false)->setWidth(80);
+        $sheet->getStyle("E2:E{$lastRow}")->getAlignment()->setWrapText(true);
     }
 
     private function formatSheet(Worksheet $sheet, int $lastRow, int $lastColumn): void
