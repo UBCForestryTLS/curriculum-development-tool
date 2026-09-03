@@ -9,6 +9,38 @@ use Illuminate\Support\Facades\DB;
 
 class ProgramGapCoverage
 {
+    private const SUFFICIENT_COURSE_COUNT = 2;
+
+    private const ABUNDANT_COURSE_COUNT = 4;
+
+    /**
+     * Classifies PLO coverage using distinct covering courses only.
+     */
+    public static function classifyCoverage(int $coveringCourseCount): array
+    {
+        if ($coveringCourseCount >= self::ABUNDANT_COURSE_COUNT) {
+            $level = 'abundantly_covered';
+            $label = 'Abundantly Covered';
+        } elseif ($coveringCourseCount >= self::SUFFICIENT_COURSE_COUNT) {
+            $level = 'sufficiently_covered';
+            $label = 'Sufficiently Covered';
+        } elseif ($coveringCourseCount === 1) {
+            $level = 'somewhat_covered';
+            $label = 'Somewhat Covered';
+        } else {
+            $level = 'not_covered';
+            $label = 'Not Covered';
+        }
+
+        $courseLabel = $coveringCourseCount === 1 ? 'course' : 'courses';
+
+        return [
+            'level' => $level,
+            'label' => $label,
+            'explanation' => "Covered by {$coveringCourseCount} distinct {$courseLabel}.",
+        ];
+    }
+
     /**
      * Checks whether every course CLO has a mapping row for every program PLO.
      */
@@ -174,16 +206,22 @@ class ProgramGapCoverage
                     ->values()
                     ->all();
 
+                $coveringCourseCount = $coveredRows->pluck('course_id')->unique()->count();
+                $classification = self::classifyCoverage($coveringCourseCount);
+
                 return [
                     'pl_outcome_id' => (int) $plo->pl_outcome_id,
                     'pl_outcome' => $plo->pl_outcome,
                     'plo_shortphrase' => $plo->plo_shortphrase,
                     'plo_category_id' => $plo->plo_category_id === null ? null : (int) $plo->plo_category_id,
                     'mapped_clo_count' => $coveredRows->pluck('l_outcome_id')->unique()->count(),
-                    'covering_course_count' => $coveredRows->pluck('course_id')->unique()->count(),
+                    'covering_course_count' => $coveringCourseCount,
                     'required_course_count' => $coveredRows->where('course_required', 1)->pluck('course_id')->unique()->count(),
                     'non_required_course_count' => $coveredRows->where('course_required', 0)->pluck('course_id')->unique()->count(),
                     'n_a_clo_count' => $programRows->where('map_scale_id', 0)->pluck('l_outcome_id')->unique()->count(),
+                    'coverage_level' => $classification['level'],
+                    'coverage_label' => $classification['label'],
+                    'coverage_explanation' => $classification['explanation'],
                     'mapping_scale_distribution' => $mappingScaleDistribution,
                     'courses' => $courses,
                 ];

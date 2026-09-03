@@ -18,6 +18,23 @@ class ProgramGapCoverageTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_it_classifies_coverage_by_distinct_course_count(): void
+    {
+        $cases = [
+            0 => 'not_covered',
+            1 => 'somewhat_covered',
+            2 => 'sufficiently_covered',
+            3 => 'sufficiently_covered',
+            4 => 'abundantly_covered',
+        ];
+
+        foreach ($cases as $courseCount => $expectedLevel) {
+            $classification = ProgramGapCoverage::classifyCoverage($courseCount);
+
+            $this->assertSame($expectedLevel, $classification['level']);
+        }
+    }
+
     public function test_authorized_user_can_get_gap_coverage_report(): void
     {
         $program = Program::create([
@@ -226,6 +243,7 @@ class ProgramGapCoverageTest extends TestCase
         $this->assertCount(2, $coverage);
         $this->assertSame(2, $coveredResult['mapped_clo_count']);
         $this->assertSame(2, $coveredResult['covering_course_count']);
+        $this->assertSame('sufficiently_covered', $coveredResult['coverage_level']);
         $this->assertSame(1, $coveredResult['required_course_count']);
         $this->assertSame(1, $coveredResult['non_required_course_count']);
         $this->assertSame(1, $coveredResult['n_a_clo_count']);
@@ -235,6 +253,7 @@ class ProgramGapCoverageTest extends TestCase
         })->all());
         $this->assertSame(0, $uncoveredResult['mapped_clo_count']);
         $this->assertSame(0, $uncoveredResult['covering_course_count']);
+        $this->assertSame('not_covered', $uncoveredResult['coverage_level']);
         $this->assertEmpty($uncoveredResult['mapping_scale_distribution']);
         $this->assertEmpty($uncoveredResult['courses']);
     }
