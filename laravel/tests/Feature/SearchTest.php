@@ -628,6 +628,84 @@ class SearchTest extends TestCase
         $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
     }
 
+    public function test_course_pdf_limits_detailed_results_and_keeps_full_statistics(): void
+    {
+        config(['search.pdf_result_limit' => 2]);
+        $this->createCourseScaleCategory();
+
+        foreach (range(1, 3) as $index) {
+            $this->createSearchCourse('PDF', 100 + $index, "Limitium Course {$index}");
+        }
+
+        PDF::shouldReceive('loadView')
+            ->once()
+            ->with('search.exports.course-results', \Mockery::on(function ($data) {
+                $html = view('search.exports.course-results', $data)->render();
+
+                return $data['results']->count() === 2
+                    && $data['stats']['courses'] === 3
+                    && $data['resultLimit'] === [
+                        'limit' => 2,
+                        'rendered' => 2,
+                        'total' => 3,
+                        'truncated' => true,
+                    ]
+                    && str_contains($html, 'first 2 of')
+                    && str_contains($html, 'Search statistics reflect the complete result set.');
+            }))
+            ->andReturnSelf();
+        PDF::shouldReceive('download')
+            ->once()
+            ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
+
+        $this->get(route('search.export.pdf', [
+            'query' => 'limitium',
+            'view' => 'courses',
+        ]))->assertOk();
+    }
+
+    public function test_program_pdf_limits_nested_course_details_and_keeps_full_statistics(): void
+    {
+        config(['search.pdf_result_limit' => 2]);
+        $this->createCourseScaleCategory();
+
+        $firstProgramId = $this->createProgram('PDF Limit Program One');
+        $secondProgramId = $this->createProgram('PDF Limit Program Two');
+        $courses = collect(range(1, 3))->map(
+            fn ($index) => $this->createSearchCourse('PDF', 200 + $index, "Programlimitium Course {$index}")
+        );
+        $this->attachCourseToProgram($courses[0], $firstProgramId);
+        $this->attachCourseToProgram($courses[1], $firstProgramId);
+        $this->attachCourseToProgram($courses[2], $secondProgramId);
+
+        PDF::shouldReceive('loadView')
+            ->once()
+            ->with('search.exports.program-results', \Mockery::on(function ($data) {
+                $html = view('search.exports.program-results', $data)->render();
+
+                return $data['programResults']->sum(fn ($program) => $program->courses->count()) === 2
+                    && $data['stats']['courses'] === 3
+                    && $data['stats']['programs'] === 2
+                    && $data['resultLimit'] === [
+                        'limit' => 2,
+                        'rendered' => 2,
+                        'total' => 3,
+                        'truncated' => true,
+                    ]
+                    && str_contains($html, 'first 2 of 3')
+                    && str_contains($html, 'Search statistics reflect the complete result set.');
+            }))
+            ->andReturnSelf();
+        PDF::shouldReceive('download')
+            ->once()
+            ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
+
+        $this->get(route('search.export.pdf', [
+            'query' => 'programlimitium',
+            'view' => 'programs',
+        ]))->assertOk();
+    }
+
     public function test_course_search_results_can_be_exported_as_a_spreadsheet(): void
     {
         $this->createCourseScaleCategory();

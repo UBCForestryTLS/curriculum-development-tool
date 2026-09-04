@@ -192,9 +192,17 @@ Material Content matches also show the source PDF filename and page number. The 
 
 ## PDF Export
 
-After a search returns results, the page displays a **Download PDF** button. The export preserves the current query, result view, property filters, course filters, and program filters. Pagination is not included, so the PDF contains the complete matching result collection instead of only the current page.
+After a search returns results, the page displays a **Download PDF** button. The export preserves the current query, result view, property filters, course filters, and program filters. Pagination is not included, and the PDF statistics describe the complete matching result collection instead of only the current page.
 
 Course view exports use `search.exports.course-results` and list courses with their related programs, match counts, and all matching snippets. Program view exports use `search.exports.program-results` and group matching courses and snippets under each program. Material Content matches include the source filename and page number in both exports.
+
+Detailed PDF output is limited to 500 course entries by default to protect Dompdf from extremely large result sets. Course view applies the limit to ranked courses. Program view applies one shared limit across the courses nested under its program groups. When results are truncated, the PDF reports how many detailed entries were included and clarifies that its statistics still represent the complete search.
+
+The limit can be changed in `.env`:
+
+```env
+SEARCH_PDF_RESULT_LIMIT=500
+```
 
 The response filename includes a safe, shortened version of the query, such as `climate-change-course-search-results-YYYY-MM-DD.pdf` or `climate-change-program-search-results-YYYY-MM-DD.pdf`.
 
@@ -274,6 +282,7 @@ The tests cover:
 - course and program pagination
 - course code, course level, and program filters
 - Course view and Program view PDF and spreadsheet exports
+- configurable PDF detail limits, truncation notices, and full-result statistics
 - saved filter saving, applying, deleting, ownership restrictions, and current preset display
 
 Run the search tests with:
@@ -317,6 +326,6 @@ Few constraints that might be important to consider for this feature:
 - search result links go to existing course and program wizard routes
 - only files with an `INDEXED` status are included in Material Content searches
 - PHP-side grouping and pagination is fine for a small dataset, but may need refactoring if the database grows extremely large, which is unlikely
-- PDF exports render all matching results through Dompdf, so very broad searches may need to be narrowed if they exceed the server's available memory
+- PDF exports retain full statistics but limit detailed course entries according to `SEARCH_PDF_RESULT_LIMIT`
 - empty-query listing is not currently implemented
 - if new searchable fields are added, update `SearchFilterOptions`, migrations, controller search methods, tests, and this doc
