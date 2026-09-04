@@ -652,6 +652,7 @@ class SearchTest extends TestCase
                 'Topics',
             ], $spreadsheet->getSheetNames());
             $this->assertSame('zephyr', $spreadsheet->getSheetByName('Search Parameters')->getCell('C2')->getValue());
+            $this->assertSame(0, $spreadsheet->getSheetByName('Search Parameters')->getCell('C16')->getValue());
             $this->assertSame('Zephyr Spreadsheet Forestry', $spreadsheet->getSheetByName('Search Summary')->getCell('C2')->getValue());
             $this->assertSame('Zephyr spreadsheet topic', $spreadsheet->getSheetByName('Topics')->getCell('E2')->getValue());
         } finally {

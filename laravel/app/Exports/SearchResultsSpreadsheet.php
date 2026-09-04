@@ -86,7 +86,7 @@ class SearchResultsSpreadsheet
             $rows[] = ['Overall Statistic', $label, $stats[$key] ?? 0];
         }
 
-        $sheet->fromArray($rows, null, 'A2');
+        $sheet->fromArray($rows, null, 'A2', true);
         $this->formatSheet($sheet, count($rows) + 1, 3);
     }
 
@@ -131,7 +131,7 @@ class SearchResultsSpreadsheet
         })->all();
 
         if (!empty($rows)) {
-            $sheet->fromArray($rows, null, 'A2');
+            $sheet->fromArray($rows, null, 'A2', true);
         }
 
         $this->formatSheet($sheet, count($rows) + 1, count($headings));
@@ -163,7 +163,7 @@ class SearchResultsSpreadsheet
         })->all();
 
         if (!empty($rows)) {
-            $sheet->fromArray($rows, null, 'A2');
+            $sheet->fromArray($rows, null, 'A2', true);
         }
 
         $this->formatSheet($sheet, count($rows) + 1, count($headings));
@@ -208,7 +208,7 @@ class SearchResultsSpreadsheet
             $sheet = $spreadsheet->createSheet();
             $sheet->setTitle($sheetTitle);
             $sheet->fromArray($headings, null, 'A1');
-            $sheet->fromArray($rows->all(), null, 'A2');
+            $sheet->fromArray($rows->all(), null, 'A2', true);
             $this->formatDetailSheet($sheet, $rows->count() + 1, count($headings));
         }
     }
@@ -239,7 +239,7 @@ class SearchResultsSpreadsheet
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Program Names');
         $sheet->fromArray(['Program'], null, 'A1');
-        $sheet->fromArray($rows->all(), null, 'A2');
+        $sheet->fromArray($rows->all(), null, 'A2', true);
         $this->formatSheet($sheet, $rows->count() + 1, 1);
     }
 
@@ -262,7 +262,7 @@ class SearchResultsSpreadsheet
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Course Identity');
         $sheet->fromArray(['Course Code', 'Course Number', 'Course Title', 'Programs'], null, 'A1');
-        $sheet->fromArray($rows->all(), null, 'A2');
+        $sheet->fromArray($rows->all(), null, 'A2', true);
         $this->formatSheet($sheet, $rows->count() + 1, 4);
     }
 
