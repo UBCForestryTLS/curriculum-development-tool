@@ -14,6 +14,10 @@ use App\Models\CourseTopic;
 use App\Models\LearningOutcome;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PDF;
 
 class SearchTest extends TestCase
 {
@@ -556,6 +560,222 @@ class SearchTest extends TestCase
         $response->assertSessionHasNoErrors();
     }
 
+    public function test_course_search_results_can_be_exported_as_pdf(): void
+    {
+        $this->createCourseScaleCategory();
+        $course = Course::factory()->create([
+            'course_code' => 'FRST',
+            'course_num' => 321,
+            'course_title' => 'Zephyr Export Forestry',
+        ]);
+
+        PDF::shouldReceive('loadView')
+            ->once()
+            ->with('search.exports.course-results', \Mockery::on(fn ($data) =>
+                $data['searchTerm'] === 'zephyr export'
+                && $data['results']->contains('course_id', $course->course_id)
+            ))
+            ->andReturnSelf();
+        PDF::shouldReceive('download')
+            ->once()
+            ->with('zephyr-export-course-search-results-'.now()->format('Y-m-d').'.pdf')
+            ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
+
+        $response = $this->get(route('search.export.pdf', [
+            'query' => 'zephyr export',
+            'view' => 'courses',
+        ]));
+
+        $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_program_search_results_can_be_exported_as_pdf(): void
+    {
+        $this->createCourseScaleCategory();
+        $course = Course::factory()->create([
+            'course_title' => 'Auralithpdfexport Course',
+        ]);
+        $programId = DB::table('programs')->insertGetId([
+            'program' => 'Auralithpdfexport Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], 'program_id');
+        DB::table('course_programs')->insert([
+            'course_id' => $course->course_id,
+            'program_id' => $programId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        PDF::shouldReceive('loadView')
+            ->once()
+            ->with('search.exports.program-results', \Mockery::on(fn ($data) =>
+                $data['programResults']->contains('program_id', $programId)
+            ))
+            ->andReturnSelf();
+        PDF::shouldReceive('download')
+            ->once()
+            ->with('auralithpdfexport-program-search-results-'.now()->format('Y-m-d').'.pdf')
+            ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
+
+        $response = $this->get(route('search.export.pdf', [
+            'query' => 'auralithpdfexport',
+            'view' => 'programs',
+        ]));
+
+        $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_course_pdf_limits_detailed_results_and_keeps_full_statistics(): void
+    {
+        config(['search.pdf_result_limit' => 2]);
+        $this->createCourseScaleCategory();
+
+        foreach (range(1, 3) as $index) {
+            $this->createSearchCourse('PDF', 100 + $index, "Limitium Course {$index}");
+        }
+
+        PDF::shouldReceive('loadView')
+            ->once()
+            ->with('search.exports.course-results', \Mockery::on(function ($data) {
+                $html = view('search.exports.course-results', $data)->render();
+
+                return $data['results']->count() === 2
+                    && $data['stats']['courses'] === 3
+                    && $data['resultLimit'] === [
+                        'limit' => 2,
+                        'rendered' => 2,
+                        'total' => 3,
+                        'truncated' => true,
+                    ]
+                    && str_contains($html, 'first 2 of')
+                    && str_contains($html, 'Search statistics reflect the complete result set.');
+            }))
+            ->andReturnSelf();
+        PDF::shouldReceive('download')
+            ->once()
+            ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
+
+        $this->get(route('search.export.pdf', [
+            'query' => 'limitium',
+            'view' => 'courses',
+        ]))->assertOk();
+    }
+
+    public function test_program_pdf_limits_nested_course_details_and_keeps_full_statistics(): void
+    {
+        config(['search.pdf_result_limit' => 2]);
+        $this->createCourseScaleCategory();
+
+        $firstProgramId = $this->createProgram('PDF Limit Program One');
+        $secondProgramId = $this->createProgram('PDF Limit Program Two');
+        $courses = collect(range(1, 3))->map(
+            fn ($index) => $this->createSearchCourse('PDF', 200 + $index, "Programlimitium Course {$index}")
+        );
+        $this->attachCourseToProgram($courses[0], $firstProgramId);
+        $this->attachCourseToProgram($courses[1], $firstProgramId);
+        $this->attachCourseToProgram($courses[2], $secondProgramId);
+
+        PDF::shouldReceive('loadView')
+            ->once()
+            ->with('search.exports.program-results', \Mockery::on(function ($data) {
+                $html = view('search.exports.program-results', $data)->render();
+
+                return $data['programResults']->sum(fn ($program) => $program->courses->count()) === 2
+                    && $data['stats']['courses'] === 3
+                    && $data['stats']['programs'] === 2
+                    && $data['resultLimit'] === [
+                        'limit' => 2,
+                        'rendered' => 2,
+                        'total' => 3,
+                        'truncated' => true,
+                    ]
+                    && str_contains($html, 'first 2 of 3')
+                    && str_contains($html, 'Search statistics reflect the complete result set.');
+            }))
+            ->andReturnSelf();
+        PDF::shouldReceive('download')
+            ->once()
+            ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
+
+        $this->get(route('search.export.pdf', [
+            'query' => 'programlimitium',
+            'view' => 'programs',
+        ]))->assertOk();
+    }
+
+    public function test_course_search_results_can_be_exported_as_a_spreadsheet(): void
+    {
+        $this->createCourseScaleCategory();
+        $course = $this->createSearchCourse('FRST', 322, 'Zephyr Spreadsheet Forestry');
+        $this->createCourseTopic($course, 'Zephyr spreadsheet topic');
+
+        $response = $this->get(route('search.export.spreadsheet', [
+            'query' => 'zephyr',
+            'view' => 'courses',
+        ]));
+
+        $response->assertOk()
+            ->assertDownload('zephyr-course-search-results-'.now()->format('Y-m-d').'.xlsx');
+
+        $spreadsheet = $this->loadDownloadedSpreadsheet($response);
+
+        try {
+            $this->assertSame([
+                'Search Parameters',
+                'Search Summary',
+                'Course Identity',
+                'Topics',
+            ], $spreadsheet->getSheetNames());
+            $this->assertSame('zephyr', $spreadsheet->getSheetByName('Search Parameters')->getCell('C2')->getValue());
+            $this->assertSame(0, $spreadsheet->getSheetByName('Search Parameters')->getCell('C16')->getValue());
+            $this->assertSame('Zephyr Spreadsheet Forestry', $spreadsheet->getSheetByName('Search Summary')->getCell('C2')->getValue());
+            $this->assertSame('Zephyr spreadsheet topic', $spreadsheet->getSheetByName('Topics')->getCell('E2')->getValue());
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+        }
+    }
+
+    public function test_program_search_results_can_be_exported_as_a_spreadsheet(): void
+    {
+        $this->createProgram('Auralith Spreadsheet Program');
+
+        $response = $this->get(route('search.export.spreadsheet', [
+            'query' => 'auralith spreadsheet',
+            'view' => 'programs',
+        ]));
+
+        $response->assertOk()
+            ->assertDownload('auralith-spreadsheet-program-search-results-'.now()->format('Y-m-d').'.xlsx');
+
+        $spreadsheet = $this->loadDownloadedSpreadsheet($response);
+
+        try {
+            $this->assertSame([
+                'Search Parameters',
+                'Search Summary',
+                'Program Names',
+            ], $spreadsheet->getSheetNames());
+            $this->assertSame('Auralith Spreadsheet Program', $spreadsheet->getSheetByName('Search Summary')->getCell('A2')->getValue());
+            $this->assertSame('Auralith Spreadsheet Program', $spreadsheet->getSheetByName('Program Names')->getCell('A2')->getValue());
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+        }
+    }
+
+    public function test_guest_user_cannot_export_search_results_as_a_spreadsheet(): void
+    {
+        auth()->logout();
+
+        $response = $this->get(route('search.export.spreadsheet', [
+            'query' => 'forestry',
+        ]));
+
+        $response->assertRedirect(route('login'));
+    }
+
     public function test_search_finds_course_by_compact_course_code(){
         $this->createCourseScaleCategory();
 
@@ -642,6 +862,20 @@ class SearchTest extends TestCase
             ['scale_category_id' => 1],
             ['name' => 'Test Scale Category']
         );
+    }
+
+    private function loadDownloadedSpreadsheet(TestResponse $response): Spreadsheet
+    {
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'search-export-');
+        file_put_contents($temporaryPath, $response->streamedContent());
+
+        try {
+            $this->assertSame('Xlsx', IOFactory::identify($temporaryPath));
+
+            return IOFactory::load($temporaryPath);
+        } finally {
+            unlink($temporaryPath);
+        }
     }
 
     private function assignRoleToUser(User $user, string $roleName): int

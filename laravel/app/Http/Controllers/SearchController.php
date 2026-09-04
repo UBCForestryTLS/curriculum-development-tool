@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\SearchResultsSpreadsheet;
 use App\Helpers\SearchFilterOptions;
 use App\Helpers\SearchCourseAccess;
+use App\Http\Requests\SearchRequestRules;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder; //Builder is for a DB query that is still being constructed
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PDF;
 
 class SearchController extends Controller
 
@@ -27,20 +32,7 @@ class SearchController extends Controller
         $validated = $request->validate([
             'query' => ['nullable', 'string', 'max:200'],
             'saved_filter_id' => ['nullable', 'integer'],
-            'view' => ['nullable', 'in:courses,programs'],
-            'property_filters_applied' => ['nullable', 'boolean'],
-            'properties' => ['nullable', 'array'],
-            'properties.*' => [
-                SearchFilterOptions::propertyValidationRule(),
-            ],
-            'course_filters_applied' => ['nullable', 'boolean'],
-            'course_codes' => ['nullable', 'array'],
-            'course_codes.*' => ['nullable', 'string', 'max:10'],
-            'course_levels' => ['nullable', 'array'],
-            'course_levels.*' => ['nullable', 'in:100,200,300,400,500,600'],
-            'program_filters_applied' => ['nullable', 'boolean'],
-            'program_ids' => ['nullable', 'array'],
-            'program_ids.*' => ['nullable', 'integer'],
+            ...SearchRequestRules::shared(),
         ]);
         // The query is optional, and the result view must be one of the supported options
         // we also validate property filters applied
@@ -136,41 +128,21 @@ class SearchController extends Controller
         $searchPerformed = $searchTerm !== '' && ! $presetApplied;
 
         if($searchPerformed){
-            $resultsAndStats = $this->searchCourses(
+            $searchData = $this->buildSearchResults(
                 $searchTerm,
+                $selectedView,
                 $selectedProperties,
                 $selectedCourseCodes,
                 $selectedCourseLevels,
                 $selectedProgramIds,
                 $user,
             );
-            $results = $resultsAndStats['results'];
-            $stats = $resultsAndStats['stats'];
-            $courseQuickLinks = $results;
-            $programQuickLinks = $results
-                ->flatMap(fn ($course) => $course->programs)
-                ->unique('program_id')
-                ->values();
-
-            if ($selectedView === 'programs') {
-                $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $user);
-                $programResults = $this->groupCourseResultsByProgram($results, $programMatches, $selectedProgramIds);
-                $stats['programs'] = $programResults->count();
-                $programQuickLinks = $programResults;
-
-                $stats['courses'] = $programResults
-                    ->flatMap(fn ($program) => $program->courses)
-                    ->pluck('course_id')
-                    ->unique()
-                    ->count();
-                    //for the program view, only courses assigned to a program are counted in the statistics
-
-                $courseQuickLinks = $programResults
-                    ->flatMap(fn ($program) => $program->courses)
-                    ->unique('course_id')
-                    ->values();
-            }
-
+            $results = $searchData['results'];
+            $programMatches = $searchData['programMatches'];
+            $programResults = $searchData['programResults'];
+            $courseQuickLinks = $searchData['courseQuickLinks'];
+            $programQuickLinks = $searchData['programQuickLinks'];
+            $stats = $searchData['stats'];
         }
 
         $results = $this->paginateResults($results, $request); //handle many restults via pagination
@@ -206,6 +178,291 @@ class SearchController extends Controller
         ]);
         
 }
+
+    /**
+     * Downloads all matching Course View or Program View results as a PDF.
+     *
+     * @param Request $request The incoming request containing the search query and selected filters.
+     *
+     * @return \Illuminate\Http\Response The generated PDF download response.
+     */
+    public function exportPdf(Request $request)
+    {
+        $exportData = $this->prepareExportData($request);
+        $filters = $exportData['filters'];
+        $searchData = $exportData['searchData'];
+        $pdfData = $this->limitPdfResults($searchData, $filters['selectedView']);
+
+        if ($filters['selectedView'] === 'programs') {
+            return PDF::loadView('search.exports.program-results', [
+                'searchTerm' => $filters['searchTerm'],
+                'programResults' => $pdfData['programResults'],
+                'filterSummary' => $exportData['filterSummary'],
+                'stats' => $searchData['stats'],
+                'resultLimit' => $pdfData['resultLimit'],
+            ])->download($exportData['querySlug'].'-program-search-results-'.now()->format('Y-m-d').'.pdf');
+        }
+
+        return PDF::loadView('search.exports.course-results', [
+            'searchTerm' => $filters['searchTerm'],
+            'results' => $pdfData['results'],
+            'filterSummary' => $exportData['filterSummary'],
+            'stats' => $searchData['stats'],
+            'resultLimit' => $pdfData['resultLimit'],
+        ])->download($exportData['querySlug'].'-course-search-results-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    /**
+     * Limits the detailed course entries rendered in a PDF without changing the full search data.
+     *
+     * @param array $searchData The complete access-controlled search results and statistics.
+     * @param string $selectedView The selected course or program result view.
+     *
+     * @return array The limited PDF collections and details describing whether they were truncated.
+     */
+    private function limitPdfResults(array $searchData, string $selectedView): array
+    {
+        $limit = max(1, (int) config('search.pdf_result_limit', 500));
+
+        if ($selectedView === 'courses') {
+            $total = $searchData['results']->count();
+            $results = $searchData['results']->take($limit)->values();
+
+            return [
+                'results' => $results,
+                'programResults' => collect(),
+                'resultLimit' => [
+                    'limit' => $limit,
+                    'rendered' => $results->count(),
+                    'total' => $total,
+                    'truncated' => $total > $limit,
+                ],
+            ];
+        }
+
+        $remaining = $limit;
+        $total = $searchData['programResults']->sum(fn ($program) => $program->courses->count());
+        $programResults = $searchData['programResults']
+            ->map(function ($program) use (&$remaining) {
+                $limitedCourses = $program->courses->take($remaining)->values();
+                $remaining -= $limitedCourses->count();
+
+                if (!$program->is_program_match && $limitedCourses->isEmpty()) {
+                    return null;
+                }
+
+                $limitedProgram = clone $program;
+                $limitedProgram->courses = $limitedCourses;
+
+                return $limitedProgram;
+            })
+            ->filter()
+            ->values();
+
+        return [
+            'results' => collect(),
+            'programResults' => $programResults,
+            'resultLimit' => [
+                'limit' => $limit,
+                'rendered' => min($total, $limit),
+                'total' => $total,
+                'truncated' => $total > $limit,
+            ],
+        ];
+    }
+
+    /**
+     * Downloads all matching Course View or Program View results as a spreadsheet.
+     *
+     * @param Request $request The incoming request containing the search query and selected filters.
+     * @param SearchResultsSpreadsheet $spreadsheetExport The search workbook builder.
+     *
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse The generated spreadsheet download response.
+     */
+    public function exportSpreadsheet(Request $request, SearchResultsSpreadsheet $spreadsheetExport)
+    {
+        $exportData = $this->prepareExportData($request);
+        $filters = $exportData['filters'];
+        $spreadsheet = $spreadsheetExport->build(
+            $filters,
+            $exportData['searchData'],
+            $exportData['filterSummary'],
+        );
+        $viewName = $filters['selectedView'] === 'programs' ? 'program' : 'course';
+        $filename = $exportData['querySlug'].'-'.$viewName.'-search-results-'.now()->format('Y-m-d').'.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            try {
+                (new Xlsx($spreadsheet))->save('php://output');
+            } finally {
+                $spreadsheet->disconnectWorksheets();
+            }
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * Prepares the normalized filters, complete search results, statistics, and display values shared by exports.
+     *
+     * @param Request $request The incoming request containing the search query and selected filters.
+     *
+     * @return array The filters, access-controlled search data, filter summary, and filename query slug.
+     */
+    private function prepareExportData(Request $request): array
+    {
+        $filters = $this->getExportFilters($request);
+        $searchData = $this->buildSearchResults(
+            $filters['searchTerm'],
+            $filters['selectedView'],
+            $filters['selectedProperties'],
+            $filters['selectedCourseCodes'],
+            $filters['selectedCourseLevels'],
+            $filters['selectedProgramIds'],
+            $request->user(),
+        );
+
+        $selectedProgramNames = DB::table('programs')
+            ->whereIn('program_id', $filters['selectedProgramIds'])
+            ->orderBy('program')
+            ->pluck('program')
+            ->all();
+
+        return [
+            'filters' => $filters,
+            'searchData' => $searchData,
+            'filterSummary' => [
+                'Properties' => collect($filters['selectedProperties'])
+                    ->map(fn ($property) => SearchFilterOptions::properties()[$property] ?? $property)
+                    ->implode(', ') ?: 'None',
+                'Course Codes' => implode(', ', $filters['selectedCourseCodes']) ?: 'All',
+                'Course Levels' => implode(', ', $filters['selectedCourseLevels']) ?: 'All',
+                'Programs' => empty($filters['selectedProgramIds'])
+                    ? 'All'
+                    : (implode(', ', $selectedProgramNames) ?: 'Selected programs unavailable'),
+            ],
+            'querySlug' => trim(Str::limit(Str::slug($filters['searchTerm']), 50, ''), '-') ?: 'filtered',
+        ];
+    }
+
+    /**
+     * Validates and normalizes the filters used by search result exports.
+     *
+     * @param Request $request The incoming request containing the search query and selected filters.
+     *
+     * @return array The normalized query, property filters, course filters, and program filters.
+     */
+    private function getExportFilters(Request $request): array
+    {
+        $validated = $request->validate([
+            'query' => ['required', 'string', 'max:200', 'regex:/\S/'],
+            ...SearchRequestRules::shared(),
+        ]);
+
+        $propertyFiltersApplied = (bool) ($validated['property_filters_applied'] ?? false);
+        $courseFiltersApplied = (bool) ($validated['course_filters_applied'] ?? false);
+        $programFiltersApplied = (bool) ($validated['program_filters_applied'] ?? false);
+
+        return [
+            'searchTerm' => preg_replace('/\s+/', ' ', trim($validated['query'])),
+            'selectedView' => $validated['view'] ?? 'courses',
+            'selectedProperties' => $propertyFiltersApplied
+                ? ($validated['properties'] ?? [])
+                : SearchFilterOptions::propertyKeys(),
+            'selectedCourseCodes' => $courseFiltersApplied
+                ? collect($validated['course_codes'] ?? [])
+                    ->filter(fn ($code) => is_string($code) && trim($code) !== '')
+                    ->map(fn ($code) => strtoupper(trim($code)))
+                    ->unique()
+                    ->values()
+                    ->all()
+                : [],
+            'selectedCourseLevels' => $courseFiltersApplied
+                ? collect($validated['course_levels'] ?? [])
+                    ->filter(fn ($level) => is_string($level) && trim($level) !== '')
+                    ->unique()
+                    ->values()
+                    ->all()
+                : [],
+            'selectedProgramIds' => $programFiltersApplied
+                ? collect($validated['program_ids'] ?? [])
+                    ->filter(fn ($programId) => is_numeric($programId))
+                    ->map(fn ($programId) => (int) $programId)
+                    ->unique()
+                    ->values()
+                    ->all()
+                : [],
+        ];
+    }
+
+    /**
+     * Builds the complete course or program result collection before pagination is applied.
+     *
+     * @param string $searchTerm The normalized text to search for.
+     * @param string $selectedView The selected course or program result view.
+     * @param array $selectedProperties The course properties included in the search.
+     * @param array $selectedCourseCodes The course codes included in the search.
+     * @param array $selectedCourseLevels The course number levels included in the search.
+     * @param array $selectedProgramIds The program IDs included in the search.
+     * @param User $user The logged-in user whose course access should be respected.
+     *
+     * @return array The unpaginated results, statistics, and quick-link collections.
+     */
+    private function buildSearchResults(
+        string $searchTerm,
+        string $selectedView,
+        array $selectedProperties,
+        array $selectedCourseCodes,
+        array $selectedCourseLevels,
+        array $selectedProgramIds,
+        User $user,
+    ): array {
+        $resultsAndStats = $this->searchCourses(
+            $searchTerm,
+            $selectedProperties,
+            $selectedCourseCodes,
+            $selectedCourseLevels,
+            $selectedProgramIds,
+            $user,
+        );
+        $results = $resultsAndStats['results'];
+        $stats = $resultsAndStats['stats'];
+        $programMatches = collect();
+        $programResults = collect();
+        $courseQuickLinks = $results;
+        $programQuickLinks = $results
+            ->flatMap(fn ($course) => $course->programs)
+            ->unique('program_id')
+            ->values();
+
+        if ($selectedView === 'programs') {
+            $programMatches = $this->searchProgramNames($searchTerm, $selectedCourseCodes, $selectedCourseLevels, $user);
+            $programResults = $this->groupCourseResultsByProgram($results, $programMatches, $selectedProgramIds);
+            $stats['programs'] = $programResults->count();
+            $programQuickLinks = $programResults;
+
+            $stats['courses'] = $programResults
+                ->flatMap(fn ($program) => $program->courses)
+                ->pluck('course_id')
+                ->unique()
+                ->count();
+                //for the program view, only courses assigned to a program are counted in the statistics
+
+            $courseQuickLinks = $programResults
+                ->flatMap(fn ($program) => $program->courses)
+                ->unique('course_id')
+                ->values();
+        }
+
+        return [
+            'results' => $results,
+            'programMatches' => $programMatches,
+            'programResults' => $programResults,
+            'courseQuickLinks' => $courseQuickLinks,
+            'programQuickLinks' => $programQuickLinks,
+            'stats' => $stats,
+        ];
+    }
 
     /**
      * searches the selected course properties (if selected) and prepares combined results and statistics

@@ -10,9 +10,12 @@ This feature is implemented primarily under:
 
 - [`laravel/app/Http/Controllers/SearchController.php`](../laravel/app/Http/Controllers/SearchController.php)
 - [`laravel/app/Http/Controllers/SavedSearchFilterController.php`](../laravel/app/Http/Controllers/SavedSearchFilterController.php)
+- [`laravel/app/Exports/SearchResultsSpreadsheet.php`](../laravel/app/Exports/SearchResultsSpreadsheet.php)
 - [`laravel/app/Helpers/SearchCourseAccess.php`](../laravel/app/Helpers/SearchCourseAccess.php)
 - [`laravel/app/Helpers/SearchFilterOptions.php`](../laravel/app/Helpers/SearchFilterOptions.php)
 - [`laravel/resources/views/search/index.blade.php`](../laravel/resources/views/search/index.blade.php)
+- [`laravel/resources/views/search/exports/course-results.blade.php`](../laravel/resources/views/search/exports/course-results.blade.php)
+- [`laravel/resources/views/search/exports/program-results.blade.php`](../laravel/resources/views/search/exports/program-results.blade.php)
 - [`laravel/resources/views/search/partials/highlighted-snippet.blade.php`](../laravel/resources/views/search/partials/highlighted-snippet.blade.php)
 - [`laravel/resources/views/search/partials/result-match.blade.php`](../laravel/resources/views/search/partials/result-match.blade.php)
 - [`laravel/tests/Feature/SearchTest.php`](../laravel/tests/Feature/SearchTest.php)
@@ -33,6 +36,7 @@ The feature is responsible for:
 - searching program names
 - filtering results by course code, course level, program, and searchable property
 - showing results in either Course view or Program view
+- exporting Course view and Program view results as PDF or spreadsheet files
 - saving, applying, and deleting user-specific search filter presets
 
 ## Routes
@@ -41,7 +45,11 @@ The main search page is:
 
 ```php
 GET /search
+GET /search/export/pdf
+GET /search/export/spreadsheet
 ```
+
+The export routes preserve the current search query, selected view, and filters.
 
 The saved filter preset routes are:
 
@@ -182,6 +190,30 @@ Program view groups matching courses under their programs. Program results can c
 
 Material Content matches also show the source PDF filename and page number. The source link opens the uploaded PDF at the matching page in a new tab.
 
+## PDF Export
+
+After a search returns results, the page displays a **Download PDF** button. The export preserves the current query, result view, property filters, course filters, and program filters. Pagination is not included, and the PDF statistics describe the complete matching result collection instead of only the current page.
+
+Course view exports use `search.exports.course-results` and list courses with their related programs, match counts, and all matching snippets. Program view exports use `search.exports.program-results` and group matching courses and snippets under each program. Material Content matches include the source filename and page number in both exports.
+
+Detailed PDF output is limited to 500 course entries by default to protect Dompdf from extremely large result sets. Course view applies the limit to ranked courses. Program view applies one shared limit across the courses nested under its program groups. When results are truncated, the PDF reports how many detailed entries were included and clarifies that its statistics still represent the complete search.
+
+The limit can be changed in `.env`:
+
+```env
+SEARCH_PDF_RESULT_LIMIT=500
+```
+
+The response filename includes a safe, shortened version of the query, such as `climate-change-course-search-results-YYYY-MM-DD.pdf` or `climate-change-program-search-results-YYYY-MM-DD.pdf`.
+
+## Spreadsheet Export
+
+The **Download Spreadsheet** button exports the same complete, access-controlled result collection as the PDF. Every workbook includes a **Search Parameters** sheet containing the query, filters, and overall statistics, and a **Search Summary** sheet containing each matching course or program and its match counts.
+
+Additional sheets are included only for properties with at least one match. These sheets contain the matching source text for Course Identity, Topics, Learning Objectives, Assessments, Descriptions, Materials, and Material Content. Program view can also include a Program Names sheet. Material Content rows include the source filename and page number.
+
+The workbook is streamed directly to the browser and uses the same query-based filename format with an `.xlsx` extension.
+
 ## Saved Filter Presets
 
 Authenticated users can save named filter presets.
@@ -249,6 +281,8 @@ The tests cover:
 - search stats
 - course and program pagination
 - course code, course level, and program filters
+- Course view and Program view PDF and spreadsheet exports
+- configurable PDF detail limits, truncation notices, and full-result statistics
 - saved filter saving, applying, deleting, ownership restrictions, and current preset display
 
 Run the search tests with:
@@ -292,5 +326,6 @@ Few constraints that might be important to consider for this feature:
 - search result links go to existing course and program wizard routes
 - only files with an `INDEXED` status are included in Material Content searches
 - PHP-side grouping and pagination is fine for a small dataset, but may need refactoring if the database grows extremely large, which is unlikely
+- PDF exports retain full statistics but limit detailed course entries according to `SEARCH_PDF_RESULT_LIMIT`
 - empty-query listing is not currently implemented
 - if new searchable fields are added, update `SearchFilterOptions`, migrations, controller search methods, tests, and this doc
