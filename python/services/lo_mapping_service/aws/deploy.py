@@ -246,12 +246,25 @@ def log_lambdas(
     print("\n")
 
 
-def setup_eventbridge(events_client, lambda_client, sts_client, region: str | None, kv_tags: list[dict]) -> None:
+def setup_eventbridge(
+        settings: DeploySettings,
+        events_client, 
+        lambda_client,
+        sts_client,
+        kv_tags: list[dict]
+) -> None:
     print(f"Setting up EventBridge rule '{EVENTBRIDGE_RULE}'...")
+    
     pattern = json.dumps({
         "source": ["aws.sagemaker"],
         "detail-type": ["SageMaker Transform Job State Change"],
+        "detail": {
+            "TransformJobName": [{
+                "prefix": settings.JOB_NAME_PREFIX
+            }]
+        }
     })
+    
     rule = events_client.put_rule(Name=EVENTBRIDGE_RULE, EventPattern=pattern)
     print(f"  rule '{EVENTBRIDGE_RULE}' put")
 
@@ -269,7 +282,7 @@ def setup_eventbridge(events_client, lambda_client, sts_client, region: str | No
     print(f"  target -> {lambda_arn}")
 
     account_id = sts_client.get_caller_identity()["Account"]
-    source_arn = f"arn:aws:events:{region}:{account_id}:rule/{EVENTBRIDGE_RULE}"
+    source_arn = f"arn:aws:events:{settings.AWS_REGION}:{account_id}:rule/{EVENTBRIDGE_RULE}"
     # We have to add permission for EventBridge to invoke the Lambda separately after put_targets,
     # eventbridge-invoke doesn't come under the IAM execution role permissions
     # The user running this script must have the permission for lambda:AddPermission
@@ -473,6 +486,7 @@ def get_or_create_sagemaker_execution_role(
             "Statement": [
                 {
                     "Action": [
+                        "s3:ListBucket",
                         "s3:GetObject",
                         "s3:PutObject",
                         "s3:DeleteObject"
@@ -701,7 +715,7 @@ def main() -> None:
         START_LAMBDA_FUNCTION_NAME,
         [
             table_arn,
-            table_arn.rstrip("/") + "/index/"
+            table_arn.rstrip("/") + "/index/*"
         ],
         None,
         kv_tags
@@ -725,7 +739,7 @@ def main() -> None:
         PROCESS_LAMBDA_FUNCTION_NAME,
         [
             table_arn,
-            table_arn.rstrip("/") + "/index/"
+            table_arn.rstrip("/") + "/index/*"
         ],
         start_lambda_function_arn,
         kv_tags
@@ -747,7 +761,13 @@ def main() -> None:
         [process_lambda_function_arn, start_lambda_function_arn]
     )
 
-    setup_eventbridge(events_client, lambda_client, sts_client, settings.AWS_REGION, kv_tags)
+    setup_eventbridge(
+        settings,
+        events_client,
+        lambda_client,
+        sts_client,
+        kv_tags
+    )
 
     print("\nDone.")
 

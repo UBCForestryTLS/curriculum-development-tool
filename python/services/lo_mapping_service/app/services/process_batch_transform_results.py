@@ -6,7 +6,10 @@ from decimal import Decimal
 
 from app.core.config import settings
 from app.core.logging_config import logger
-from app.services.lo_mapping_request_dynamo_db_request import LOMappingRequestDynamoDBRecord
+from app.services.lo_mapping_request_dynamo_db_request import (
+    LOMappingRequestDynamoDBRecord,
+    MappingRequestRecord
+)
 
 
 boto_session = boto3.Session(
@@ -191,6 +194,44 @@ def delete_dynamodb_record(record_id: str) -> None:
         logger.error("Failed to delete DynamoDB record '%s': %s", record_id, e)
         # Not re-raising since failure to delete should not block processing of other records
 
+def delete_record_s3_input_data(record: MappingRequestRecord) -> None:
+    """ Delete the batch transform input data stored in S3 for the corresponding `record` (if it exists). """
+
+    record_id = record.get('request_id')
+    record_status = record.get('status')
+    input_data_s3_uri = record.get('input_s3_path')
+
+    extra_record_info = {
+        "record_id": record_id,
+        "record_status": record_status,
+        "s3_uri": input_data_s3_uri
+    }
+    
+    if isinstance(input_data_s3_uri, str) and len(input_data_s3_uri) > 0:
+        key_match = re.search(r"batch_inputs\/.+", input_data_s3_uri, re.I)
+
+        s3_object_key = key_match.group(0) if key_match else None
+
+        if s3_object_key:
+            try:
+                response = s3.delete_object(
+                    Bucket=settings.BATCH_TRANSFORM_INPUT_S3_BUCKET,
+                    Key=s3_object_key
+                )
+
+                response_status_code = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+
+                if response_status_code == 204:
+                    logger.info("S3 input data deleted successfully.", extra=extra_record_info)
+                else:
+                    logger.warning("S3 input data may not have been deleted.", extra=extra_record_info)
+            except Exception as e:
+                logger.warning("Failed to delete S3 input data.", extra=extra_record_info)
+        else:
+            logger.warning("Could not get S3 object key from full path. Skipping S3 data deletion.", extra=extra_record_info)
+    else:
+        logger.warning("No S3 input data path found in record. Skipping S3 data deletion.", extra=extra_record_info)
+
 
 
 async def send_results_to_external_api(record_id: str, results: list[dict], record: dict) -> None:
@@ -246,7 +287,11 @@ async def process_records(records: list) -> dict:
                     record_id,
                 )
                 await send_results_to_external_api(record_id, [], record)
+
                 delete_dynamodb_record(record_id)
+
+                delete_record_s3_input_data(record)
+ 
                 succeeded.append(record_id)
                 continue
 

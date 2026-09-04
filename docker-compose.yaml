@@ -79,5 +79,3 @@ volumes:
   uploads:
   syllabus-parser-logs:
   lo-mapper-logs:
-
-# TODO: Set up Python services!

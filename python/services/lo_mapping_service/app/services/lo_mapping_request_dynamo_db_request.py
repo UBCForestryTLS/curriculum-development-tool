@@ -1,6 +1,8 @@
 import os
 from datetime import datetime
 from uuid import uuid4
+from enum import StrEnum
+from typing import TypedDict
 
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -8,6 +10,20 @@ from boto3.dynamodb.conditions import Key
 from app.core.config import Settings
 from app.core.logging_config import logger
 
+class MappingRequestRecordStatus(StrEnum):
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    AWAITING_COMPLETION = "AWAITING_COMPLETION"
+    AWAITING_COMPLETION_FAILED = "AWAITING_COMPLETION_FAILED"
+
+class MappingRequestRecord(TypedDict):
+    request_id: str
+    course_id: int
+    program_id: int
+    status: MappingRequestRecordStatus
+    input_s3_path: str
+    output_s3_path: str
+    created_at: str
 
 class LOMappingRequestDynamoDBRecord:
     """Persists LO mapping request records in DynamoDB."""

@@ -63,17 +63,20 @@ app.add_middleware(
 
 @app.get("/health")
 async def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+    return { "status": "ok" }
 
 
 @app.post("/map-program-outcomes")
 async def map_program_outcomes(request: OutcomeMappingRequest)-> dict:
     logger.info("/map-program-outcomes called for course_id=%s program_id=%s", request.course_id, request.program_id)
+
     try:
         logger.info("Step 1/4: checking for existing in-flight record")
+
         existing = lo_mapping_request_store.find_in_flight_records_for_pairs(
             [(request.course_id, request.program_id)]
         ).get((request.course_id, request.program_id))
+
         if existing is not None:
             logger.info(
                 "Dedupe: existing in-flight record found for course_id=%s program_id=%s status=%s — reusing.",
@@ -87,17 +90,21 @@ async def map_program_outcomes(request: OutcomeMappingRequest)-> dict:
             }
 
         logger.info("Step 2/4: building batch prompt records (uploads to S3)")
+
         batchTranformInputBuilder = BatchTransformInputBuilder(request)
         s3_input_path = batchTranformInputBuilder.build_batch_prompt_records()
+
         logger.info("Step 2/4 done: s3_input_path=%s", s3_input_path)
 
         logger.info("Step 3/4: writing PENDING record to DynamoDB table=%s", lo_mapping_request_store.table_name)
+
         record = lo_mapping_request_store.create_request(
             course_id=request.course_id,
             program_id=request.program_id,
             input_s3_path=s3_input_path,
             status="PENDING",
         )
+        
         logger.info("Step 3/4 done: created record_id=%s", record["request_id"])
 
         logger.info("Step 4/4: invoking start-batch-transform-job Lambda")
