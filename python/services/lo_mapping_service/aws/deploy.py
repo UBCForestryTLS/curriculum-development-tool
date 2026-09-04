@@ -57,9 +57,6 @@ class DeploySettings(BaseSettings):
     MODEL_NAME_PREFIX: str = "hf-batch-transform-model"
 
     S3_BUCKET_BASE: str = "curriculum-tool-bucket"
-    #OUTPUT_S3_URI: str
-    #IAM_ROLE_ARN: str
-    #LAMBDA_ROLE_ARN: str
 
     model_config = SettingsConfigDict(
         env_file=str(AWS_DIR / ".env.aws"),
