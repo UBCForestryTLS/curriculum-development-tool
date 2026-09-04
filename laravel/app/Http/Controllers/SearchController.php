@@ -210,6 +210,7 @@ class SearchController extends Controller
                 'searchTerm' => $filters['searchTerm'],
                 'programResults' => $pdfData['programResults'],
                 'filterSummary' => $exportData['filterSummary'],
+                'stats' => $searchData['stats'],
                 'resultLimit' => $pdfData['resultLimit'],
             ])->download($exportData['querySlug'].'-program-search-results-'.now()->format('Y-m-d').'.pdf');
         }
@@ -218,6 +219,7 @@ class SearchController extends Controller
             'searchTerm' => $filters['searchTerm'],
             'results' => $pdfData['results'],
             'filterSummary' => $exportData['filterSummary'],
+            'stats' => $searchData['stats'],
             'resultLimit' => $pdfData['resultLimit'],
         ])->download($exportData['querySlug'].'-course-search-results-'.now()->format('Y-m-d').'.pdf');
     }

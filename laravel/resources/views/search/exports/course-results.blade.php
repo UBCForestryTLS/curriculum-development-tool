@@ -44,6 +44,13 @@
                 width: 20%;
             }
 
+            .truncation-notice {
+                background: #fff3cd;
+                border: 1px solid #e4cf87;
+                margin-bottom: 18px;
+                padding: 7px;
+            }
+
             .result {
                 border-bottom: 1px solid #c8d0d9;
                 margin-bottom: 12px;
@@ -81,11 +88,29 @@
                     <td>{{ $value }}</td>
                 </tr>
             @endforeach
-            <tr>
-                <th>Results</th>
-                <td>{{ $results->count() }}</td>
-            </tr>
+            @foreach([
+                'courses' => 'Courses',
+                'programs' => 'Programs',
+                'topics' => 'Topics',
+                'learning_outcomes' => 'Learning Objectives',
+                'assessments' => 'Assessments',
+                'descriptions' => 'Descriptions',
+                'materials' => 'Materials',
+                'material_content' => 'Material Content',
+            ] as $key => $label)
+                <tr>
+                    <th>{{ $label }}</th>
+                    <td>{{ $stats[$key] }}</td>
+                </tr>
+            @endforeach
         </table>
+
+        @if($resultLimit['truncated'])
+            <div class="truncation-notice">
+                Showing detailed results for the first {{ $resultLimit['rendered'] }} of
+                {{ $resultLimit['total'] }} matching courses. Search statistics reflect the complete result set.
+            </div>
+        @endif
 
         @forelse($results as $result)
             <div class="result">
