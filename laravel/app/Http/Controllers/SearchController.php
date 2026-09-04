@@ -203,20 +203,82 @@ class SearchController extends Controller
         $exportData = $this->prepareExportData($request);
         $filters = $exportData['filters'];
         $searchData = $exportData['searchData'];
+        $pdfData = $this->limitPdfResults($searchData, $filters['selectedView']);
 
         if ($filters['selectedView'] === 'programs') {
             return PDF::loadView('search.exports.program-results', [
                 'searchTerm' => $filters['searchTerm'],
-                'programResults' => $searchData['programResults'],
+                'programResults' => $pdfData['programResults'],
                 'filterSummary' => $exportData['filterSummary'],
+                'resultLimit' => $pdfData['resultLimit'],
             ])->download($exportData['querySlug'].'-program-search-results-'.now()->format('Y-m-d').'.pdf');
         }
 
         return PDF::loadView('search.exports.course-results', [
             'searchTerm' => $filters['searchTerm'],
-            'results' => $searchData['results'],
+            'results' => $pdfData['results'],
             'filterSummary' => $exportData['filterSummary'],
+            'resultLimit' => $pdfData['resultLimit'],
         ])->download($exportData['querySlug'].'-course-search-results-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    /**
+     * Limits the detailed course entries rendered in a PDF without changing the full search data.
+     *
+     * @param array $searchData The complete access-controlled search results and statistics.
+     * @param string $selectedView The selected course or program result view.
+     *
+     * @return array The limited PDF collections and details describing whether they were truncated.
+     */
+    private function limitPdfResults(array $searchData, string $selectedView): array
+    {
+        $limit = max(1, (int) config('search.pdf_result_limit', 500));
+
+        if ($selectedView === 'courses') {
+            $total = $searchData['results']->count();
+            $results = $searchData['results']->take($limit)->values();
+
+            return [
+                'results' => $results,
+                'programResults' => collect(),
+                'resultLimit' => [
+                    'limit' => $limit,
+                    'rendered' => $results->count(),
+                    'total' => $total,
+                    'truncated' => $total > $limit,
+                ],
+            ];
+        }
+
+        $remaining = $limit;
+        $total = $searchData['programResults']->sum(fn ($program) => $program->courses->count());
+        $programResults = $searchData['programResults']
+            ->map(function ($program) use (&$remaining) {
+                $limitedCourses = $program->courses->take($remaining)->values();
+                $remaining -= $limitedCourses->count();
+
+                if (!$program->is_program_match && $limitedCourses->isEmpty()) {
+                    return null;
+                }
+
+                $limitedProgram = clone $program;
+                $limitedProgram->courses = $limitedCourses;
+
+                return $limitedProgram;
+            })
+            ->filter()
+            ->values();
+
+        return [
+            'results' => collect(),
+            'programResults' => $programResults,
+            'resultLimit' => [
+                'limit' => $limit,
+                'rendered' => min($total, $limit),
+                'total' => $total,
+                'truncated' => $total > $limit,
+            ],
+        ];
     }
 
     /**
