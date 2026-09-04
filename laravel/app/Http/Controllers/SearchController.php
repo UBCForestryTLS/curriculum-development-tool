@@ -31,20 +31,7 @@ class SearchController extends Controller
         $validated = $request->validate([
             'query' => ['nullable', 'string', 'max:200'],
             'saved_filter_id' => ['nullable', 'integer'],
-            'view' => ['nullable', 'in:courses,programs'],
-            'property_filters_applied' => ['nullable', 'boolean'],
-            'properties' => ['nullable', 'array'],
-            'properties.*' => [
-                SearchFilterOptions::propertyValidationRule(),
-            ],
-            'course_filters_applied' => ['nullable', 'boolean'],
-            'course_codes' => ['nullable', 'array'],
-            'course_codes.*' => ['nullable', 'string', 'max:10'],
-            'course_levels' => ['nullable', 'array'],
-            'course_levels.*' => ['nullable', 'in:100,200,300,400,500,600'],
-            'program_filters_applied' => ['nullable', 'boolean'],
-            'program_ids' => ['nullable', 'array'],
-            'program_ids.*' => ['nullable', 'integer'],
+            ...$this->sharedSearchValidationRules(),
         ]);
         // The query is optional, and the result view must be one of the supported options
         // we also validate property filters applied
@@ -368,18 +355,7 @@ class SearchController extends Controller
     {
         $validated = $request->validate([
             'query' => ['required', 'string', 'max:200', 'regex:/\S/'],
-            'view' => ['nullable', 'in:courses,programs'],
-            'property_filters_applied' => ['nullable', 'boolean'],
-            'properties' => ['nullable', 'array'],
-            'properties.*' => [SearchFilterOptions::propertyValidationRule()],
-            'course_filters_applied' => ['nullable', 'boolean'],
-            'course_codes' => ['nullable', 'array'],
-            'course_codes.*' => ['nullable', 'string', 'max:10'],
-            'course_levels' => ['nullable', 'array'],
-            'course_levels.*' => ['nullable', 'in:100,200,300,400,500,600'],
-            'program_filters_applied' => ['nullable', 'boolean'],
-            'program_ids' => ['nullable', 'array'],
-            'program_ids.*' => ['nullable', 'integer'],
+            ...$this->sharedSearchValidationRules(),
         ]);
 
         $propertyFiltersApplied = (bool) ($validated['property_filters_applied'] ?? false);
@@ -415,6 +391,29 @@ class SearchController extends Controller
                     ->values()
                     ->all()
                 : [],
+        ];
+    }
+
+    /**
+     * Returns the validation rules shared by search pages and result exports.
+     *
+     * @return array The common view, property, course, and program filter rules.
+     */
+    private function sharedSearchValidationRules(): array
+    {
+        return [
+            'view' => ['nullable', 'in:courses,programs'],
+            'property_filters_applied' => ['nullable', 'boolean'],
+            'properties' => ['nullable', 'array'],
+            'properties.*' => [SearchFilterOptions::propertyValidationRule()],
+            'course_filters_applied' => ['nullable', 'boolean'],
+            'course_codes' => ['nullable', 'array'],
+            'course_codes.*' => ['nullable', 'string', 'max:10'],
+            'course_levels' => ['nullable', 'array'],
+            'course_levels.*' => ['nullable', 'in:100,200,300,400,500,600'],
+            'program_filters_applied' => ['nullable', 'boolean'],
+            'program_ids' => ['nullable', 'array'],
+            'program_ids.*' => ['nullable', 'integer'],
         ];
     }
 
