@@ -136,7 +136,7 @@
 
                 <div class="match-counts">
                     <strong>Found in:</strong>
-                    @if($result->is_course_match) Course Identity: 1; @endif
+                    @if($result->is_course_match) Direct Name Match; @endif
                     @foreach([
                         'topics' => 'Topics',
                         'learning_outcomes' => 'Learning Objectives',
