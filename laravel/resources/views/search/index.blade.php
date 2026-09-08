@@ -809,7 +809,8 @@
         <div class="d-flex flex-wrap justify-content-end gap-2 mb-2">
             <a
                 href="{{ route('search.export.pdf', request()->except('page')) }}"
-                class="btn btn-outline-primary btn-sm"
+                class="btn btn-outline-primary btn-sm search-export-button"
+                data-loading-text="Preparing PDF..."
                 title="Download all matching results as a PDF"
             >
                 <i class="bi bi-file-earmark-pdf me-1"></i>
@@ -817,7 +818,8 @@
             </a>
             <a
                 href="{{ route('search.export.spreadsheet', request()->except('page')) }}"
-                class="btn btn-outline-primary btn-sm"
+                class="btn btn-outline-primary btn-sm search-export-button"
+                data-loading-text="Preparing Spreadsheet..."
                 title="Download all matching results as a spreadsheet"
             >
                 <i class="bi bi-file-earmark-spreadsheet me-1"></i>
@@ -971,6 +973,59 @@
             const searchForm = document.getElementById('courseSearchForm');
             const allProperties = document.getElementById('allProperties');
             const propertyOptions = Array.from(document.querySelectorAll('.property-filter-option'));
+
+            document.querySelectorAll('.search-export-button').forEach(function (button) {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+
+                    if (button.classList.contains('disabled')) {
+                        return;
+                    }
+
+                    const token = crypto.randomUUID().replaceAll('-', '');
+                    const cookieName = 'search_export_' + token;
+                    const downloadUrl = new URL(button.href);
+                    const downloadFrame = document.createElement('iframe');
+                    const originalContent = button.innerHTML;
+                    let cookiePoll;
+                    let fallbackTimeout;
+
+                    function resetButton() {
+                        clearInterval(cookiePoll);
+                        clearTimeout(fallbackTimeout);
+                        document.cookie = cookieName + '=; Max-Age=0; path=/; SameSite=Lax';
+                        button.classList.remove('disabled');
+                        button.removeAttribute('aria-disabled');
+                        button.removeAttribute('aria-busy');
+                        button.innerHTML = originalContent;
+                    }
+
+                    button.classList.add('disabled');
+                    button.setAttribute('aria-disabled', 'true');
+                    button.setAttribute('aria-busy', 'true');
+                    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>'
+                        + button.dataset.loadingText;
+
+                    downloadUrl.searchParams.set('download_token', token);
+                    cookiePoll = setInterval(function () {
+                        const downloadStarted = document.cookie.split('; ').some(function (cookie) {
+                            return cookie.startsWith(cookieName + '=');
+                        });
+
+                        if (downloadStarted) {
+                            resetButton();
+                        }
+                    }, 250);
+                    fallbackTimeout = setTimeout(resetButton, 120000);
+
+                    // Give each export its own navigation so simultaneous downloads do not cancel each other.
+                    downloadFrame.hidden = true;
+                    downloadFrame.setAttribute('aria-hidden', 'true');
+                    document.body.appendChild(downloadFrame);
+                    downloadFrame.src = downloadUrl.toString();
+                    setTimeout(function () { downloadFrame.remove(); }, 600000);
+                });
+            });
 
             function updatePropertyControls() {
                 if (allProperties.checked) {

@@ -15,6 +15,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder; //Builder is for a DB query that is still being constructed
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PDF;
+use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpFoundation\Response;
 
 class SearchController extends Controller
 
@@ -194,22 +196,26 @@ class SearchController extends Controller
         $pdfData = $this->limitPdfResults($searchData, $filters['selectedView']);
 
         if ($filters['selectedView'] === 'programs') {
-            return PDF::loadView('search.exports.program-results', [
+            $response = PDF::loadView('search.exports.program-results', [
                 'searchTerm' => $filters['searchTerm'],
                 'programResults' => $pdfData['programResults'],
                 'filterSummary' => $exportData['filterSummary'],
                 'stats' => $searchData['stats'],
                 'resultLimit' => $pdfData['resultLimit'],
             ])->download($exportData['querySlug'].'-program-search-results-'.now()->format('Y-m-d').'.pdf');
+
+            return $this->signalDownloadStarted($response, $request);
         }
 
-        return PDF::loadView('search.exports.course-results', [
+        $response = PDF::loadView('search.exports.course-results', [
             'searchTerm' => $filters['searchTerm'],
             'results' => $pdfData['results'],
             'filterSummary' => $exportData['filterSummary'],
             'stats' => $searchData['stats'],
             'resultLimit' => $pdfData['resultLimit'],
         ])->download($exportData['querySlug'].'-course-search-results-'.now()->format('Y-m-d').'.pdf');
+
+        return $this->signalDownloadStarted($response, $request);
     }
 
     /**
@@ -291,7 +297,7 @@ class SearchController extends Controller
         $viewName = $filters['selectedView'] === 'programs' ? 'program' : 'course';
         $filename = $exportData['querySlug'].'-'.$viewName.'-search-results-'.now()->format('Y-m-d').'.xlsx';
 
-        return response()->streamDownload(function () use ($spreadsheet) {
+        $response = response()->streamDownload(function () use ($spreadsheet) {
             try {
                 (new Xlsx($spreadsheet))->save('php://output');
             } finally {
@@ -300,6 +306,29 @@ class SearchController extends Controller
         }, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+
+        return $this->signalDownloadStarted($response, $request);
+    }
+
+    private function signalDownloadStarted(Response $response, Request $request): Response
+    {
+        $token = $request->input('download_token');
+
+        if (is_string($token) && preg_match('/^[a-f0-9]{32}$/', $token)) {
+            $response->headers->setCookie(new Cookie(
+                'search_export_'.$token,
+                '1',
+                now()->addMinutes(2),
+                '/',
+                null,
+                $request->isSecure(),
+                false,
+                false,
+                Cookie::SAMESITE_LAX,
+            ));
+        }
+
+        return $response;
     }
 
     /**

@@ -735,14 +735,17 @@ class SearchTest extends TestCase
         $this->createCourseScaleCategory();
         $course = $this->createSearchCourse('FRST', 322, 'Zephyr Spreadsheet Forestry');
         $this->createCourseTopic($course, 'Zephyr spreadsheet topic');
+        $downloadToken = str_repeat('a', 32);
 
         $response = $this->get(route('search.export.spreadsheet', [
             'query' => 'zephyr',
             'view' => 'courses',
+            'download_token' => $downloadToken,
         ]));
 
         $response->assertOk()
-            ->assertDownload('zephyr-course-search-results-'.now()->format('Y-m-d').'.xlsx');
+            ->assertDownload('zephyr-course-search-results-'.now()->format('Y-m-d').'.xlsx')
+            ->assertCookie('search_export_'.$downloadToken, '1');
 
         $spreadsheet = $this->loadDownloadedSpreadsheet($response);
 
