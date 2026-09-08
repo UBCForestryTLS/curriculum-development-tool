@@ -214,7 +214,7 @@
     }
 
         // Download User Guide
-        function downloadUserGuide(trigger) {
+    function downloadUserGuide(trigger) {
         var route = "{{route('programs.downloadUserGuide', $program->program_id)}}";
         xhr = $.ajax({
             type: "GET",
@@ -238,8 +238,6 @@
                     $('#save-file').attr('href', data);
                     // trigger download
                     $("#save-file")[0].click();
-                    // delete the generated file after 15 sec/15,000 ms
-                    setTimeout(() => {deleteGeneratedFile(route)}, 15000);
                 }
             },
             error: (jqXHR, textStatus, error) => {

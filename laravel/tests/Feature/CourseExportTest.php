@@ -65,6 +65,9 @@ class CourseExportTest extends TestCase
     private function createCourse(): Course
     {
         return Course::factory()->create([
+            'course_code' => 'TEST',
+            'course_num' => 101,
+            'course_title' => 'Course Export Test',
             'standard_category_id' => DB::table('standard_categories')->value('standard_category_id'),
             'scale_category_id' => DB::table('standards_scale_categories')->value('scale_category_id'),
         ]);
