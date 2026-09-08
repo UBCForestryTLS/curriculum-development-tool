@@ -10,6 +10,7 @@ This feature is implemented primarily under:
 
 - [`laravel/app/Http/Controllers/SearchController.php`](../laravel/app/Http/Controllers/SearchController.php)
 - [`laravel/app/Http/Controllers/SavedSearchFilterController.php`](../laravel/app/Http/Controllers/SavedSearchFilterController.php)
+- [`laravel/app/Http/Requests/SearchRequestRules.php`](../laravel/app/Http/Requests/SearchRequestRules.php)
 - [`laravel/app/Exports/SearchResultsSpreadsheet.php`](../laravel/app/Exports/SearchResultsSpreadsheet.php)
 - [`laravel/app/Helpers/SearchCourseAccess.php`](../laravel/app/Helpers/SearchCourseAccess.php)
 - [`laravel/app/Helpers/SearchFilterOptions.php`](../laravel/app/Helpers/SearchFilterOptions.php)
