@@ -628,6 +628,30 @@ class SearchTest extends TestCase
         $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
     }
 
+    public function test_export_filter_summary_does_not_show_inaccessible_program_names(): void
+    {
+        $regularUser = User::factory()->create();
+        $this->actingAs($regularUser);
+        $programId = $this->createProgram('Hidden Export Program');
+
+        PDF::shouldReceive('loadView')
+            ->once()
+            ->with('search.exports.course-results', \Mockery::on(fn ($data) =>
+                $data['filterSummary']['Programs'] === 'Selected programs unavailable'
+            ))
+            ->andReturnSelf();
+        PDF::shouldReceive('download')
+            ->once()
+            ->andReturn(response('%PDF', 200, ['Content-Type' => 'application/pdf']));
+
+        $this->get(route('search.export.pdf', [
+            'query' => 'hidden',
+            'view' => 'courses',
+            'program_filters_applied' => 1,
+            'program_ids' => [$programId],
+        ]))->assertOk();
+    }
+
     public function test_course_pdf_limits_detailed_results_and_keeps_full_statistics(): void
     {
         config(['search.pdf_result_limit' => 2]);

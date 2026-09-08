@@ -322,8 +322,9 @@ class SearchController extends Controller
             $request->user(),
         );
 
-        $selectedProgramNames = DB::table('programs')
-            ->whereIn('program_id', $filters['selectedProgramIds'])
+        $selectedProgramNamesQuery = DB::table('programs')
+            ->whereIn('program_id', $filters['selectedProgramIds']);
+        $selectedProgramNames = SearchCourseAccess::applyProgramAccess($selectedProgramNamesQuery, $request->user())
             ->orderBy('program')
             ->pluck('program')
             ->all();
