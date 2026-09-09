@@ -2938,12 +2938,14 @@ class ProgramController extends Controller
                 $newMappingScaleProgram = new MappingScaleProgram;
                 $newMappingScaleProgram->map_scale_id = $newMappingScale->map_scale_id;
                 $newMappingScaleProgram->program_id = $program->program_id;
+                $newMappingScaleProgram->position = $mapScaleProgram->position;
                 $newMappingScaleProgram->save();
             } else {
                 // create new mapping scale program
                 $newMappingScaleProgram = new MappingScaleProgram;
                 $newMappingScaleProgram->map_scale_id = $mapScaleProgram->map_scale_id;
                 $newMappingScaleProgram->program_id = $program->program_id;
+                $newMappingScaleProgram->position = $mapScaleProgram->position;
                 $newMappingScaleProgram->save();
             }
         }

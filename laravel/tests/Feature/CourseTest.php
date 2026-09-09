@@ -586,18 +586,21 @@ class CourseTest extends TestCase
         DB::table('mapping_scale_programs')->insert([
             'map_scale_id' => 1,
             'program_id' => $program->program_id,
+            'position' => 1,
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now(),
         ]);
         DB::table('mapping_scale_programs')->insert([
             'map_scale_id' => 2,
             'program_id' => $program->program_id,
+            'position' => 2,
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now(),
         ]);
         DB::table('mapping_scale_programs')->insert([
             'map_scale_id' => 3,
             'program_id' => $program->program_id,
+            'position' => 3,
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now(),
         ]);
