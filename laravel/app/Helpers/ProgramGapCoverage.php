@@ -128,6 +128,11 @@ class ProgramGapCoverage
      */
     public static function analyze(Program $program): Collection
     {
+        $mappingScaleLevels = $program->mappingScaleLevels()
+            ->where('mapping_scales.map_scale_id', '<>', 0)
+            ->get();
+        $configuredScaleIds = $mappingScaleLevels->pluck('map_scale_id')->map(fn ($id) => (int) $id);
+
         $rows = ProgramLearningOutcome::query()
             ->where('program_learning_outcomes.program_id', $program->program_id)
             ->leftJoin('outcome_maps', 'program_learning_outcomes.pl_outcome_id', '=', 'outcome_maps.pl_outcome_id')
@@ -163,29 +168,46 @@ class ProgramGapCoverage
             ->get();
 
         return $rows->groupBy('pl_outcome_id')
-            ->map(function (Collection $ploRows) {
+            ->map(function (Collection $ploRows) use ($mappingScaleLevels, $configuredScaleIds) {
                 $plo = $ploRows->first();
 
                 // Ignore mappings from courses that are not currently part of this program.
                 $programRows = $ploRows->whereNotNull('program_course_id');
-                $coveredRows = $programRows->filter(function ($row) {
-                    return $row->map_scale_id !== null && (int) $row->map_scale_id !== 0;
+                $coveredRows = $programRows->filter(function ($row) use ($configuredScaleIds) {
+                    return $row->map_scale_id !== null
+                        && $configuredScaleIds->contains((int) $row->map_scale_id);
                 });
 
-                $mappingScaleDistribution = $coveredRows
-                    ->groupBy('map_scale_id')
-                    ->map(function (Collection $scaleRows) {
-                        $scale = $scaleRows->first();
+                $mappingScaleHistogram = $mappingScaleLevels
+                    ->map(function ($scale) use ($coveredRows) {
+                        $scaleRows = $coveredRows->where('map_scale_id', $scale->map_scale_id);
 
                         return [
                             'map_scale_id' => (int) $scale->map_scale_id,
-                            'title' => $scale->map_scale_title,
-                            'abbreviation' => $scale->map_scale_abbreviation,
-                            'colour' => $scale->map_scale_colour,
-                            'clo_count' => $scaleRows->pluck('l_outcome_id')->unique()->count(),
+                            'position' => (int) $scale->pivot->position,
+                            'title' => $scale->title,
+                            'abbreviation' => $scale->abbreviation,
+                            'colour' => $scale->colour,
+                            'mapped_clo_count' => $scaleRows->pluck('l_outcome_id')->unique()->count(),
+                            'covering_course_count' => $scaleRows->pluck('course_id')->unique()->count(),
+                            'required_course_count' => $scaleRows->where('course_required', 1)->pluck('course_id')->unique()->count(),
+                            'non_required_course_count' => $scaleRows->where('course_required', 0)->pluck('course_id')->unique()->count(),
                         ];
                     })
-                    ->sortBy('map_scale_id')
+                    ->values()
+                    ->all();
+
+                $mappingScaleDistribution = collect($mappingScaleHistogram)
+                    ->where('mapped_clo_count', '>', 0)
+                    ->map(function (array $level) {
+                        return [
+                            'map_scale_id' => $level['map_scale_id'],
+                            'title' => $level['title'],
+                            'abbreviation' => $level['abbreviation'],
+                            'colour' => $level['colour'],
+                            'clo_count' => $level['mapped_clo_count'],
+                        ];
+                    })
                     ->values()
                     ->all();
 
@@ -231,6 +253,7 @@ class ProgramGapCoverage
                     'coverage_level' => $classification['level'],
                     'coverage_label' => $classification['label'],
                     'coverage_explanation' => $classification['explanation'],
+                    'mapping_scale_histogram' => $mappingScaleHistogram,
                     'mapping_scale_distribution' => $mappingScaleDistribution,
                     'courses' => $courses,
                 ];

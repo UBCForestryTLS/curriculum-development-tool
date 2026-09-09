@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\CourseProgram;
 use App\Models\LearningOutcome;
 use App\Models\MappingScale;
+use App\Models\MappingScaleProgram;
 use App\Models\Program;
 use App\Models\ProgramLearningOutcome;
 use App\Models\User;
@@ -209,6 +210,27 @@ class ProgramGapCoverageTest extends TestCase
             'description' => 'Developing for the gap coverage test.',
             'colour' => '#1aa7ff',
         ]);
+        $advanced = MappingScale::create([
+            'title' => 'Gap Coverage Advanced',
+            'abbreviation' => 'GCA',
+            'description' => 'Advanced for the gap coverage test.',
+            'colour' => '#0065bd',
+        ]);
+        MappingScaleProgram::create([
+            'program_id' => $program->program_id,
+            'map_scale_id' => $developing->map_scale_id,
+            'position' => 1,
+        ]);
+        MappingScaleProgram::create([
+            'program_id' => $program->program_id,
+            'map_scale_id' => $introduced->map_scale_id,
+            'position' => 2,
+        ]);
+        MappingScaleProgram::create([
+            'program_id' => $program->program_id,
+            'map_scale_id' => $advanced->map_scale_id,
+            'position' => 3,
+        ]);
         $notApplicable = MappingScale::firstOrCreate([
             'map_scale_id' => 0,
         ], [
@@ -247,7 +269,14 @@ class ProgramGapCoverageTest extends TestCase
         $this->assertSame(1, $coveredResult['required_course_count']);
         $this->assertSame(1, $coveredResult['non_required_course_count']);
         $this->assertSame(1, $coveredResult['n_a_clo_count']);
-        $this->assertSame(['GCI', 'GCD'], collect($coveredResult['mapping_scale_distribution'])->pluck('abbreviation')->all());
+        $this->assertSame(['GCD', 'GCI'], collect($coveredResult['mapping_scale_distribution'])->pluck('abbreviation')->all());
+        $histogram = collect($coveredResult['mapping_scale_histogram']);
+        $this->assertSame(['GCD', 'GCI', 'GCA'], $histogram->pluck('abbreviation')->all());
+        $this->assertSame([1, 2, 3], $histogram->pluck('position')->all());
+        $this->assertSame([1, 1, 0], $histogram->pluck('mapped_clo_count')->all());
+        $this->assertSame([1, 1, 0], $histogram->pluck('covering_course_count')->all());
+        $this->assertSame([0, 1, 0], $histogram->pluck('required_course_count')->all());
+        $this->assertSame([1, 0, 0], $histogram->pluck('non_required_course_count')->all());
         $this->assertSame(['GCOV 101', 'GCOV 201'], collect($coveredResult['courses'])->map(function ($course) {
             return $course['course_code'].' '.$course['course_num'];
         })->all());
@@ -255,6 +284,7 @@ class ProgramGapCoverageTest extends TestCase
         $this->assertSame(0, $uncoveredResult['covering_course_count']);
         $this->assertSame('not_covered', $uncoveredResult['coverage_level']);
         $this->assertEmpty($uncoveredResult['mapping_scale_distribution']);
+        $this->assertSame([0, 0, 0], collect($uncoveredResult['mapping_scale_histogram'])->pluck('mapped_clo_count')->all());
         $this->assertEmpty($uncoveredResult['courses']);
     }
 }
