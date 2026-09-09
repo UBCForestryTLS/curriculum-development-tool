@@ -103,7 +103,10 @@
                 appendCountCell(row, coverage.required_course_count);
                 appendCountCell(row, coverage.non_required_course_count);
                 appendCountCell(row, coverage.n_a_clo_count);
-                row.appendChild(createScaleCell(coverage.mapping_scale_distribution));
+                row.appendChild(createScaleCell(
+                    coverage.mapping_scale_histogram,
+                    coverage.multi_level_mapping_count
+                ));
                 row.appendChild(createDetailsButtonCell(coverage));
                 rows.appendChild(row);
                 rows.appendChild(createDetailsRow(coverage));
@@ -120,11 +123,11 @@
             row.appendChild(cell);
         }
 
-        function createScaleCell(scales) {
+        function createScaleCell(scales, multiLevelMappingCount) {
             const cell = document.createElement('td');
 
             if (scales.length === 0) {
-                cell.textContent = 'No coverage';
+                cell.textContent = 'No mapping scale configured';
                 return cell;
             }
 
@@ -142,9 +145,16 @@
 
                 cell.appendChild(swatch);
                 cell.appendChild(document.createTextNode(
-                    `${scale.abbreviation || scale.title}: ${scale.clo_count}`
+                    `${scale.abbreviation || scale.title}: ${scale.mapped_clo_count} CLOs / ${scale.covering_course_count} courses`
                 ));
             });
+
+            if (multiLevelMappingCount > 0) {
+                const warning = document.createElement('small');
+                warning.classList.add('d-block', 'mt-2', 'text-warning');
+                warning.textContent = `${multiLevelMappingCount} CLO mapping(s) use multiple levels.`;
+                cell.appendChild(warning);
+            }
 
             return cell;
         }

@@ -77,16 +77,25 @@ class ProgramGapCoverage
 
         $actualMappingCounts = collect();
         if ($programLearningOutcomeIds->isNotEmpty()) {
-            $actualMappingCounts = DB::table('outcome_maps')
+            $mappingDecisions = DB::table('outcome_maps')
                 ->join('learning_outcomes', 'outcome_maps.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')
                 ->join('course_programs', function ($join) use ($program) {
                     $join->on('learning_outcomes.course_id', '=', 'course_programs.course_id')
                         ->where('course_programs.program_id', $program->program_id);
                 })
                 ->whereIn('outcome_maps.pl_outcome_id', $programLearningOutcomeIds)
-                ->select('learning_outcomes.course_id', DB::raw('COUNT(*) as mapping_count'))
-                ->groupBy('learning_outcomes.course_id')
-                ->pluck('mapping_count', 'learning_outcomes.course_id');
+                ->select([
+                    'learning_outcomes.course_id',
+                    'outcome_maps.l_outcome_id',
+                    'outcome_maps.pl_outcome_id',
+                ])
+                ->distinct();
+
+            $actualMappingCounts = DB::query()
+                ->fromSub($mappingDecisions, 'mapping_decisions')
+                ->select('course_id', DB::raw('COUNT(*) as mapping_count'))
+                ->groupBy('course_id')
+                ->pluck('mapping_count', 'course_id');
         }
 
         $courseMappingCounts = $programCourses->map(function ($course) use ($actualMappingCounts, $programLearningOutcomeCount) {
@@ -177,6 +186,10 @@ class ProgramGapCoverage
                     return $row->map_scale_id !== null
                         && $configuredScaleIds->contains((int) $row->map_scale_id);
                 });
+                $multiLevelMappingCount = $coveredRows
+                    ->groupBy('l_outcome_id')
+                    ->filter(fn (Collection $cloRows) => $cloRows->pluck('map_scale_id')->unique()->count() > 1)
+                    ->count();
 
                 $mappingScaleHistogram = $mappingScaleLevels
                     ->map(function ($scale) use ($coveredRows) {
@@ -250,6 +263,7 @@ class ProgramGapCoverage
                     'required_course_count' => $coveredRows->where('course_required', 1)->pluck('course_id')->unique()->count(),
                     'non_required_course_count' => $coveredRows->where('course_required', 0)->pluck('course_id')->unique()->count(),
                     'n_a_clo_count' => $programRows->where('map_scale_id', 0)->pluck('l_outcome_id')->unique()->count(),
+                    'multi_level_mapping_count' => $multiLevelMappingCount,
                     'coverage_level' => $classification['level'],
                     'coverage_label' => $classification['label'],
                     'coverage_explanation' => $classification['explanation'],
