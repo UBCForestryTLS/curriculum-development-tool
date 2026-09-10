@@ -145,7 +145,7 @@
 
                 cell.appendChild(swatch);
                 cell.appendChild(document.createTextNode(
-                    `${scale.abbreviation || scale.title}: ${scale.mapped_clo_count} CLOs / ${scale.covering_course_count} courses`
+                    `${scale.abbreviation || scale.title}: ${scale.mapped_clo_count} CLOs / ${scale.covering_course_count} courses (${scale.required_course_count} required, ${scale.non_required_course_count} non-required)`
                 ));
             });
 
