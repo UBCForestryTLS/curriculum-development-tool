@@ -186,13 +186,18 @@
         function createDetailsRow(coverage) {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
+            const summary = document.createElement('p');
 
             row.id = `gap-coverage-details-${coverage.pl_outcome_id}`;
             row.classList.add('d-none');
             cell.colSpan = 8;
 
+            summary.classList.add('mb-3');
+            summary.textContent = `${coverage.mapped_clo_count} CLOs across ${coverage.covering_course_count} courses: ${coverage.required_course_count} required, ${coverage.non_required_course_count} non-required, and ${coverage.n_a_clo_count} N/A CLOs.`;
+            cell.appendChild(summary);
+
             if (coverage.courses.length === 0) {
-                cell.textContent = 'No courses currently provide coverage for this PLO.';
+                cell.appendChild(document.createTextNode('No courses currently provide coverage for this PLO.'));
                 row.appendChild(cell);
                 return row;
             }
