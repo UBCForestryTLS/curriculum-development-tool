@@ -69,7 +69,7 @@ class CourseController extends Controller
     public function __construct()
     {
         $this->middleware(['auth', 'verified']);
-        $this->middleware('course')->only(['show', 'pdf', 'edit', 'submit', 'outcomeDetails']);
+        $this->middleware('course')->only(['show', 'pdf', 'dataSpreadsheet', 'deletePDF', 'deleteDataSpreadsheet', 'edit', 'submit', 'outcomeDetails']);
         $this->roleAssignmentHelper = new RoleAssignmentHelpers();
     }
 
@@ -784,10 +784,11 @@ class CourseController extends Controller
             $pdf = PDF::loadView('courses.downloadSummary', compact('course', 'courseLearningOutcomes', 'programsLearningOutcomes', 'unCategorizedProgramsLearningOutcomes', 'programsMappingScales', 'outcomeActivities', 'outcomeAssessments', 'courseStandardOutcomes', 'courseStandardScales', 'standardOutcomeMap', 'assessmentMethodsTotal', 'courseProgramsOutcomeMaps', 'optionalSubcategories'));
             // get the content of the pdf document
             $content = $pdf->output();
+            $pdfPath = 'course-'.$course->course_id.'.pdf';
             // store the pdf document in storage/app/public folder
-            Storage::put('public/course-'.$course->course_id.'.pdf', $content);
+            Storage::disk('public')->put($pdfPath, $content);
             // get the url of the document
-            $url = Storage::url('course-'.$course->course_id.'.pdf');
+            $url = Storage::disk('public')->url($pdfPath);
 
             // return the location of the pdf document on the server
             return $url;
@@ -807,7 +808,7 @@ class CourseController extends Controller
 
     public function deletePDF(Request $request, $course_id)
     {
-        Storage::delete('public/course-'.$course_id.'.pdf');
+        Storage::disk('public')->delete('course-'.$course_id.'.pdf');
     }
 
     // Method for generating data excel in course level
@@ -933,13 +934,13 @@ class CourseController extends Controller
             // generate the spreadsheet
             $writer = new Xlsx($spreadsheet);
             // set the spreadsheets name
-            $spreadsheetName = 'data-summary-'.$course->course_title.'.xlsx';
-            // create absolute filename
-            $storagePath = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'spreadsheets'.DIRECTORY_SEPARATOR.$spreadsheetName);
+            $spreadsheetName = 'data-summary-course-'.$course->course_id.'.xlsx';
+            $spreadsheetPath = 'spreadsheets/'.$spreadsheetName;
+            Storage::disk('public')->makeDirectory('spreadsheets');
             // save the spreadsheet document
-            $writer->save($storagePath);
+            $writer->save(Storage::disk('public')->path($spreadsheetPath));
             // get the url of the document
-            $url = Storage::url('spreadsheets'.DIRECTORY_SEPARATOR.$spreadsheetName);
+            $url = Storage::disk('public')->url($spreadsheetPath);
 
             // return the location of the spreadsheet document on the server
             return $url;
@@ -954,6 +955,11 @@ class CourseController extends Controller
 
             return -1;
         }
+    }
+
+    public function deleteDataSpreadsheet(Request $request, $course_id)
+    {
+        Storage::disk('public')->delete('spreadsheets/data-summary-course-'.$course_id.'.xlsx');
     }
 
 
