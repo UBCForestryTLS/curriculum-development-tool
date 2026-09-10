@@ -962,12 +962,13 @@ class ProgramController extends Controller
             $content = $pdf->output();
             // set name of pdf
             $pdfName = 'summary-'.$program->program_id.'.pdf';
+            $pdfPath = 'pdfs/'.$pdfName;
             // store the pdf document in storage/app/public folder
-            Storage::put('public'.DIRECTORY_SEPARATOR.'pdfs'.DIRECTORY_SEPARATOR.$pdfName, $content);
+            Storage::disk('public')->put($pdfPath, $content);
             // delete charts
             $this->deleteCharts($program_id, $charts);
             // get the url of the document
-            $url = Storage::url('pdfs'.DIRECTORY_SEPARATOR.$pdfName);
+            $url = Storage::disk('public')->url($pdfPath);
 
             // return the location of the pdf document on the server
             return $url;
@@ -993,7 +994,7 @@ class ProgramController extends Controller
      */
     public function deletePDF(Request $request, $program_id)
     {
-        Storage::delete('public/program-'.$program_id.'.pdf');
+        Storage::disk('public')->delete('pdfs/summary-'.$program_id.'.pdf');
     }
 
     /**
@@ -1052,14 +1053,14 @@ class ProgramController extends Controller
             $writer = new Xlsx($spreadsheet);
             // set the spreadsheets name
             $spreadsheetName = 'summary-'.$program->program_id.'.xlsx';
-            // create absolute filename
-            $storagePath = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'spreadsheets'.DIRECTORY_SEPARATOR.$spreadsheetName);
+            $spreadsheetPath = 'spreadsheets/'.$spreadsheetName;
+            Storage::disk('public')->makeDirectory('spreadsheets');
             // save the spreadsheet document
-            $writer->save($storagePath);
+            $writer->save(Storage::disk('public')->path($spreadsheetPath));
             // delete charts
             $this->deleteCharts($programId, $charts);
             // get the url of the document
-            $url = Storage::url('spreadsheets'.DIRECTORY_SEPARATOR.$spreadsheetName);
+            $url = Storage::disk('public')->url($spreadsheetPath);
 
             // return the location of the spreadsheet document on the server
             return $url;
@@ -1141,13 +1142,13 @@ class ProgramController extends Controller
             // generate the spreadsheet
             $writer = new Xlsx($spreadsheet);
             // set the spreadsheets name
-            $spreadsheetName = 'data-summary-'.$program->program.'.xlsx';
-            // create absolute filename
-            $storagePath = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'spreadsheets'.DIRECTORY_SEPARATOR.$spreadsheetName);
+            $spreadsheetName = 'data-summary-program-'.$program->program_id.'.xlsx';
+            $spreadsheetPath = 'spreadsheets/'.$spreadsheetName;
+            Storage::disk('public')->makeDirectory('spreadsheets');
             // save the spreadsheet document
-            $writer->save($storagePath);
+            $writer->save(Storage::disk('public')->path($spreadsheetPath));
             // get the url of the document
-            $url = Storage::url('spreadsheets'.DIRECTORY_SEPARATOR.$spreadsheetName);
+            $url = Storage::disk('public')->url($spreadsheetPath);
 
             // return the location of the spreadsheet document on the server
             return $url;
@@ -2574,7 +2575,7 @@ class ProgramController extends Controller
     {
         try {
             $program = Program::find($programId);
-            Storage::delete('public/program-'.$program->program_id.'.xlsx');
+            Storage::disk('public')->delete('spreadsheets/summary-'.$program->program_id.'.xlsx');
         } catch (Throwable $exception) {
             $message = 'There was an error deleting the saved spreadsheet overview for: '.$program->program;
             Log::error($message.' ...\n');
@@ -2583,6 +2584,11 @@ class ProgramController extends Controller
             Log::error('Line - '.$exception->getLine());
             Log::error($exception->getMessage());
         }
+    }
+
+    public function deleteDataSpreadsheet(Request $request, int $programId)
+    {
+        Storage::disk('public')->delete('spreadsheets/data-summary-program-'.$programId.'.xlsx');
     }
 
     public function resetKeysSingle($array)

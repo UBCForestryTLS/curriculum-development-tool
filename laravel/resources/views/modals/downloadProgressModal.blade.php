@@ -78,8 +78,8 @@
                     $('#save-file').attr('href', data);
                     // trigger download
                     $("#save-file")[0].click();
-                    // delete pdf summary after 15 sec/15,000 ms
-                    setTimeout(() => {deletePDF(route)}, 15000);
+                    // delete the generated file after 15 sec/15,000 ms
+                    setTimeout(() => {deleteGeneratedFile(route)}, 15000);
                 }
             },
             error: (jqXHR, textStatus, error) => {
@@ -117,8 +117,8 @@
                     $('#save-file').attr('href', data);
                     // trigger download
                     $("#save-file")[0].click();
-                    // delete pdf summary after 15 sec/15,000 ms
-                    setTimeout(() => {deletePDF(route)}, 15000);
+                    // delete the generated file after 15 sec/15,000 ms
+                    setTimeout(() => {deleteGeneratedFile(route)}, 15000);
                 }
             },
             error: (jqXHR, textStatus, error) => {
@@ -158,8 +158,8 @@
                     $('#save-file').attr('href', data);
                     // trigger download
                     $("#save-file")[0].click();
-                    // delete pdf summary after 15 sec/15,000 ms
-                    setTimeout(() => {deletePDF(route)}, 15000);
+                    // delete the generated file after 15 sec/15,000 ms
+                    setTimeout(() => {deleteGeneratedFile(route)}, 15000);
                 }
             },
             error: (jqXHR, textStatus, error) => {
@@ -198,8 +198,8 @@
                     $('#save-file').attr('href', data);
                     // trigger download
                     $("#save-file")[0].click();
-                    // delete pdf summary after 15 sec/15,000 ms
-                    setTimeout(() => {deletePDF(route)}, 15000);
+                    // delete the generated file after 15 sec/15,000 ms
+                    setTimeout(() => {deleteGeneratedFile(route)}, 15000);
                 }
             },
             error: (jqXHR, textStatus, error) => {
@@ -214,7 +214,7 @@
     }
 
         // Download User Guide
-        function downloadUserGuide(trigger) {
+    function downloadUserGuide(trigger) {
         var route = "{{route('programs.downloadUserGuide', $program->program_id)}}";
         xhr = $.ajax({
             type: "GET",
@@ -238,8 +238,6 @@
                     $('#save-file').attr('href', data);
                     // trigger download
                     $("#save-file")[0].click();
-                    // delete pdf summary after 15 sec/15,000 ms
-                    setTimeout(() => {deletePDF(route)}, 15000);
                 }
             },
             error: (jqXHR, textStatus, error) => {
@@ -281,7 +279,7 @@
     }
 
 
-    function deletePDF(route) {
+    function deleteGeneratedFile(route) {
         var token = $("meta[name='csrf-token']").attr("content");
         $.ajax({
             type: "DELETE",
