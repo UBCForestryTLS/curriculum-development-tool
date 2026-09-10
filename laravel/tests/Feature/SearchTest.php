@@ -758,6 +758,7 @@ class SearchTest extends TestCase
             ], $spreadsheet->getSheetNames());
             $this->assertSame('zephyr', $spreadsheet->getSheetByName('Search Parameters')->getCell('C2')->getValue());
             $this->assertSame(0, $spreadsheet->getSheetByName('Search Parameters')->getCell('C16')->getValue());
+            $this->assertSame('Direct Name Match', $spreadsheet->getSheetByName('Search Summary')->getCell('F1')->getValue());
             $this->assertSame('Zephyr Spreadsheet Forestry', $spreadsheet->getSheetByName('Search Summary')->getCell('C2')->getValue());
             $this->assertSame('Zephyr spreadsheet topic', $spreadsheet->getSheetByName('Topics')->getCell('E2')->getValue());
         } finally {
@@ -785,6 +786,7 @@ class SearchTest extends TestCase
                 'Search Summary',
                 'Program Names',
             ], $spreadsheet->getSheetNames());
+            $this->assertSame('Direct Course Name Matches', $spreadsheet->getSheetByName('Search Summary')->getCell('D1')->getValue());
             $this->assertSame('Auralith Spreadsheet Program', $spreadsheet->getSheetByName('Search Summary')->getCell('A2')->getValue());
             $this->assertSame('Auralith Spreadsheet Program', $spreadsheet->getSheetByName('Program Names')->getCell('A2')->getValue());
         } finally {

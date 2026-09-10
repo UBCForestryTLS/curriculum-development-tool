@@ -111,7 +111,7 @@ class SearchResultsSpreadsheet
             'Course Title',
             'Programs',
             'Relevance Score',
-            'Course Identity Match',
+            'Direct Name Match',
             ...array_values(self::MATCH_STAT_LABELS),
         ];
         $sheet->fromArray($headings, null, 'A1');
@@ -143,7 +143,7 @@ class SearchResultsSpreadsheet
             'Program',
             'Program Name Match',
             'Matching Courses',
-            'Course Identity Matches',
+            'Direct Course Name Matches',
             ...array_values(self::MATCH_STAT_LABELS),
         ];
         $sheet->fromArray($headings, null, 'A1');

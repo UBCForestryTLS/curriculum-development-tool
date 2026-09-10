@@ -228,7 +228,7 @@ class SearchController extends Controller
      */
     private function limitPdfResults(array $searchData, string $selectedView): array
     {
-        $limit = max(1, (int) config('search.pdf_result_limit', 500));
+        $limit = config('search.pdf_result_limit');
 
         if ($selectedView === 'courses') {
             $total = $searchData['results']->count();
