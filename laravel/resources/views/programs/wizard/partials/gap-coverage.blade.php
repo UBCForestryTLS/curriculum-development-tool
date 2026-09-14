@@ -1,56 +1,102 @@
 <div class="py-4">
-    <h4>Gap Coverage</h4>
+    <h4>Gap and Redundancy Report</h4>
     <p>Review how course learning outcomes currently cover each program learning outcome.</p>
 
-    <div id="gap-coverage-loading" class="py-5 text-center d-none">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading gap coverage</span>
-        </div>
+    <ol class="list-unstyled d-flex flex-wrap gap-3 mb-4" aria-label="Report steps">
+        <li id="gap-coverage-expectations-step" class="fw-bold" aria-current="step">1. Set expectations</li>
+        <li id="gap-coverage-report-step">2. View report</li>
+    </ol>
+
+    <div id="gap-coverage-loading" class="py-4 text-center d-none" role="status">
+        <div class="spinner-border text-primary" aria-hidden="true"></div>
+        <p class="mb-0 mt-2">Loading coverage data…</p>
     </div>
 
     <div id="gap-coverage-error" class="alert alert-danger d-none" role="alert">
-        Gap coverage data could not be loaded. Please try again.
-    </div>
-
-    <div id="gap-coverage-incomplete" class="alert alert-warning d-none" role="alert">
-        Some course learning outcomes have not been fully mapped to this program. Coverage results may be incomplete.
-        <a href="{{ route('programWizard.step3', $program->program_id) }}">Review course mappings</a>.
+        <p>Coverage data could not be loaded. Please try again.</p>
+        <button id="gap-coverage-retry" type="button" class="btn btn-outline-danger">Retry</button>
     </div>
 
     <div id="gap-coverage-empty" class="alert alert-warning d-none" role="alert">
         There are no program learning outcomes to analyze.
     </div>
 
-    <div id="gap-coverage-results" class="table-responsive d-none">
-        <table class="table table-bordered align-middle">
-            <thead class="table-primary">
-                <tr>
-                    <th class="text-start">Program Learning Outcome</th>
-                    <th>CLOs</th>
-                    <th>Courses</th>
-                    <th>Required Courses</th>
-                    <th>Non-Required Courses</th>
-                    <th>N/A CLOs</th>
-                    <th class="text-start">Mapping Scales</th>
-                    <th><span class="visually-hidden">Actions</span></th>
-                </tr>
-            </thead>
-            <tbody id="gap-coverage-rows"></tbody>
-        </table>
-    </div>
+    <section id="gap-coverage-expectations" aria-labelledby="gap-coverage-expectations-heading">
+        <h5 id="gap-coverage-expectations-heading" tabindex="-1">Set expectations</h5>
+        <p>You can review the statistics without setting expectations. The report shows coverage counts and the courses and learning outcomes behind them.</p>
+        <button id="gap-coverage-view-report" type="button" class="btn btn-primary" disabled>View statistics only</button>
+    </section>
+
+    <section id="gap-coverage-report" class="d-none" aria-labelledby="gap-coverage-report-heading">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <h5 id="gap-coverage-report-heading" class="mb-0" tabindex="-1">View report</h5>
+            <button id="gap-coverage-back" type="button" class="btn btn-outline-primary">Back to expectations</button>
+        </div>
+        <p>Showing statistics only. No coverage expectations have been applied.</p>
+
+        <div id="gap-coverage-incomplete" class="alert alert-warning d-none" role="alert">
+            Some course learning outcomes have not been fully mapped to this program. Coverage results may be incomplete.
+            <a href="{{ route('programWizard.step3', $program->program_id) }}">Review course mappings</a>.
+        </div>
+
+        <div id="gap-coverage-results" class="table-responsive position-relative d-none">
+            <table class="table table-bordered align-middle">
+                <thead class="table-primary">
+                    <tr>
+                        <th class="text-start">Program Learning Outcome</th>
+                        <th>CLOs</th>
+                        <th>Courses</th>
+                        <th>Required Courses</th>
+                        <th>Non-Required Courses</th>
+                        <th>N/A CLOs</th>
+                        <th class="text-start">Mapping Scales</th>
+                        <th><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody id="gap-coverage-rows"></tbody>
+            </table>
+        </div>
+    </section>
 </div>
 
 <script type="text/javascript">
     $(document).ready(function () {
-        let gapCoverageLoaded = false;
+        let gapCoverageData = null;
+        let gapCoverageLoading = false;
 
-        $('#nav-gap-coverage-tab').click(function () {
-            if (gapCoverageLoaded) {
+        $('#nav-gap-coverage-tab').on('shown.bs.tab', loadGapCoverage);
+        $('#gap-coverage-retry').on('click', loadGapCoverage);
+        $('#gap-coverage-view-report').on('click', function () {
+            if (gapCoverageData !== null && gapCoverageData.coverage.length > 0) {
+                showReportStep(true);
+            }
+        });
+        $('#gap-coverage-back').on('click', function () {
+            showReportStep(false);
+        });
+
+        function showReportStep(showReport) {
+            $('#gap-coverage-expectations').toggleClass('d-none', showReport);
+            $('#gap-coverage-report').toggleClass('d-none', !showReport);
+            $('#gap-coverage-expectations-step').toggleClass('fw-bold', !showReport)
+                .attr('aria-current', showReport ? null : 'step');
+            $('#gap-coverage-report-step').toggleClass('fw-bold', showReport)
+                .attr('aria-current', showReport ? 'step' : null);
+            document.getElementById(showReport ? 'gap-coverage-report-heading' : 'gap-coverage-expectations-heading').focus();
+        }
+
+        function loadGapCoverage() {
+            if (gapCoverageData !== null || gapCoverageLoading) {
                 return;
             }
 
+            gapCoverageLoading = true;
+            const retryHadFocus = document.activeElement === document.getElementById('gap-coverage-retry');
             $('#gap-coverage-error').addClass('d-none');
             $('#gap-coverage-loading').removeClass('d-none');
+            if (retryHadFocus) {
+                document.getElementById('gap-coverage-expectations-heading').focus();
+            }
 
             $.ajax({
                 type: 'GET',
@@ -58,16 +104,18 @@
                 dataType: 'json',
                 success: function (data) {
                     renderGapCoverage(data);
-                    gapCoverageLoaded = true;
+                    gapCoverageData = data;
+                    $('#gap-coverage-view-report').prop('disabled', data.coverage.length === 0);
                 },
                 error: function () {
                     $('#gap-coverage-error').removeClass('d-none');
                 },
                 complete: function () {
+                    gapCoverageLoading = false;
                     $('#gap-coverage-loading').addClass('d-none');
                 }
             });
-        });
+        }
 
         function renderGapCoverage(data) {
             const rows = document.getElementById('gap-coverage-rows');

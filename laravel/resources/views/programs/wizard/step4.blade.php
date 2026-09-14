@@ -103,7 +103,7 @@
                             <div class="nav nav-tabs justify-content-center" id="nav-tab" role="tablist">
                                 <button class="nav-link active flex-fill" id="nav-bar-charts-tab" href="javascript:;" data-bs-toggle="tab" data-bs-target="#nav-bar-charts" type="button" role="tab" aria-controls="nav-bar-charts" aria-selected="true">Bar Charts</button>
                                 <button class="nav-link flex-fill" id="getData" href="javascript:;" data-bs-toggle="tab" data-bs-target="#nav-charts" type="button" role="tab" aria-controls="nav-charts" aria-selected="false">Frequency Distribution Tables</button>
-                                <button class="nav-link flex-fill" id="nav-gap-coverage-tab" data-bs-toggle="tab" data-bs-target="#nav-gap-coverage" type="button" role="tab" aria-controls="nav-gap-coverage" aria-selected="false">Gap Coverage</button>
+                                <button class="nav-link flex-fill" id="nav-gap-coverage-tab" data-bs-toggle="tab" data-bs-target="#nav-gap-coverage" type="button" role="tab" aria-controls="nav-gap-coverage" aria-selected="false">Gap and Redundancy Report</button>
                                 <button class="nav-link flex-fill" id="nav-plo-tab" data-bs-toggle="tab" data-bs-target="#nav-plo" type="button" role="tab" aria-controls="nav-plo" aria-selected="false">Program Learning Outcomes</button>
                                 <button class="nav-link flex-fill" id="nav-mapping-scale-tab" data-bs-toggle="tab" data-bs-target="#nav-mapping-scale" type="button" role="tab" aria-controls="nav-mapping-scale" aria-selected="false">Mapping Scale</button>
                             </div>
