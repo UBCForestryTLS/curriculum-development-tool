@@ -23,8 +23,55 @@
 
     <section id="gap-coverage-expectations" aria-labelledby="gap-coverage-expectations-heading">
         <h5 id="gap-coverage-expectations-heading" tabindex="-1">Set expectations</h5>
-        <p>You can review the statistics without setting expectations. The report shows coverage counts and the courses and learning outcomes behind them.</p>
-        <button id="gap-coverage-view-report" type="button" class="btn btn-primary" disabled>View statistics only</button>
+        <p>Set optional count ranges for each PLO's overall coverage. The same expectations apply to every PLO, across all mapping levels.</p>
+        <p id="gap-coverage-bounds-help">Leave a bound blank if you have no expectation for it. Zero is a valid count. Narrower ranges identify more counts outside your expectations.</p>
+        <form id="gap-coverage-expectations-form" novalidate>
+            <fieldset id="gap-coverage-expectations-fields" disabled>
+                <legend class="fs-6">Choose your expectations</legend>
+                <div class="mb-3">
+                    <label for="gap-coverage-mode" class="form-label">Which potential concerns do you want to review?</label>
+                    <select id="gap-coverage-mode" class="form-select w-auto mw-100" aria-describedby="gap-coverage-mode-error">
+                        <option value="both">Potential gaps and redundancies</option>
+                        <option value="gaps">Potential gaps only</option>
+                        <option value="redundancies">Potential redundancies only</option>
+                    </select>
+                    <div id="gap-coverage-mode-error" class="invalid-feedback"></div>
+                </div>
+
+                @php
+                    $coverageMetrics = [
+                        'mapped_clo_count' => ['Mapped CLOs', 'Distinct CLOs mapped to a PLO at any configured non-N/A level.'],
+                        'covering_course_count' => ['Covering courses', 'Distinct courses with at least one CLO mapped to a PLO.'],
+                        'required_course_count' => ['Required covering courses', 'Distinct required courses with at least one CLO mapped to a PLO.'],
+                        'non_required_course_count' => ['Non-required covering courses', 'Distinct non-required courses with at least one CLO mapped to a PLO.'],
+                    ];
+                @endphp
+                @foreach ($coverageMetrics as $key => [$label, $description])
+                    <div class="border rounded p-3 mb-3" data-coverage-metric="{{ $key }}" data-metric-label="{{ $label }}">
+                        <div class="form-check">
+                            <input id="gap-coverage-{{ $key }}-enabled" type="checkbox" class="form-check-input" aria-controls="gap-coverage-{{ $key }}-bounds" aria-describedby="gap-coverage-{{ $key }}-description">
+                            <label for="gap-coverage-{{ $key }}-enabled" class="form-check-label fw-bold">{{ $label }}</label>
+                        </div>
+                        <p id="gap-coverage-{{ $key }}-description" class="small text-muted mb-0">{{ $description }}</p>
+                        <div id="gap-coverage-{{ $key }}-bounds" class="row g-3 mt-1 d-none">
+                            @foreach (['min' => 'Minimum (potential gap)', 'max' => 'Maximum (potential redundancy)'] as $bound => $boundLabel)
+                                <div class="col-sm-6">
+                                    <label for="gap-coverage-{{ $key }}-{{ $bound }}" class="form-label">{{ $boundLabel }}</label>
+                                    <input id="gap-coverage-{{ $key }}-{{ $bound }}" type="text" inputmode="numeric" class="form-control" aria-describedby="gap-coverage-bounds-help gap-coverage-{{ $key }}-{{ $bound }}-error" disabled>
+                                    <div id="gap-coverage-{{ $key }}-{{ $bound }}-error" class="invalid-feedback"></div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
+
+                <p class="small text-muted">These settings last while this page is open. You can also view all statistics without expectations.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary">View report</button>
+                    <button id="gap-coverage-view-report" type="button" class="btn btn-outline-primary">View statistics only</button>
+                </div>
+            </fieldset>
+        </form>
     </section>
 
     <section id="gap-coverage-report" class="d-none" aria-labelledby="gap-coverage-report-heading">
@@ -32,7 +79,9 @@
             <h5 id="gap-coverage-report-heading" class="mb-0" tabindex="-1">View report</h5>
             <button id="gap-coverage-back" type="button" class="btn btn-outline-primary">Back to expectations</button>
         </div>
-        <p>Showing statistics only. No coverage expectations have been applied.</p>
+        <div id="gap-coverage-expectations-summary" class="mb-3">
+            <p>Showing statistics only. No coverage expectations have been applied.</p>
+        </div>
 
         <div id="gap-coverage-incomplete" class="alert alert-warning d-none" role="alert">
             Some course learning outcomes have not been fully mapped to this program. Coverage results may be incomplete.
@@ -59,21 +108,118 @@
     </section>
 </div>
 
-<script type="text/javascript">
+<script type="module">
+    import { normalizeExpectations } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/coverage-expectations.js'));
+
     $(document).ready(function () {
         let gapCoverageData = null;
         let gapCoverageLoading = false;
+        let appliedExpectations = null;
+        const expectationsForm = document.getElementById('gap-coverage-expectations-form');
+        const metricSections = [...expectationsForm.querySelectorAll('[data-coverage-metric]')];
+
+        function clearExpectationErrors() {
+            expectationsForm.querySelectorAll('.is-invalid').forEach(function (input) {
+                input.classList.remove('is-invalid');
+                input.removeAttribute('aria-invalid');
+            });
+            expectationsForm.querySelectorAll('.invalid-feedback').forEach(function (message) {
+                message.textContent = '';
+            });
+        }
+
+        function updateExpectationInputs() {
+            clearExpectationErrors();
+            const mode = document.getElementById('gap-coverage-mode').value;
+            metricSections.forEach(function (section) {
+                const key = section.dataset.coverageMetric;
+                const enabled = document.getElementById(`gap-coverage-${key}-enabled`).checked;
+                document.getElementById(`gap-coverage-${key}-bounds`).classList.toggle('d-none', !enabled);
+                document.getElementById(`gap-coverage-${key}-min`).disabled = !enabled || mode === 'redundancies';
+                document.getElementById(`gap-coverage-${key}-max`).disabled = !enabled || mode === 'gaps';
+            });
+        }
+
+        $('#gap-coverage-mode, [data-coverage-metric] input[type="checkbox"]').on('change', updateExpectationInputs);
+        expectationsForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            if (gapCoverageData === null || gapCoverageData.coverage.length === 0) return;
+
+            clearExpectationErrors();
+            const draft = { mode: document.getElementById('gap-coverage-mode').value, metrics: {} };
+            metricSections.forEach(function (section) {
+                const key = section.dataset.coverageMetric;
+                draft.metrics[key] = {
+                    enabled: document.getElementById(`gap-coverage-${key}-enabled`).checked,
+                    min: document.getElementById(`gap-coverage-${key}-min`).value,
+                    max: document.getElementById(`gap-coverage-${key}-max`).value,
+                };
+            });
+            const { settings, errors } = normalizeExpectations(draft);
+            if (Object.keys(errors).length) {
+                Object.entries(errors).forEach(function ([key, message]) {
+                    const id = `gap-coverage-${key.replace('.', '-')}`;
+                    const input = document.getElementById(id);
+                    input.classList.add('is-invalid');
+                    input.setAttribute('aria-invalid', 'true');
+                    document.getElementById(`${id}-error`).textContent = message;
+                });
+                expectationsForm.querySelector('.is-invalid').focus();
+                return;
+            }
+
+            appliedExpectations = settings;
+            renderExpectationsSummary();
+            showReportStep(true);
+        });
+
+        function renderExpectationsSummary() {
+            const summary = document.getElementById('gap-coverage-expectations-summary');
+            summary.replaceChildren();
+            if (!appliedExpectations || Object.keys(appliedExpectations.metrics).length === 0) {
+                const message = document.createElement('p');
+                message.textContent = 'Showing statistics only. No coverage expectations have been applied.';
+                summary.appendChild(message);
+                return;
+            }
+
+            const heading = document.createElement('h6');
+            heading.textContent = 'Your expectations — overall counts for each PLO';
+            const mode = document.createElement('p');
+            const modeLabels = { gaps: 'Potential gaps', redundancies: 'Potential redundancies', both: 'Potential gaps and redundancies' };
+            mode.textContent = `Selected concerns: ${modeLabels[appliedExpectations.mode]}.`;
+            const list = document.createElement('ul');
+            metricSections.forEach(function (section) {
+                const bounds = appliedExpectations.metrics[section.dataset.coverageMetric];
+                if (!bounds) return;
+                const item = document.createElement('li');
+                const range = [];
+                if (bounds.min !== null) range.push(`minimum ${bounds.min}`);
+                if (bounds.max !== null) range.push(`maximum ${bounds.max}`);
+                item.textContent = `${section.dataset.metricLabel}: ${range.join(', ')}.`;
+                list.appendChild(item);
+            });
+            const note = document.createElement('p');
+            note.classList.add('small', 'text-muted');
+            note.textContent = 'Expectations are shown for reference. Coverage statistics are not highlighted.';
+            summary.append(heading, mode, list, note);
+        }
 
         $('#nav-gap-coverage-tab').on('shown.bs.tab', loadGapCoverage);
         $('#gap-coverage-retry').on('click', loadGapCoverage);
         $('#gap-coverage-view-report').on('click', function () {
             if (gapCoverageData !== null && gapCoverageData.coverage.length > 0) {
+                expectationsForm.reset();
+                updateExpectationInputs();
+                appliedExpectations = null;
+                renderExpectationsSummary();
                 showReportStep(true);
             }
         });
         $('#gap-coverage-back').on('click', function () {
             showReportStep(false);
         });
+        if ($('#nav-gap-coverage-tab').hasClass('active')) loadGapCoverage();
 
         function showReportStep(showReport) {
             $('#gap-coverage-expectations').toggleClass('d-none', showReport);
@@ -105,7 +251,7 @@
                 success: function (data) {
                     renderGapCoverage(data);
                     gapCoverageData = data;
-                    $('#gap-coverage-view-report').prop('disabled', data.coverage.length === 0);
+                    $('#gap-coverage-expectations-fields').prop('disabled', data.coverage.length === 0);
                 },
                 error: function () {
                     $('#gap-coverage-error').removeClass('d-none');

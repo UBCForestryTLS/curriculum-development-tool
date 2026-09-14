@@ -3,11 +3,18 @@ import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
+    build: {
+        rollupOptions: {
+            // The report's inline module imports the expectation helper's exports.
+            preserveEntrySignatures: 'exports-only',
+        },
+    },
     plugins: [
         laravel({
             input: [
                 'resources/sass/app.scss',
-                'resources/js/bootstrap.js'
+                'resources/js/bootstrap.js',
+                'resources/js/programs/coverage-expectations.js'
             ],
             refresh: true,
         }),
