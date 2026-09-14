@@ -19,23 +19,6 @@ class ProgramGapCoverageTest extends TestCase
 {
     use DatabaseTransactions;
 
-    public function test_it_classifies_coverage_by_distinct_course_count(): void
-    {
-        $cases = [
-            0 => 'not_covered',
-            1 => 'somewhat_covered',
-            2 => 'sufficiently_covered',
-            3 => 'sufficiently_covered',
-            4 => 'abundantly_covered',
-        ];
-
-        foreach ($cases as $courseCount => $expectedLevel) {
-            $classification = ProgramGapCoverage::classifyCoverage($courseCount);
-
-            $this->assertSame($expectedLevel, $classification['level']);
-        }
-    }
-
     public function test_authorized_user_can_get_gap_coverage_report(): void
     {
         $program = Program::create([
@@ -62,7 +45,10 @@ class ProgramGapCoverageTest extends TestCase
             ->assertJsonPath('program_id', $program->program_id)
             ->assertJsonPath('mapping_completeness.is_complete', true)
             ->assertJsonPath('coverage.0.pl_outcome_id', $programLearningOutcome->pl_outcome_id)
-            ->assertJsonPath('coverage.0.mapped_clo_count', 0);
+            ->assertJsonPath('coverage.0.mapped_clo_count', 0)
+            ->assertJsonMissingPath('coverage.0.coverage_level')
+            ->assertJsonMissingPath('coverage.0.coverage_label')
+            ->assertJsonMissingPath('coverage.0.coverage_explanation');
     }
 
     public function test_user_without_program_access_cannot_get_gap_coverage_report(): void
@@ -281,7 +267,6 @@ class ProgramGapCoverageTest extends TestCase
         $this->assertCount(2, $coverage);
         $this->assertSame(2, $coveredResult['mapped_clo_count']);
         $this->assertSame(2, $coveredResult['covering_course_count']);
-        $this->assertSame('sufficiently_covered', $coveredResult['coverage_level']);
         $this->assertSame(1, $coveredResult['required_course_count']);
         $this->assertSame(1, $coveredResult['non_required_course_count']);
         $this->assertSame(1, $coveredResult['n_a_clo_count']);
@@ -299,7 +284,6 @@ class ProgramGapCoverageTest extends TestCase
         })->all());
         $this->assertSame(0, $uncoveredResult['mapped_clo_count']);
         $this->assertSame(0, $uncoveredResult['covering_course_count']);
-        $this->assertSame('not_covered', $uncoveredResult['coverage_level']);
         $this->assertSame(0, $uncoveredResult['multi_level_mapping_count']);
         $this->assertEmpty($uncoveredResult['mapping_scale_distribution']);
         $this->assertSame([0, 0, 0], collect($uncoveredResult['mapping_scale_histogram'])->pluck('mapped_clo_count')->all());
