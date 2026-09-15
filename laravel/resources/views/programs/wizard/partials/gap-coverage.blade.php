@@ -324,16 +324,27 @@
             }
 
             const heading = document.createElement('h6');
-            heading.textContent = 'Your expectations — percentage ranges for each PLO';
+            heading.textContent = 'Applied expectations';
             const concern = document.createElement('p');
             const selectedConcerns = [];
             if (appliedExpectations.concerns.gaps) selectedConcerns.push('Potential gaps');
             if (appliedExpectations.concerns.redundancies) selectedConcerns.push('Potential redundancies');
             concern.textContent = `Selected concerns: ${selectedConcerns.join(' and ')}.`;
-            const list = document.createElement('ul');
+            const scope = document.createElement('p');
+            scope.textContent = 'These bounds apply separately to every PLO. Only applied bounds are listed.';
+            const metrics = document.createElement('dl');
             metricSections.forEach(function (section) {
                 const metric = appliedExpectations.metrics[section.dataset.coverageMetric];
                 if (!metric) return;
+                const name = document.createElement('dt');
+                name.textContent = section.dataset.metricLabel;
+                const details = document.createElement('dd');
+                details.classList.add('mb-3');
+                const description = document.createElement('p');
+                description.classList.add('small', 'text-muted', 'mb-1');
+                description.textContent = document.getElementById(`gap-coverage-${section.dataset.coverageMetric}-description`).textContent;
+                const levels = document.createElement('ul');
+                levels.classList.add('mb-0');
                 mappingScaleLevels.forEach(function (level) {
                     const bounds = metric.levels[level.map_scale_id];
                     if (!bounds) return;
@@ -342,14 +353,16 @@
                     const range = [];
                     if (bounds.min !== null) range.push(`minimum ${bounds.min}%`);
                     if (bounds.max !== null) range.push(`maximum ${bounds.max}%`);
-                    item.textContent = `${section.dataset.metricLabel}: ${range.join(', ')} (${label}).`;
-                    list.appendChild(item);
+                    item.textContent = `${label}: ${range.join(', ')}.`;
+                    levels.appendChild(item);
                 });
+                details.append(description, levels);
+                metrics.append(name, details);
             });
             const note = document.createElement('p');
             note.classList.add('small', 'text-muted');
             note.textContent = 'Expectations are shown for reference. Coverage statistics are not highlighted.';
-            summary.append(heading, concern, list, note);
+            summary.append(heading, concern, scope, metrics, note);
         }
 
         $('#nav-gap-coverage-tab').on('shown.bs.tab', function () {
