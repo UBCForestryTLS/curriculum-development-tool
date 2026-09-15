@@ -23,8 +23,8 @@
 
     <section id="gap-coverage-expectations" aria-labelledby="gap-coverage-expectations-heading">
         <h5 id="gap-coverage-expectations-heading" tabindex="-1">Set expectations</h5>
-        <p>Set optional minimum coverage percentages at each mapping level. The same expectations apply to every PLO.</p>
-        <p id="gap-coverage-percentage-help">Leave a percentage blank if you have no expectation for that level. A target of 0% means no minimum coverage is required.</p>
+        <p>Set optional coverage percentage ranges at each mapping level. The same expectations apply to every PLO.</p>
+        <p id="gap-coverage-percentage-help">Below your minimum indicates a potential gap; above your maximum indicates a potential redundancy. Leave either bound blank for no expectation. Minimum 0% sets no lower requirement; maximum 0% means no coverage is expected.</p>
         <p class="small text-muted">Each slider is independent: percentages can total more than 100% because a course or CLO can contribute at several levels. N/A is counted separately.</p>
         <p id="gap-coverage-no-levels" class="alert alert-info d-none">No non-N/A mapping levels are configured. You can still view statistics without setting expectations.</p>
         <form id="gap-coverage-expectations-form" novalidate>
@@ -36,7 +36,10 @@
                         <input id="gap-coverage-review-gaps" type="checkbox" class="form-check-input" checked>
                         <label for="gap-coverage-review-gaps" class="form-check-label">Potential gaps</label>
                     </div>
-                    <p class="small text-muted mt-2 mb-0">Redundancy review is planned for a later update.</p>
+                    <div class="form-check">
+                        <input id="gap-coverage-review-redundancies" type="checkbox" class="form-check-input">
+                        <label for="gap-coverage-review-redundancies" class="form-check-label">Potential redundancies</label>
+                    </div>
                 </fieldset>
 
                 @php
@@ -107,13 +110,38 @@
 <template id="gap-coverage-level-template">
     <fieldset class="col-sm-6 col-lg-4">
         <legend class="float-none fs-6 fw-bold"></legend>
-        <label data-slider-label class="form-label">Minimum coverage</label>
-        <input type="range" min="0" max="100" step="1" value="0" class="form-range" data-percentage-slider disabled>
-        <label data-percentage-label class="form-label small">Minimum (%)</label>
-        <input type="text" inputmode="numeric" class="form-control" placeholder="Not set" data-percentage disabled>
-        <div class="invalid-feedback"></div>
+        <div class="coverage-range mb-2">
+            <input type="range" min="0" max="100" step="1" value="0" class="form-range" data-slider="min" disabled>
+            <input type="range" min="0" max="100" step="1" value="100" class="form-range" data-slider="max" disabled>
+        </div>
+        <div class="row g-2">
+            @foreach (['min' => 'Minimum', 'max' => 'Maximum'] as $bound => $label)
+                <div class="col-6">
+                    <label class="form-label small">{{ $label }} (%)</label>
+                    <input type="text" inputmode="numeric" class="form-control" placeholder="Not set" data-bound="{{ $bound }}" disabled>
+                    <div class="invalid-feedback"></div>
+                </div>
+            @endforeach
+        </div>
     </fieldset>
 </template>
+
+<style>
+    /* Two native range inputs share a track; only their handles receive pointer events. */
+    .coverage-range { position: relative; height: 1.5rem; }
+    .coverage-range::before {
+        content: ''; position: absolute; inset: .5rem 0;
+        background: var(--bs-secondary-bg, #e9ecef); border-radius: 1rem;
+    }
+    .coverage-range .form-range { position: absolute; inset: 0; pointer-events: none; }
+    .coverage-range .form-range:focus { z-index: 1; }
+    .coverage-range .form-range::-webkit-slider-runnable-track { background: transparent; }
+    .coverage-range .form-range::-moz-range-track { background: transparent; }
+    .coverage-range .form-range::-webkit-slider-thumb { pointer-events: auto; }
+    .coverage-range .form-range::-moz-range-thumb { pointer-events: auto; }
+    .coverage-range .form-range:disabled::-webkit-slider-thumb { pointer-events: none; }
+    .coverage-range .form-range:disabled::-moz-range-thumb { pointer-events: none; }
+</style>
 
 <script type="module">
     import { normalizeExpectations } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/coverage-expectations.js'));
@@ -125,7 +153,10 @@
         let mappingScaleLevels = [];
         const expectationsForm = document.getElementById('gap-coverage-expectations-form');
         const metricSections = [...expectationsForm.querySelectorAll('[data-coverage-metric]')];
-        const reviewGaps = document.getElementById('gap-coverage-review-gaps');
+        const concernInputs = {
+            min: document.getElementById('gap-coverage-review-gaps'),
+            max: document.getElementById('gap-coverage-review-redundancies'),
+        };
 
         function initializeLevelInputs() {
             const template = document.getElementById('gap-coverage-level-template');
@@ -136,23 +167,31 @@
                     const fields = template.content.firstElementChild.cloneNode(true);
                     fields.dataset.levelId = level.map_scale_id;
                     fields.querySelector('legend').textContent = level.title + (level.abbreviation ? ` (${level.abbreviation})` : '');
-                    const input = fields.querySelector('[data-percentage]');
-                    const slider = fields.querySelector('[data-percentage-slider]');
-                    input.id = `gap-coverage-${key}-levels-${level.map_scale_id}`;
-                    slider.id = `${input.id}-slider`;
-                    fields.querySelector('[data-percentage-label]').htmlFor = input.id;
-                    fields.querySelector('[data-slider-label]').htmlFor = slider.id;
-                    input.nextElementSibling.id = `${input.id}-error`;
-                    [input, slider].forEach(function (control) {
-                        control.setAttribute('aria-describedby', `gap-coverage-${key}-description gap-coverage-percentage-help ${input.id}-error`);
+                    fields.querySelectorAll('[data-bound]').forEach(function (input) {
+                        const bound = input.dataset.bound;
+                        const slider = fields.querySelector(`[data-slider="${bound}"]`);
+                        input.id = `gap-coverage-${key}-levels-${level.map_scale_id}-${bound}`;
+                        slider.id = `${input.id}-slider`;
+                        input.previousElementSibling.htmlFor = input.id;
+                        input.nextElementSibling.id = `${input.id}-error`;
+                        const label = bound === 'min' ? 'Minimum' : 'Maximum';
+                        [input, slider].forEach(function (control) {
+                            control.setAttribute('aria-describedby', `gap-coverage-${key}-description gap-coverage-percentage-help ${input.id}-error`);
+                            control.setAttribute('aria-label', `${label} (%), ${section.dataset.metricLabel}, ${level.title}`);
+                        });
+                        slider.addEventListener('input', function () {
+                            const other = fields.querySelector(`[data-bound="${bound === 'min' ? 'max' : 'min'}"]`);
+                            const otherValue = other.value.trim();
+                            if (!other.disabled && /^\d+$/.test(otherValue) && Number(otherValue) <= 100) {
+                                slider.value = bound === 'min'
+                                    ? Math.min(Number(slider.value), Number(otherValue))
+                                    : Math.max(Number(slider.value), Number(otherValue));
+                            }
+                            input.value = slider.value;
+                            syncRangeInputs(fields);
+                        });
+                        input.addEventListener('input', function () { syncRangeInputs(fields); });
                     });
-                    input.setAttribute('aria-label', `${section.dataset.metricLabel}, ${level.title}: minimum percentage`);
-                    slider.setAttribute('aria-label', `${section.dataset.metricLabel}, ${level.title}: minimum coverage`);
-                    slider.addEventListener('input', function () {
-                        input.value = slider.value;
-                        syncPercentageSlider(fields);
-                    });
-                    input.addEventListener('input', function () { syncPercentageSlider(fields); });
                     container.appendChild(fields);
                 });
             });
@@ -160,19 +199,20 @@
             updateExpectationInputs();
         }
 
-        function syncPercentageSlider(fields) {
-            const input = fields.querySelector('[data-percentage]');
-            const slider = fields.querySelector('[data-percentage-slider]');
-            const value = input.value.trim();
-            if (value === '') {
-                slider.value = '0';
-                slider.setAttribute('aria-valuetext', 'Not set');
-            } else if (/^\d+$/.test(value) && Number(value) <= 100) {
-                slider.value = value;
-                slider.setAttribute('aria-valuetext', `${Number(value)}% minimum`);
-            } else {
-                slider.setAttribute('aria-valuetext', 'Enter a whole percentage from 0 to 100');
-            }
+        function syncRangeInputs(fields) {
+            fields.querySelectorAll('[data-bound]').forEach(function (input) {
+                const slider = fields.querySelector(`[data-slider="${input.dataset.bound}"]`);
+                const value = input.value.trim();
+                if (value === '') {
+                    slider.value = input.dataset.bound === 'min' ? '0' : '100';
+                    slider.setAttribute('aria-valuetext', 'Not set');
+                } else if (/^\d+$/.test(value) && Number(value) <= 100) {
+                    slider.value = value;
+                    slider.setAttribute('aria-valuetext', `${Number(value)}%`);
+                } else {
+                    slider.setAttribute('aria-valuetext', 'Enter a whole percentage from 0 to 100');
+                }
+            });
         }
 
         function clearExpectationErrors() {
@@ -190,30 +230,33 @@
             metricSections.forEach(function (section) {
                 const key = section.dataset.coverageMetric;
                 const checkbox = document.getElementById(`gap-coverage-${key}-enabled`);
-                checkbox.disabled = !reviewGaps.checked || mappingScaleLevels.length === 0;
+                checkbox.disabled = (!concernInputs.min.checked && !concernInputs.max.checked) || mappingScaleLevels.length === 0;
                 const enabled = checkbox.checked && !checkbox.disabled;
                 checkbox.setAttribute('aria-expanded', String(enabled));
                 document.getElementById(`gap-coverage-${key}-options`).classList.toggle('d-none', !enabled);
-                section.querySelectorAll('[data-percentage], [data-percentage-slider]').forEach(function (input) {
-                    input.disabled = !enabled;
+                section.querySelectorAll('[data-bound], [data-slider]').forEach(function (input) {
+                    input.disabled = !enabled || !concernInputs[input.dataset.bound ?? input.dataset.slider].checked;
                 });
-                section.querySelectorAll('[data-level-id]').forEach(syncPercentageSlider);
+                section.querySelectorAll('[data-level-id]').forEach(syncRangeInputs);
             });
         }
 
-        $('#gap-coverage-review-gaps, [data-coverage-metric] input[type="checkbox"]').on('change', updateExpectationInputs);
+        $('#gap-coverage-review-gaps, #gap-coverage-review-redundancies, [data-coverage-metric] input[type="checkbox"]').on('change', updateExpectationInputs);
         expectationsForm.addEventListener('submit', function (event) {
             event.preventDefault();
             if (gapCoverageData === null || gapCoverageData.coverage.length === 0) return;
 
             clearExpectationErrors();
-            const draft = { reviewGaps: reviewGaps.checked, metrics: {} };
+            const draft = { concerns: { gaps: concernInputs.min.checked, redundancies: concernInputs.max.checked }, metrics: {} };
             metricSections.forEach(function (section) {
                 const key = section.dataset.coverageMetric;
                 draft.metrics[key] = {
                     enabled: document.getElementById(`gap-coverage-${key}-enabled`).checked,
                     levels: Object.fromEntries([...section.querySelectorAll('[data-level-id]')].map(function (fields) {
-                        return [fields.dataset.levelId, fields.querySelector('[data-percentage]').value];
+                        return [fields.dataset.levelId, {
+                            min: fields.querySelector('[data-bound="min"]').value,
+                            max: fields.querySelector('[data-bound="max"]').value,
+                        }];
                     })),
                 };
             });
@@ -246,19 +289,25 @@
             }
 
             const heading = document.createElement('h6');
-            heading.textContent = 'Your expectations — minimum percentages for each PLO';
+            heading.textContent = 'Your expectations — percentage ranges for each PLO';
             const concern = document.createElement('p');
-            concern.textContent = 'Selected concerns: Potential gaps.';
+            const selectedConcerns = [];
+            if (appliedExpectations.concerns.gaps) selectedConcerns.push('Potential gaps');
+            if (appliedExpectations.concerns.redundancies) selectedConcerns.push('Potential redundancies');
+            concern.textContent = `Selected concerns: ${selectedConcerns.join(' and ')}.`;
             const list = document.createElement('ul');
             metricSections.forEach(function (section) {
                 const metric = appliedExpectations.metrics[section.dataset.coverageMetric];
                 if (!metric) return;
                 mappingScaleLevels.forEach(function (level) {
-                    const percentage = metric.levels[level.map_scale_id];
-                    if (percentage === undefined) return;
+                    const bounds = metric.levels[level.map_scale_id];
+                    if (!bounds) return;
                     const label = level.title + (level.abbreviation ? ` (${level.abbreviation})` : '');
                     const item = document.createElement('li');
-                    item.textContent = `${section.dataset.metricLabel}: minimum ${percentage}% (${label}).`;
+                    const range = [];
+                    if (bounds.min !== null) range.push(`minimum ${bounds.min}%`);
+                    if (bounds.max !== null) range.push(`maximum ${bounds.max}%`);
+                    item.textContent = `${section.dataset.metricLabel}: ${range.join(', ')} (${label}).`;
                     list.appendChild(item);
                 });
             });
