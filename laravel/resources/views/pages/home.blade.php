@@ -404,7 +404,7 @@
                                         </td>
                                     @else
                                         <!-- Courses That have been Completed -->
-                                        <td style="max-width: 450px;"><a href="{{route('courseWizard.step1', $course->course_id)}}">{{$course->course_title}}</a></td>
+                                        <td style="max-width: 450px;"><a href="{{route('courseWizard.step8', $course->course_id)}}">{{$course->course_title}}</a></td>
                                         <td>{{$course->course_code}} {{$course->course_num}}</td>
                                         <td>{{$course->year}} {{$course->semester}}</td>
                                         <td class="align-middle">
@@ -457,7 +457,7 @@
                                         <div class="btn-group">
                                             <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                             <div class="dropdown-menu">
-                                                <a class="dropdown-item" href="{{route('courseWizard.step1', $course->course_id)}}">Edit</a>
+                                                <a class="dropdown-item" href="{{route('courseWizard.step8', $course->course_id)}}">Edit</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
                                                 <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($courseUsers[$course->course_id] as $counter => $courseUser){{$counter + 1}}. {{$courseUser->name}}<br>@endforeach" data-modal="addCourseCollaboratorsModal{{$course->course_id}}">
                                                     <div>
@@ -691,7 +691,7 @@
                                         <div class="btn-group">
                                             <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                             <div class="dropdown-menu">
-                                                <a class="dropdown-item" href="{{route('courseWizard.step1', $course->course_id)}}">Edit</a>
+                                                <a class="dropdown-item" href="{{route('courseWizard.step8', $course->course_id)}}">Edit</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
                                                 <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($courseUsers[$course->course_id] as $counter => $courseUser){{$counter + 1}}. {{$courseUser->name}}<br>@endforeach" data-modal="addCourseCollaboratorsModal{{$course->course_id}}">
                                                     <div>

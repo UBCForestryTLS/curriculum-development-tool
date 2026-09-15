@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
     {
         //
         Schema::defaultStringLength(191);
+        Paginator::useBootstrap();
 
         Validator::extend('allowed_domain', function ($attribute, $value, $parameters, $validator) {
             return in_array(explode('@', $value)[1], ['ubc.ca', 'mail.ubc.ca', 'alumni.ubc.ca', 'student.ubc.ca']);

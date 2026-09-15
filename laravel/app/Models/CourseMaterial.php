@@ -25,10 +25,13 @@ class CourseMaterial extends Model
 
     protected $casts = ['is_required' => 'boolean'];
 
-    public function course(){
+    public function course()
+    {
         return $this->belongsTo(Course::class, 'course_id', 'course_id');
     }
 
-
-
+    public function files()
+    {
+        return $this->hasMany(CourseMaterialFile::class, 'course_material_id', 'course_material_id');
+    }
 }

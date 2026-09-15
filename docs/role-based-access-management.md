@@ -44,6 +44,31 @@ When a role (Administrator, Department Head, or Program Director) grants a user 
 - New accounts are automatically assigned the **User** role upon self-registration.
 - Only **Administrators** can assign or change roles for other users.
 
+## Organization Ownership
+
+The `courses` and `programs` tables currently store campus, faculty, and department names as text. When the application creates Department Head access, it matches these values against the `campuses`, `faculties`, and `departments` tables before adding the appropriate `course_user_role` or `program_user_role` rows.
+
+This matching depends on the stored names being the same. For example, `Forest Resources Management` would not match `Department of Forest Resources Management`. This could prevent an expected role-access row from being created. For now, this is considered acceptable because campuses, faculties, and departments are added programmatically through seeders and their names are not currently managed through the application.
+
+This should be revisited when support is added for creating or renaming these organizations. A future improvement could replace or supplement the text fields with faculty and department IDs, either directly on courses and programs or through intermediary tables. A migration could then associate existing records with the correct IDs using their stored names, so the initial conversion would not need to be completed manually. Until then, seeded and locally created data should use the existing organization names consistently.
+
+## Faculty Course Code Maintenance
+
+Faculty ownership of course codes is stored in `faculty_course_codes`. The initial Forestry mappings are added by `FacultyCourseCodeSeeder`, but running the seeder does not create, remove, or rebuild related `course_user_role` rows.
+
+This matters in the rare case when a new course code is assigned to a faculty or an existing code changes ownership. Existing courses and faculty-wide users are not synchronized automatically, which can leave search and dashboard access incorrect.
+
+Whenever possible, add the mapping before creating courses with that code so normal course creation can add the required access rows. For an existing database, use a data migration or careful SQL instead of only editing and rerunning the seeder.
+
+The update should:
+
+1. Add or remove the `faculty_course_codes` mapping.
+2. Find existing courses with the affected code.
+3. Add or remove the affected `course_user_role` rows while preserving access granted through another role or direct permission.
+4. Verify the affected users' dashboard and search results.
+
+Manual role rows must include the correct user, course, role, and related department or program IDs. A future improvement would be a synchronization service or Artisan command that performs these updates in a transaction.
+
 ## Role Assignment Interface (Admins Only Access)
 
 ![Role Assignment Interface](./images/RoleAssignmentInterface(AdminOnlyAccess).png)

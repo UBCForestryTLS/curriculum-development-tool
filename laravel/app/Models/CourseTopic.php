@@ -18,6 +18,15 @@ class CourseTopic extends Model
         return $this->belongsTo(Course::class, 'course_id', 'course_id');
     }
 
+    public function course_material_files(){
+        return $this->belongsToMany(
+            CourseMaterialFile::class,
+            'course_material_file_topic',
+            'course_topic_id',
+            'course_material_file_id'
+        );
+    }
+
 
 
 }

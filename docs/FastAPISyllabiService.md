@@ -23,6 +23,8 @@ The service is responsible for extracting:
 - course description
 - learning outcomes
 - assessment methods along with their corresponding weights
+- course topics
+- course materials with name, type, and description
 
 ## API
 
@@ -53,7 +55,15 @@ The response shape is:
     "level": "Undergraduate",
     "description": "...",
     "goals": ["..."],
-    "assessments": [["Midterm", 30], ["Final Exam", 40]]
+    "assessments": [["Midterm", 30], ["Final Exam", 40]],
+    "topics": ["Forest policy", "Harvest planning"],
+    "materials": [
+      {
+        "name": "Introduction to Forestry",
+        "type": "textbook",
+        "description": "Required textbook"
+      }
+    ]
   },
   "message": "Course created successfully"
 }
@@ -90,7 +100,9 @@ The implementation in [`syllabus_parser.py`](../python/services/syllabi_service/
 - text scanning with regular expressions
 - header and footer removal before downstream parsing
 - table detection for structured fields such as course title, assessments etc.
-- section-based extraction for descriptions, learning outcomes, and assessments
+- section-based extraction for descriptions, learning outcomes, assessments, topics, and materials
+- topic extraction from schedule/topic tables first, with text-based extraction as a fallback
+- material extraction from materials/readings/textbook sections, including type inference for resources such as textbooks, readings, articles, videos, and websites
 
 The parser is designed to accept multiple syllabus layouts rather than requiring a single file format.
 
@@ -101,6 +113,7 @@ The parser is designed to accept multiple syllabus layouts rather than requiring
 - if the year cannot be parsed, the parser falls back to the current year
 - the original filename is checked first because it can disambiguate the course more reliably than free text
 - learning outcomes are detected using a list of likely action verbs and bullet patterns
+- the current Laravel upload flow only accepts PDF syllabi, so the main supported extraction path is PDF parsing
 
 These defaults make the parser resilient, but they also mean that Laravel tool user should treat results as as suggestions rather than absolute truth.
 
@@ -109,9 +122,10 @@ These defaults make the parser resilient, but they also mean that Laravel tool u
 The the service is intended to handle:
 
 - PDF syllabi
-- Word-based syllabi in supported parsing paths
 - files with tabular assessment sections
 - files with non-tabular assessment sections
+- files with topic schedules or topic lists
+- files with course materials, readings, textbook, or resource sections
 - filenames that do or do not contain course identifiers
 
 Representative examples live under:
@@ -153,4 +167,5 @@ Few constraints that might be important to consider for this service:
 
 - it depends on the referenced file path being readable from the service runtime
 - parsing quality depends on document text quality and layout clarity
+- topic and material extraction is heuristic, so noisy schedule/material sections may still need user review
 - because the service returns structured suggestions, review or correction in Laravel tool is still important

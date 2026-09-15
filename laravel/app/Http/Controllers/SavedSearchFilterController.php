@@ -1,0 +1,145 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Helpers\SearchFilterOptions;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+class SavedSearchFilterController extends Controller
+{
+    /**
+     * Store a named search filter preset for the authenticated user.
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $userId = $request->user()->id;
+        $availableProperties = SearchFilterOptions::propertyKeys();
+
+        $validated = $request->validate([
+            //these are all the validation rules so laravel can check the req against every rule
+            'name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('saved_search_filters', 'name')//only allow unique names per user
+                    ->where(fn ($query) => $query->where('user_id', $userId)),
+            ],
+            'query' => ['nullable', 'string', 'max:200'],
+            'view' => ['nullable', 'in:courses,programs'],
+            'property_filters_applied' => ['nullable', 'boolean'],
+            'properties' => ['nullable', 'array'],
+            'properties.*' => [SearchFilterOptions::propertyValidationRule()],
+            'course_codes' => ['nullable', 'array'],
+            'course_codes.*' => ['nullable', 'string', 'max:10'],
+            'course_levels' => ['nullable', 'array'],
+            'course_levels.*' => ['nullable', 'in:100,200,300,400,500,600'],
+            'program_ids' => ['nullable', 'array'],
+            'program_ids.*' => ['nullable', 'integer', 'exists:programs,program_id'],
+        ]);
+
+        $filters = [
+            //filter normalization: This code block makes it so the controller creates one consistent filter structure
+            //with normalized properties that are in line with the core search engine
+            'view' => $validated['view'] ?? 'courses',
+            'properties' => collect(($validated['property_filters_applied'] ?? false)
+                ? ($validated['properties'] ?? [])
+                : $availableProperties)
+                ->unique()
+                ->values()
+                ->all(),
+
+            'course_codes' => collect($validated['course_codes'] ?? [])
+                ->filter(fn ($code) => is_string($code) && trim($code) !== '')
+                ->map(fn ($code) => strtoupper(trim($code)))
+                ->unique()
+                ->values()
+                ->all(),
+
+            'course_levels' => collect($validated['course_levels'] ?? [])
+                ->filter(fn ($level) => $level !== null && $level !== '')
+                ->map(fn ($level) => (string) $level)
+                ->unique()
+                ->values()
+                ->all(),
+
+            'program_ids' => collect($validated['program_ids'] ?? [])
+                ->filter(fn ($programId) => is_numeric($programId))
+                ->map(fn ($programId) => (int) $programId)
+                ->unique()
+                ->values()
+                ->all(),
+        ];
+
+        $savedFilter = $request->user()->savedSearchFilters()->create([
+            'name' => trim($validated['name']),
+            'filters' => $filters,
+        ]);
+
+        return redirect()->route('search.index', [
+            'query' => trim($validated['query'] ?? ''),
+            'saved_filter_id' => $savedFilter->id,
+            'view' => $filters['view'],
+            'property_filters_applied' => 1,
+            'properties' => $filters['properties'],
+            'course_filters_applied' => 1,
+            'course_codes' => $filters['course_codes'],
+            'course_levels' => $filters['course_levels'],
+            'program_filters_applied' => 1,
+            'program_ids' => $filters['program_ids'],
+        ])->with('success', 'Search filter saved successfully.');
+    }
+
+    /**
+     * Delete a saved search filter owned by the authenticated user.
+     */
+    public function destroy(Request $request, int $savedFilterId): RedirectResponse
+    {
+        $savedFilter = $request->user()
+            ->savedSearchFilters()
+            ->findOrFail($savedFilterId);
+
+        $savedFilter->delete();
+
+        return redirect()->back()->with('success', 'Saved search filter deleted successfully.');
+    }
+
+
+
+    /**
+     * Apply a User's saved filter preset.
+     */
+    public function apply(Request $request, int $savedFilterId): RedirectResponse{
+        $validated = $request->validate([
+            'query' => ['nullable', 'string', 'max:200']
+            //validate query because user may already have typed something in search when applying preset
+        ]);
+
+        $savedFilter = $request->user()->savedSearchFilters()->findOrFail($savedFilterId);
+        $filters = $savedFilter->filters;
+
+        $searchParameters = [
+            'query' => trim($validated['query'] ?? ''),
+            'saved_filter_id' => $savedFilter->id,
+            'view' => $filters['view'] ?? 'courses',
+
+            //use these "applied" flags as search controller uses these
+            'property_filters_applied' => 1,
+            'properties' => $filters['properties'] ?? [],
+
+            'course_filters_applied' => 1,
+            'course_codes' => $filters['course_codes'] ??[],
+            'course_levels' => $filters['course_levels'] ?? [],
+
+            'program_filters_applied' => 1,
+            'program_ids' => $filters['program_ids'] ?? [],
+        ];
+
+        return redirect()
+            ->route('search.index', $searchParameters)
+            ->with('success', 'Filter preset applied.')
+            ->with('preset_applied', true);
+
+    }
+}

@@ -5,13 +5,14 @@ use App\Http\Controllers\AdminEmailController;
 use App\Http\Controllers\AdminAssignRoleController;
 use App\Http\Controllers\AssessmentMethodController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\CourseMaterialController;
+use App\Http\Controllers\CourseMaterialFileController;
 use App\Http\Controllers\CourseProgramController;
 use App\Http\Controllers\CourseUserController;
 use App\Http\Controllers\CourseWizardController;
 use App\Http\Controllers\CustomAssessmentMethodsController;
 use App\Http\Controllers\CustomLearningActivitiesController;
 use App\Http\Controllers\CourseTopicController;
-use App\Http\Controllers\CourseMaterialController;
 use App\Http\Controllers\FAQController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InviteController;
@@ -36,6 +37,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\AccountInformationController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SavedSearchFilterController;
 
 /*
 |--------------------------------------------------------------------------
@@ -124,6 +127,7 @@ Route::get('/programs/{program}/downloadUserGuide', [ProgramController::class, '
 
 // Program Summary raw data spreadsheet routes
 Route::get('/programs/{program}/dataSpreadsheet', [ProgramController::class, 'dataSpreadsheet'])->name('programs.dataSpreadsheet');
+Route::delete('/programs/{program}/dataSpreadsheet', [ProgramController::class, 'deleteDataSpreadsheet'])->name('programs.delete.dataSpreadsheet');
 
 Route::get('/programs/{program}/duplicate', [ProgramController::class, 'duplicate'])->name('programs.duplicate');
 
@@ -146,6 +150,7 @@ Route::get('/courses/{course}/pdf', [CourseController::class, 'pdf'])->name('cou
 
 // Route for spreadsheet download in course
 Route::get('/courses/{course}/dataSpreadsheet', [CourseController::class, 'dataSpreadsheet'])->name('courses.dataSpreadsheet');
+Route::delete('/courses/{course}/dataSpreadsheet', [CourseController::class, 'deleteDataSpreadsheet'])->name('courses.delete.dataSpreadsheet');
 
 Route::delete('/courses/{course}/pdf', [CourseController::class, 'deletePDF'])->name('courses.delete.pdf');
 Route::get('/courses/{course}/remove', [CourseController::class, 'removeFromProgram'])->name('courses.remove');
@@ -255,6 +260,33 @@ Route::get('/courseWizard/{course}/step7', [CourseWizardController::class, 'step
 Route::get('/courseWizard/{course}/step8', [CourseWizardController::class, 'step8'])->name('courseWizard.step8');
 Route::get('/courseWizard/{course}/step9', [CourseWizardController::class, 'step9'])->name('courseWizard.step9');
 Route::get('/courseWizard/{course}/step10', [CourseWizardController::class, 'step10'])->name('courseWizard.step10');
+
+//Search engine routes
+Route::get('/search', [SearchController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('search.index');
+Route::get('/search/export/pdf', [SearchController::class, 'exportPdf'])
+    ->middleware(['auth', 'verified'])
+    ->name('search.export.pdf');
+Route::get('/search/export/spreadsheet', [SearchController::class, 'exportSpreadsheet'])
+    ->middleware(['auth', 'verified'])
+    ->name('search.export.spreadsheet');
+
+
+
+//Saved filter routes: before calling the controller method, we use middleware to run auth and verified to confirm the user
+//this way laravel can safely call $request->user()
+Route::post('/search/filters',[SavedSearchFilterController::class, 'store']
+)->middleware(['auth', 'verified'])->name('search.filters.store');
+
+Route::delete('/search/filters/{savedFilterId}',[SavedSearchFilterController::class, 'destroy']
+)->middleware(['auth', 'verified'])->name('search.filters.destroy');
+
+Route::get('/search/filters/{savedFilterId}/apply', [SavedSearchFilterController::class, 'apply']
+)->middleware(['auth', 'verified'])->name('search.filters.apply');
+
+
+
 //lets blade form submit to courseTopicController@store
 Route::post('/courseTopics/store', [CourseTopicController::class, 'store'])->name('courseTopics.store');
 Route::post('/courseMaterials/store', [CourseMaterialController::class, 'store'])->name('courseMaterials.store');
@@ -264,6 +296,18 @@ Route::post('courseWizard/{courseId}/{programId}/aiSuggestion', [CourseProgramCo
 Route::post('courseWizard/{courseId}/{programId}/generate-ai-suggestions', [CourseProgramController::class, 'generateAiSuggestions']);
 Route::post('courseWizard/{courseId}/{programId}/check-ai-results', [CourseProgramController::class, 'checkAiResults']);
 Route::post('courseWizard/{courseId}/{programId}/check-in-flight', [CourseProgramController::class, 'checkInFlight']);
+
+// Course materials (wizard metadata) + file uploads
+Route::post('/courses/{course}/materials/{material}/files', [CourseMaterialFileController::class, 'store'])->name('course.material.files.store');
+Route::post('/courses/{course}/materials/{material}/files/{file}/refresh', [CourseMaterialFileController::class, 'refresh'])->name('course.material.files.refresh');
+Route::post('/courses/{course}/materials/{material}/files/{file}/topics', [CourseMaterialFileController::class, 'updateTopics'])->name('course.material.files.topics.update');
+Route::post('/courses/{course}/materials/{material}/files/{file}/topics/review', [CourseMaterialFileController::class, 'reviewTopics'])->name('course.material.files.topics.review');
+Route::post('/courses/{course}/materials/{material}/files/{file}/topics/accept-all', [CourseMaterialFileController::class, 'acceptAllTopics'])->name('course.material.files.topics.accept-all');
+Route::post('/courses/{course}/materials/{material}/files/{file}/topics/reject-all', [CourseMaterialFileController::class, 'rejectAllTopics'])->name('course.material.files.topics.reject-all');
+Route::get('/courses/{course}/materials/{material}/files/{file}', [CourseMaterialFileController::class, 'show'])->name('course.material.files.show');
+Route::delete('/courses/{course}/materials/{material}/files/{file}', [CourseMaterialFileController::class, 'destroy'])->name('course.material.files.destroy');
+Route::get('/courses/{course}/materials/{material}/files/{file}/view', [CourseMaterialFileController::class, 'view'])->name('course.material.files.view');
+Route::get('/courses/{course}/materials/{material}/files/{file}/download', [CourseMaterialFileController::class, 'download'])->name('course.material.files.download');
 
 Route::post('/courseDescription/{course}/store', [\App\Http\Controllers\CourseDescriptionController::class, 'store'])->name('courseDescription.store');
 

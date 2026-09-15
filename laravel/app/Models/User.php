@@ -91,6 +91,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsToMany(\App\Models\Program::class, 'program_users', 'user_id', 'program_id')->withPivot('permission');
     }
 
+    public function savedSearchFilters()
+    {
+        return $this->hasMany(SavedSearchFilter::class);
+    }
+
     public function programsWithElevatedRoleAccess()
     {
         return $this->belongsToMany(\App\Models\Program::class, 'program_user_role', 'user_id', 'program_id')

@@ -29,6 +29,13 @@ pest()->extend(TestCase::class)
     ->beforeEach(fn() => clearDynamoDb())
     ->in('Browser/AiSuggestionsE2E');
 
+pest()->extend(TestCase::class)
+    ->group('text-extraction-e2e')
+    ->beforeAll(function () {
+        startTestingDbServer();
+    })
+    ->in('Browser/TextExtractionE2E');
+
 /*
 |--------------------------------------------------------------------------
 | Expectations

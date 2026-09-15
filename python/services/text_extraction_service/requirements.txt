@@ -1,0 +1,21 @@
+fastapi==0.135.2
+uvicorn==0.42.0
+pydantic==2.12.4
+pydantic-settings==2.13.1
+python-dotenv==1.2.2
+python-json-logger==4.1.0
+python-multipart==0.0.32
+nltk==3.9.4
+spacy==3.8.14
+PyMuPDF==1.28.0
+pytesseract==0.3.13
+Pillow==12.3.0
+regex==2026.4.4
+pytest==9.0.2
+httpx==0.28.1
+boto3==1.42.80
+botocore==1.42.80
+
+# Bertopic
+bertopic==0.17.4
+sentence-transformers==5.6.0

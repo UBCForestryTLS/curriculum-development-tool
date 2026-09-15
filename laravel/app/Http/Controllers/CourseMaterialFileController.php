@@ -1,0 +1,343 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Jobs\IndexCourseMaterial;
+use App\Models\CourseMaterial;
+use App\Models\CourseMaterialFile;
+use App\Models\CourseTopic;
+use App\Models\SuggestedTopic;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class CourseMaterialFileController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware(['auth', 'verified']);
+        $this->middleware('hasAccess');
+    }
+
+    public function store(Request $request, $course_id, $material_id): RedirectResponse
+    {
+        $this->verifyUserIsEditor((int) $course_id);
+        $this->findMaterialForCourse((int) $course_id, (int) $material_id);
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:pdf', 'max:51200'],
+            'ocr_enabled' => ['sometimes', 'boolean'],
+            'extraction_engine' => ['required_if:ocr_enabled,1', 'in:tesseract,textract'],
+            'ocr_threshold' => ['sometimes', 'integer', 'min:0', 'max:100000'],
+        ]);
+
+        $uploaded = $request->file('file');
+        $diskPath = $uploaded->storeAs(
+            'course-materials/' . $course_id,
+            Str::uuid()->toString() . '.pdf',
+            'local'
+        );
+
+        if ($diskPath === false) {
+            return redirect()->back()->with('error', 'Failed to store the uploaded file.');
+        }
+
+        $file = CourseMaterialFile::create([
+            'course_material_id' => $material_id,
+            'uploaded_by' => Auth::id(),
+            'file_name' => $uploaded->getClientOriginalName(),
+            'file_path' => $diskPath,
+            'file_size' => $uploaded->getSize(),
+            'status' => CourseMaterialFile::STATUS_PENDING,
+            'extraction_engine' => $request->input('extraction_engine', 'tesseract'),
+            'ocr_enabled' => $request->boolean('ocr_enabled'),
+            'ocr_threshold' => $request->boolean('ocr_enabled') ? (int) $request->input('ocr_threshold', 0) : 0,
+        ]);
+
+        IndexCourseMaterial::dispatch($file->course_material_file_id);
+
+        return redirect()
+            ->route('courseWizard.step10', ['course' => $course_id])
+            ->with('success', 'File uploaded. Indexing in the background.');
+    }
+
+    public function destroy(Request $request, $course_id, $material_id, $file_id): RedirectResponse
+    {
+        $this->verifyUserIsEditor((int) $course_id);
+
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
+
+        if (Storage::disk('local')->exists($file->file_path)) {
+            Storage::disk('local')->delete($file->file_path);
+        }
+        $file->delete();
+
+        return redirect()
+            ->route('courseWizard.step10', ['course' => $course_id])
+            ->with('success', 'File deleted.');
+    }
+
+    public function refresh(Request $request, $course_id, $material_id, $file_id): RedirectResponse
+    {
+        $this->verifyUserIsEditor((int) $course_id);
+
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
+
+        $file->update([
+            'status' => CourseMaterialFile::STATUS_PENDING,
+            'error_message' => null,
+            'processing_time_seconds' => null,
+        ]);
+
+        $refreshingTopicsOnly = $file->chunks()->exists();
+        IndexCourseMaterial::dispatch($file->course_material_file_id, $refreshingTopicsOnly);
+
+        return redirect()
+            ->back()
+            ->with('success', $refreshingTopicsOnly ? 'Refreshing topics.' : 'Refreshing extracted text and topics.');
+    }
+
+    public function download($course_id, $material_id, $file_id): StreamedResponse
+    {
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
+
+        abort_unless(Storage::disk('local')->exists($file->file_path), 404);
+
+        return Storage::disk('local')->download($file->file_path, $file->file_name);
+    }
+
+    public function view($course_id, $material_id, $file_id): StreamedResponse
+    {
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
+
+        abort_unless(Storage::disk('local')->exists($file->file_path), 404);
+
+        return Storage::disk('local')->response($file->file_path, $file->file_name);
+    }
+
+    public function show($course_id, $material_id, $file_id)
+    {
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
+        $file->load([
+            'courseMaterial',
+            'uploader',
+            'chunks' => fn($q) => $q->orderBy('page_number')->orderBy('chunk_index'),
+            'topics' => fn($q) => $q->orderBy('position'),
+        ]);
+
+        $courseTopics = CourseTopic::where('course_id', $course_id)
+            ->orderBy('position')
+            ->get();
+
+        $fileTopicTexts = $file->topics->pluck('topic')->map(fn($t) => strtolower($t))->all();
+
+        $suggestedTopics = $file->suggestedTopics()
+            ->where('status', SuggestedTopic::STATUS_PENDING)
+            ->orderBy('score', 'desc')
+            ->get()
+            // TODO: Should this be filtered out somewhere else instead?
+            ->filter(fn($s) => !in_array(strtolower($s->topic), $fileTopicTexts));
+
+        return view('courses.material_file', [
+            'file'            => $file,
+            'course_id'       => $course_id,
+            'material_id'     => $material_id,
+            'courseTopics'    => $courseTopics,
+            'suggestedTopics' => $suggestedTopics,
+        ]);
+    }
+
+    public function updateTopics(Request $request, $course_id, $material_id, $file_id)
+    {
+        $this->verifyUserIsEditor((int) $course_id);
+
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
+
+        $request->validate([
+            'topic_ids' => 'required|array',
+            'topic_ids.*' => 'required|integer|exists:course_topics,course_topic_id',
+        ]);
+
+        $topicIds = $request->input('topic_ids', []);
+
+        // Verify all topic IDs belong to this course
+        $validCount = CourseTopic::where('course_id', $course_id)
+            ->whereIn('course_topic_id', $topicIds)
+            ->count();
+
+        if ($validCount !== count($topicIds)) {
+            return redirect()->back()->with('error', 'One or more selected topics do not belong to this course.');
+        }
+
+        $file->topics()->sync($topicIds);
+
+        return redirect()->back()->with('success', 'Topics updated successfully.');
+    }
+
+
+    public function reviewTopics(Request $request, $course_id, $material_id, $file_id)
+    {
+        $this->verifyUserIsEditor((int) $course_id);
+
+        $request->validate([
+            'decisions' => 'required|array|min:1',
+            'decisions.*.id' => 'required|integer|exists:suggested_topics,suggested_topic_id',
+            'decisions.*.action' => 'required|in:confirm,reject',
+        ]);
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
+
+
+        $decisions = $request->input('decisions');
+        $confirmIds = array_column(array_filter($decisions, fn($d) => $d['action'] === 'confirm'), 'id');
+        $rejectIds  = array_column(array_filter($decisions, fn($d) => $d['action'] === 'reject'), 'id');
+
+        DB::transaction(function () use ($file, $confirmIds, $rejectIds) {
+            if ($confirmIds) {
+                $topicTexts = SuggestedTopic::where('course_material_file_id', $file->course_material_file_id)
+                    ->whereIn('suggested_topic_id', $confirmIds)
+                    ->where('status', SuggestedTopic::STATUS_PENDING)
+                    ->pluck('topic')
+                    ->all();
+
+                $this->applyTopicDecisions($file, $topicTexts);
+            }
+
+            if ($rejectIds) {
+                SuggestedTopic::where('course_material_file_id', $file->course_material_file_id)
+                    ->whereIn('suggested_topic_id', $rejectIds)
+                    ->where('status', SuggestedTopic::STATUS_PENDING)
+                    ->update(['status' => SuggestedTopic::STATUS_REJECTED]);
+            }
+        });
+
+        $accepted = count($confirmIds);
+        $rejected = count($rejectIds);
+        return redirect()->back()->with('success', "{$accepted} topics accepted, {$rejected} topics rejected.");
+    }
+
+    public function acceptAllTopics(Request $request, $course_id, $material_id, $file_id)
+    {
+        $this->verifyUserIsEditor((int) $course_id);
+
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
+
+        DB::transaction(function () use ($file) {
+            $topicTexts = $file->suggestedTopics()
+                ->where('status', SuggestedTopic::STATUS_PENDING)
+                ->pluck('topic')
+                ->all();
+
+            $this->applyTopicDecisions($file, $topicTexts);
+        });
+
+        return redirect()->back()->with('success', 'All suggested topics accepted.');
+    }
+
+    public function rejectAllTopics(Request $request, $course_id, $material_id, $file_id)
+    {
+        $this->verifyUserIsEditor((int) $course_id);
+
+        $file = $this->findFileForCourse((int) $course_id, (int) $material_id, (int) $file_id);
+
+        $file->suggestedTopics()
+            ->where('status', SuggestedTopic::STATUS_PENDING)
+            ->update(['status' => SuggestedTopic::STATUS_REJECTED]);
+
+        return redirect()->back()->with('success', 'All suggested topics rejected.');
+    }
+
+    private function applyTopicDecisions(CourseMaterialFile $file, array $topicTexts): void
+    {
+        if (empty($topicTexts)) {
+            return;
+        }
+
+        $originalByLower = [];
+        foreach ($topicTexts as $text) {
+            $key = strtolower($text);
+            if (!isset($originalByLower[$key])) {
+                $originalByLower[$key] = $text;
+            }
+        }
+        $lowerKeys = array_keys($originalByLower);
+
+        $existingTopics = CourseTopic::where('course_id', $file->courseMaterial->course_id)
+            ->whereIn(DB::raw('LOWER(topic)'), $lowerKeys)
+            ->get()
+            ->keyBy(fn($t) => strtolower($t->topic));
+
+        $existingIds = [];
+        $newNames = [];
+
+        foreach ($lowerKeys as $key) {
+            if ($existingTopics->has($key)) {
+                $existingIds[] = $existingTopics->get($key)->course_topic_id;
+            } else {
+                $newNames[] = $originalByLower[$key];
+            }
+        }
+
+        $newIds = [];
+        if ($newNames) {
+            $maxPosition = CourseTopic::where('course_id', $file->courseMaterial->course_id)->max('position') ?? 0;
+
+            $rows = array_map(
+                fn($i, $name) => [
+                    'course_id'  => $file->courseMaterial->course_id,
+                    'topic'      => $name,
+                    'position'   => $maxPosition + $i + 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                range(0, count($newNames) - 1),
+                $newNames
+            );
+
+            DB::table('course_topics')->insert($rows);
+
+            $newLowerNames = array_map('strtolower', $newNames);
+            $newIds = CourseTopic::where('course_id', $file->courseMaterial->course_id)
+                ->whereIn(DB::raw('LOWER(topic)'), $newLowerNames)
+                ->pluck('course_topic_id')
+                ->all();
+        }
+
+        $allTopicIds = array_unique(array_merge($existingIds, $newIds));
+
+        $file->topics()->syncWithoutDetaching($allTopicIds);
+
+        SuggestedTopic::where('course_material_file_id', $file->course_material_file_id)
+            ->where('status', SuggestedTopic::STATUS_PENDING)
+            ->whereIn(DB::raw('LOWER(topic)'), $lowerKeys)
+            ->delete();
+    }
+
+    private function findMaterialForCourse(int $courseId, int $materialId): CourseMaterial
+    {
+        return CourseMaterial::where('course_material_id', $materialId)
+            ->where('course_id', $courseId)
+            ->firstOrFail();
+    }
+
+    private function findFileForCourse(int $courseId, int $materialId, int $fileId): CourseMaterialFile
+    {
+        return CourseMaterialFile::where('course_material_file_id', $fileId)
+            ->where('course_material_id', $materialId)
+            ->whereHas('courseMaterial', function ($query) use ($courseId) {
+                $query->where('course_id', $courseId);
+            })
+            ->firstOrFail();
+    }
+
+
+    private function verifyUserIsEditor(int $course_id): void
+    {
+        $permission = User::find(Auth::id())?->effectivePermissionForCourse($course_id) ?? 0;
+        abort_unless(in_array($permission, [1, 2], true), 403, 'Editor access required.');
+    }
+}

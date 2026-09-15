@@ -21,7 +21,7 @@
                                                 <a class="plo-guide">Program Learning Outcomes (Step 1)</a>
                                             </li>
                                             <li class="li">
-                                                <a class="ms-guide">Mapping Scale (Step 2)</a>
+                                                <a class="ms-guide">Mapping Scales (Step 2)</a>
                                             </li>
                                             <li class="li">
                                                 <a class="programCourses-guide">Courses (Step 3)</a>
@@ -39,25 +39,31 @@
                                                 <a class="description-guide">Course Description (Step 1)</a>
                                             </li>
                                             <li class="li">
-                                                <a class="clo-guide">Course Learning Outcomes (Step 2)</a>
+                                                <a class="courseTopics-guide">Course Topics (Step 2)</a>
                                             </li>
                                             <li class="li">
-                                                <a class="sam-guide">Student Assessment Methods (Step 3)</a>
+                                                <a class="courseMaterials-guide">Course Materials (Step 3)</a>
                                             </li>
                                             <li class="li">
-                                                <a class="tla-guide">Teaching and Learning Activities (Step 4)</a>
+                                                <a class="clo-guide">Course Learning Outcomes (Step 4)</a>
                                             </li>
                                             <li class="li">
-                                                <a class="courseAlignment-guide">Course Alignment (Step 5)</a>
+                                                <a class="sam-guide">Student Assessment Methods (Step 5)</a>
                                             </li>
                                             <li class="li">
-                                                <a class="programOutcomeMapping-guide">Program Outcome Mapping (Step 6)</a>
+                                                <a class="tla-guide">Teaching and Learning Activities (Step 6)</a>
                                             </li>
                                             <li class="li">
-                                                <a class="standards-guide">Standards and Strategic Priorities (Step 7)</a>
+                                                <a class="courseAlignment-guide">Course Alignment (Step 7)</a>
                                             </li>
                                             <li class="li">
-                                                <a class="coursesSummary-guide">Course Summary (Step 8)</a>
+                                                <a class="programOutcomeMapping-guide">Program Outcome Mapping (Step 8)</a>
+                                            </li>
+                                            <li class="li">
+                                                <a class="standards-guide">Standards and Strategic Priorities (Step 9)</a>
+                                            </li>
+                                            <li class="li">
+                                                <a class="coursesSummary-guide">Course Summary (Step 10)</a>
                                             </li>
                                         </ol>
                                     </li>
@@ -98,6 +104,11 @@
 
 <script>
     // functions that load in the user guides
+    function selectGuideSection(selector) {
+        $("#guideModal .selected-attribute").removeClass('selected-attribute');
+        $(selector).addClass('selected-attribute');
+    }
+
     function setProgram() {
         // remove attributes
         $("#guideModal .programs-guide").removeClass('selected-attribute');
@@ -116,7 +127,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attributes
-        $("#guideModal .programs-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .programs-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -158,7 +169,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .plo-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .plo-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -211,15 +222,15 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .ms-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .ms-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
         // Header
-        $("#guideModal .modal-title").text('Mapping Scale Guide');
+        $("#guideModal .modal-title").text('Mapping Scales Guide');
         // Body
         $("#guideModal .update-content").html(`
-            <h2 class="mb-4 head"><u>Mapping Scale (Step 2)</u></h2>
+            <h2 class="mb-4 head"><u>Mapping Scales (Step 2)</u></h2>
             <br>
             <h2 class="text-center mb-4">How to Add a Predefined Mapping Scale</h2>
             <p class="help-p my-3" style="font-size:18px;">The mapping scale is the scale that will be used to indicate the degree to which a program-level learning outcome is addressed by a course outcome, or the degree of alignment between the course outcome and program-level learning outcome.</p>
@@ -262,7 +273,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .programCourses-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .programCourses-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -317,7 +328,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .programOverview-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .programOverview-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -353,7 +364,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .courses-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .courses-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -373,7 +384,7 @@
             <p class="help-p my-3" style="font-size:18px;">Once you have created your course you can click on the name as shown in the picture below. This link will bring you to the next step in creating your course.</p>
             <img class="img center my-3" src="{{asset('/img/guide/CreatedCourseAnnotated.png')}}" onclick="onClick(this)">
             <br>
-            <button class="btn btn-primary float-end w-50" onclick="setCLO()" style="color: white;">Course Learning Outcomes (Step 1) <i class="bi bi-arrow-right me-2"></i></button>
+            <button class="btn btn-primary float-end w-50" onclick="setDescription()" style="color: white;">Course Description (Step 1) <i class="bi bi-arrow-right me-2"></i></button>
         `);
     }
 
@@ -394,7 +405,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .description-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .description-guide");
 
         $('.update-content').scrollTop(0);
 
@@ -402,9 +413,21 @@
         $("#guideModal .modal-title").text('Course Description Guide');
         // Body
         $("#guideModal .update-content").html(`
-            <h2 class="mb-4 head"><u>Course Description (Step 3)</u></h2>
+            <h2 class="mb-4 head"><u>Course Description (Step 1)</u></h2>
             <br>
-            <p class="help-p my-3 center" style="font-size:18px;">This page is under construction.</p>
+            <p class="help-p my-3" style="font-size:18px;">The course description summarizes the course content, objectives, and expectations so students can understand what the course covers.</p>
+            <br>
+            <h2 class="text-center mb-4">How to Add a Course Description</h2>
+            <p class="help-p my-3" style="font-size:18px;">Select <b>+ Course Description</b>, enter the description, and save your changes.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseDescriptionAnnotated.webp')}}" onclick="onClick(this)">
+            <br>
+            <p class="help-p my-3" style="font-size:18px;">Once it is saved, the description will appear on the course page. Select <b>Edit</b> if it needs to be updated.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseDescriptionSaved.webp')}}" onclick="onClick(this)">
+            <br>
+            <div class="row">
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCourses()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Courses</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCourseTopics()" style="color: white;">Course Topics (Step 2) <i class="bi bi-arrow-right me-2"></i></button></div>
+            </div>
         `);
     }
 
@@ -426,7 +449,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .clo-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .clo-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -434,7 +457,7 @@
         $("#guideModal .modal-title").text('Course Learning Outcomes Guide');
         // Body
         $("#guideModal .update-content").html(`
-            <h2 class="mb-4 head"><u>Course Learning Outcomes (Step 2)</u></h2>
+            <h2 class="mb-4 head"><u>Course Learning Outcomes (Step 4)</u></h2>
             <br>
             <p class="help-p my-3 center" style="font-size:18px;">Course Learning outcomes allow you to describe the outcomes that students can expect to take away from completing the course, further instructions can be found <a target=”_blank” href='https://ctl.ok.ubc.ca/teaching-effectively/course-design/'>here</a>.</p>
             <br>
@@ -448,8 +471,8 @@
             <p class="help-p my-3 center" style="font-size:18px;">It is recommended that a course has a maximum of 5-7 Course Learning Outcomes.</p>
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCourses()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Courses</button></div>
-                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setSAM()" style="color: white;">Student Assessment Methods (Step 2) <i class="bi bi-arrow-right me-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCourseMaterials()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Materials (Step 3)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setSAM()" style="color: white;">Student Assessment Methods (Step 5) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -472,7 +495,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .sam-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .sam-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -480,7 +503,7 @@
         $("#guideModal .modal-title").text('Student Assessment Methods Guide');
         // Body
         $("#guideModal .update-content").html(`
-            <h2 class="mb-4 head"><u>Student Assessment Methods Guide (Step 3)</u></h2>
+            <h2 class="mb-4 head"><u>Student Assessment Methods (Step 5)</u></h2>
             <br>
             <p class="help-p my-3 center" style="font-size:18px;">Student Assessment Methods provide a way to list the methods that students' understanding of course concepts and material will be evaluated and measured.</p>
             <br>
@@ -495,8 +518,8 @@
             <img class="img center my-3" src="{{asset('/img/guide/StudentAssessmentMethods.png')}}" onclick="onClick(this)">
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCLO()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Learning Outcomes (Step 1)</button></div>
-                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setTLA()" style="color: white;">Teaching and Learning Activities (Step 3) <i class="bi bi-arrow-right me-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCLO()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Learning Outcomes (Step 4)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setTLA()" style="color: white;">Teaching and Learning Activities (Step 6) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -519,7 +542,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .tla-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .tla-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -527,7 +550,7 @@
         $("#guideModal .modal-title").text('Teaching and Learning Activities Guide');
         // Body
         $("#guideModal .update-content").html(`
-            <h2 class="mb-4 head"><u>Teaching and Learning Activities (Step 4)</u></h2>
+            <h2 class="mb-4 head"><u>Teaching and Learning Activities (Step 6)</u></h2>
             <br>
             <p class="help-p my-3 center" style="font-size:18px;">Teaching and Learning Activities are used to describe the methods the course will be taught.</p>
             <br>
@@ -545,8 +568,8 @@
             <p class="help-p my-3 center" style="font-size:18px;">Not sure how to teach/embed career-related outcomes? Request a workshop from The Career Development Team for your classroom (<a href="https://students.ok.ubc.ca/career-experience/faculty-workshops/">click here</a>).</p>
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setSAM()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Student Assessment Methods (Step 2)</button></div>
-                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCourseAlignment()" style="color: white;">Course Alignment (Step 4) <i class="bi bi-arrow-right me-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setSAM()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Student Assessment Methods (Step 5)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCourseAlignment()" style="color: white;">Course Alignment (Step 7) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -569,7 +592,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .courseAlignment-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .courseAlignment-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -577,15 +600,15 @@
         $("#guideModal .modal-title").text('Course Alignment Guide');
         // Body
         $("#guideModal .update-content").html(`
-            <h2 class="mb-4 head"><u>Course Alignment (Step 5)</u></h2>
+            <h2 class="mb-4 head"><u>Course Alignment (Step 7)</u></h2>
             <br>
             <p class="help-p my-3 center" style="font-size:18px;">This step requires course instructors to align their Student Assessment Methods, and their Teaching and Learning Activities to their Course Learning Outcomes. An example of aligning a course is shown below.</p>
             <img class="img center my-3" src="{{asset('/img/guide/CourseAlignment.gif')}}" onclick="onClick(this)">
 
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setTLA()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Teaching and Learning Activities (Step 3)</button></div>
-                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setProgramOutcomeMapping()" style="color: white;">Program Outcome Mapping (Step 5) <i class="bi bi-arrow-right me-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setTLA()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Teaching and Learning Activities (Step 6)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setProgramOutcomeMapping()" style="color: white;">Program Outcome Mapping (Step 8) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -608,7 +631,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .programOutcomeMapping-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .programOutcomeMapping-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -616,7 +639,7 @@
         $("#guideModal .modal-title").text('Program Outcome Mapping Guide');
         // Body
         $("#guideModal .update-content").html(`
-            <h2 class="mb-4 head"><u>Program Outcome Mapping (Step 6)</u></h2>
+            <h2 class="mb-4 head"><u>Program Outcome Mapping (Step 8)</u></h2>
             <br>
             <p class="help-p my-3 center" style="font-size:18px;">This step requires that your course has been added to a program, otherwise you will not see any programs to map your course to. See the <a class="link" onclick="setProgram()">Program guide</a> if you would like to create a program.</p>
             <br>
@@ -638,8 +661,8 @@
 
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCourseAlignment()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Alignment (Step 4)</button></div>
-                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setStandards()" style="color: white;">Standards and Strategic Priorities (Step 6) <i class="bi bi-arrow-right me-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCourseAlignment()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Alignment (Step 7)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setStandards()" style="color: white;">Standards and Strategic Priorities (Step 9) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -662,7 +685,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .standards-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .standards-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -670,7 +693,7 @@
         $("#guideModal .modal-title").text('Standards and Strategic Priorities Guide');
         // Body
         $("#guideModal .update-content").html(`
-            <h2 class="mb-4 head"><u>Standards and Strategic Priorities (Step 7)</u></h2>
+            <h2 class="mb-4 head"><u>Standards and Strategic Priorities (Step 9)</u></h2>
             <br>
             <h2 class="text-center mb-4">How to Map your Course to Standards</h2>
             <p class="help-p my-3 center" style="font-size:18px;">The standards tab is selected by default when you open the page.</p>
@@ -700,8 +723,8 @@
 
             <br>
             <div class="row">
-                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setProgramOutcomeMapping()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Program Outcome Mapping (Step 5)</button></div>
-                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCoursesSummary()" style="color: white;">Course Summary (Step 7) <i class="bi bi-arrow-right me-2"></i></button></div>
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setProgramOutcomeMapping()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Program Outcome Mapping (Step 8)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCoursesSummary()" style="color: white;">Course Summary (Step 10) <i class="bi bi-arrow-right me-2"></i></button></div>
             </div>
         `);
     }
@@ -724,7 +747,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .coursesSummary-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .coursesSummary-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -732,13 +755,61 @@
         $("#guideModal .modal-title").text('Course Summary Guide');
         // Body
         $("#guideModal .update-content").html(`
-            <h2 class="mb-4 head"><u>Course Summary (Step 8)</u></h2>
+            <h2 class="mb-4 head"><u>Course Summary (Step 10)</u></h2>
             <br>
             <p class="help-p my-3" style="font-size:18px;">The course overview provides a comprehensive view of all of the information regarding the course, as well as detailed charts from the information provided in the previous steps. You must fill in the previous steps in order to see some of the fields for the course overview.</p>
             <p class="help-p my-3" style="font-size:18px;">The course overview can be downloaded as a PDF copy.</p>
             <img class="img center my-3" src="{{asset('/img/guide/CourseOverview.png')}}" onclick="onClick(this)">
             <br>
-            <button class="btn btn-primary float-start w-50" onclick="setStandards()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Standards and Strategic Priorities (Step 6)</button>
+            <button class="btn btn-primary float-start w-50" onclick="setStandards()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Standards and Strategic Priorities (Step 9)</button>
+        `);
+    }
+
+    function setCourseTopics() {
+        selectGuideSection("#guideModal .courseTopics-guide");
+        $('.update-content').scrollTop(0);
+
+        $("#guideModal .modal-title").text('Course Topics Guide');
+        $("#guideModal .update-content").html(`
+            <h2 class="mb-4 head"><u>Course Topics (Step 2)</u></h2>
+            <br>
+            <p class="help-p my-3" style="font-size:18px;">Course topics describe the main subjects covered in the course. These may come from the course schedule, weekly modules, lecture topics, units, or course calendar.</p>
+            <br>
+            <h2 class="text-center mb-4">How to Add Course Topics</h2>
+            <p class="help-p my-3" style="font-size:18px;">Select <b>+ Course Topics</b> to open the topic editor.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseTopicsAnnotated.webp')}}" onclick="onClick(this)">
+            <br>
+            <p class="help-p my-3" style="font-size:18px;">Enter one topic at a time and select <b>Add</b>. Repeat this for each topic, remove any topics that are no longer needed, and save your changes when finished.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseTopicsModal.webp')}}" onclick="onClick(this)">
+            <br>
+            <div class="row">
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setDescription()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Description (Step 1)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCourseMaterials()" style="color: white;">Course Materials (Step 3) <i class="bi bi-arrow-right me-2"></i></button></div>
+            </div>
+        `);
+    }
+
+    function setCourseMaterials() {
+        selectGuideSection("#guideModal .courseMaterials-guide");
+        $('.update-content').scrollTop(0);
+
+        $("#guideModal .modal-title").text('Course Materials Guide');
+        $("#guideModal .update-content").html(`
+            <h2 class="mb-4 head"><u>Course Materials (Step 3)</u></h2>
+            <br>
+            <p class="help-p my-3" style="font-size:18px;">Course materials may include textbooks, articles, slides, videos, websites, datasets, and other required or recommended resources.</p>
+            <br>
+            <h2 class="text-center mb-4">How to Add Course Materials</h2>
+            <p class="help-p my-3" style="font-size:18px;">Select <b>Edit Course Materials</b>. Enter the material name, type, description, and URL, and mark it as required when applicable. Select <b>Add</b>, then save your changes when finished.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseMaterialsModal.webp')}}" onclick="onClick(this)">
+            <br>
+            <p class="help-p my-3" style="font-size:18px;">Saved materials appear on the course page. Expand a material's files and select <b>+ Add File</b> to upload an associated PDF. The file section shows its processing status, page count, and available actions.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/CourseMaterialsAnnotated.webp')}}" onclick="onClick(this)">
+            <br>
+            <div class="row">
+                <div class="col"><button class="btn btn-primary float-start w-100" onclick="setCourseTopics()" style="color: white;"><i class="bi bi-arrow-left me-2"></i> Course Topics (Step 2)</button></div>
+                <div class="col"><button class="btn btn-primary float-end w-100" onclick="setCLO()" style="color: white;">Course Learning Outcomes (Step 4) <i class="bi bi-arrow-right me-2"></i></button></div>
+            </div>
         `);
     }
 
@@ -760,7 +831,7 @@
         $("#guideModal .syllabi-guide").removeClass('selected-attribute');
         $("#guideModal .description-guide").removeClass('selected-attribute');
         // add attribute
-        $("#guideModal .syllabi-guide").addClass('selected-attribute');
+        selectGuideSection("#guideModal .syllabi-guide");
         // Reset Scroll to top
         $('.update-content').scrollTop(0);
 
@@ -770,7 +841,10 @@
         $("#guideModal .update-content").html(`
             <h2 class="mb-4 head"><u>Syllabi</u></h2>
             <br>
-            <p class="help-p my-3 center" style="font-size:18px;">This page is under construction.</p>
+            <p class="help-p my-3" style="font-size:18px;">The Syllabus Generator provides fields for the course details, schedule, learning activities, assessments, policies, and other information needed to prepare a syllabus. Complete the fields throughout the page, paying attention to items marked as required by policy.</p>
+            <img class="img center my-3" src="{{asset('/img/guide/SyllabusGeneratorAnnotated.webp')}}" onclick="onClick(this)">
+            <br>
+            <p class="help-p my-3" style="font-size:18px;"><b>Save</b> stores the current syllabus, <b>Word</b> saves and downloads it as a Word document, and <b>Import</b> lets you select an existing course and copy relevant course information into the generator.</p>
         `);
     }
 
@@ -791,26 +865,19 @@
     $('.programOutcomeMapping-guide').on('click', setProgramOutcomeMapping);
     $('.standards-guide').on('click', setStandards);
     $('.coursesSummary-guide').on('click', setCoursesSummary);
+    $('.courseTopics-guide').on('click', setCourseTopics);
+    $('.courseMaterials-guide').on('click', setCourseMaterials);
     // Syllabi
     $('.syllabi-guide').on('click', setSyllabi);
 
     // Calls from Dashboard
-    $('#programHelp').on('click', setProgram);
-    $('#coursesHelp').on('click', setCourses);
+    $('#programHelp').on('click', setPLO);
+    $('#coursesHelp').on('click', setDescription);
     $('#syllabiHelp').on('click', setSyllabi);
     // Calls from program wizard
-    $('#ploHelp').on('click', setPLO);
-    $('#msHelp').on('click', setMS);
-    $('#programCoursesHelp').on('click', setProgramCourses);
-    $('#programOverviewHelp').on('click', setProgramOverview);
+    $('#ploHelp, #msHelp, #programCoursesHelp, #programOverviewHelp').on('click', setPLO);
     // Calls from course wizard
-    $('#cloHelp').on('click', setCLO);
-    $('#samHelp').on('click', setSAM);
-    $('#tlaHelp').on('click', setTLA);
-    $('#courseAlignmentHelp').on('click', setCourseAlignment);
-    $('#programOutcomeMappingHelp').on('click', setProgramOutcomeMapping);
-    $('#standardsHelp').on('click', setStandards);
-    $('#courseOverviewHelp').on('click', setCoursesSummary);
+    $('#cloHelp, #samHelp, #tlaHelp, #courseAlignmentHelp, #programOutcomeMappingHelp, #standardsHelp, #courseOverviewHelp, #descriptionHelp, #courseTopicsHelp, #courseMaterialsHelp').on('click', setDescription);
 
     function onClick(element) {
         document.getElementById("img01").src = element.src;
