@@ -5,6 +5,8 @@ services:
     build:
       context: laravel/
     env_file: laravel/.env.docker
+    environment:
+      LO_MAPPING_SERVICE_URL: http://lo-mapper
     ports:
       - 9000:80
     volumes:

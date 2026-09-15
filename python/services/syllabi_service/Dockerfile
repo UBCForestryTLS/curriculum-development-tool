@@ -1,6 +1,6 @@
 FROM python:3.13.14-trixie
 
-WORKDIR /usr/src/app
+WORKDIR /usr/src
 
 COPY requirements.txt ./
 

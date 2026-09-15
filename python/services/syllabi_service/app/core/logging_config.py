@@ -7,7 +7,7 @@ from pythonjsonlogger.json import JsonFormatter
 logger = logging.getLogger(__name__)
 
 current_file = Path(__file__).resolve()
-base_dir = current_file.parents[3]
+base_dir = current_file.parents[2]
 logs_dir = base_dir / "logs"
 logs_dir.mkdir(parents=True, exist_ok=True)
 

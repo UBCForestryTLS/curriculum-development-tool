@@ -482,14 +482,31 @@ def get_or_create_sagemaker_execution_role(
             "Version": "2012-10-17",
             "Statement": [
                 {
+                    "Effect": "Allow",
                     "Action": [
                         "s3:ListBucket",
                         "s3:GetObject",
                         "s3:PutObject",
                         "s3:DeleteObject"
                     ],
-                    "Effect": "Allow",
                     "Resource": s3_bucket_arn
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                            "logs:CreateLogDelivery",
+                            "logs:CreateLogGroup",
+                            "logs:CreateLogStream",
+                            "logs:DeleteLogDelivery",
+                            "logs:Describe*",
+                            "logs:GetLogEvents",
+                            "logs:GetLogDelivery",
+                            "logs:ListLogDeliveries",
+                            "logs:PutLogEvents",
+                            "logs:PutResourcePolicy",
+                            "logs:UpdateLogDelivery"
+                    ],
+                    "Resource": "*"
                 }
             ]
         })
