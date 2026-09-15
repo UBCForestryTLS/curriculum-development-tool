@@ -23,44 +23,40 @@
 
     <section id="gap-coverage-expectations" aria-labelledby="gap-coverage-expectations-heading">
         <h5 id="gap-coverage-expectations-heading" tabindex="-1">Set expectations</h5>
-        <p>Set optional count ranges for each PLO's overall coverage. The same expectations apply to every PLO, across all mapping levels.</p>
-        <p id="gap-coverage-bounds-help">Leave a bound blank if you have no expectation for it. Zero is a valid count. Narrower ranges identify more counts outside your expectations.</p>
+        <p>Set optional minimum coverage percentages at each mapping level. The same expectations apply to every PLO.</p>
+        <p id="gap-coverage-percentage-help">Leave a percentage blank if you have no expectation for that level. A target of 0% means no minimum coverage is required.</p>
+        <p class="small text-muted">Each slider is independent: percentages can total more than 100% because a course or CLO can contribute at several levels. N/A is counted separately.</p>
+        <p id="gap-coverage-no-levels" class="alert alert-info d-none">No non-N/A mapping levels are configured. You can still view statistics without setting expectations.</p>
         <form id="gap-coverage-expectations-form" novalidate>
             <fieldset id="gap-coverage-expectations-fields" disabled>
                 <legend class="fs-6">Choose your expectations</legend>
-                <div class="mb-3">
-                    <label for="gap-coverage-mode" class="form-label">Which potential concerns do you want to review?</label>
-                    <select id="gap-coverage-mode" class="form-select w-auto mw-100" aria-describedby="gap-coverage-mode-error">
-                        <option value="both">Potential gaps and redundancies</option>
-                        <option value="gaps">Potential gaps only</option>
-                        <option value="redundancies">Potential redundancies only</option>
-                    </select>
-                    <div id="gap-coverage-mode-error" class="invalid-feedback"></div>
-                </div>
+                <fieldset class="mb-3">
+                    <legend class="fs-6">Which potential concerns do you want to review?</legend>
+                    <div class="form-check">
+                        <input id="gap-coverage-review-gaps" type="checkbox" class="form-check-input" checked>
+                        <label for="gap-coverage-review-gaps" class="form-check-label">Potential gaps</label>
+                    </div>
+                    <p class="small text-muted mt-2 mb-0">Redundancy review is planned for a later update.</p>
+                </fieldset>
 
                 @php
                     $coverageMetrics = [
-                        'mapped_clo_count' => ['Mapped CLOs', 'Distinct CLOs mapped to a PLO at any configured non-N/A level.'],
-                        'covering_course_count' => ['Covering courses', 'Distinct courses with at least one CLO mapped to a PLO.'],
-                        'required_course_count' => ['Required covering courses', 'Distinct required courses with at least one CLO mapped to a PLO.'],
-                        'non_required_course_count' => ['Non-required covering courses', 'Distinct non-required courses with at least one CLO mapped to a PLO.'],
+                        'mapped_clo_count' => ['Mapped CLOs', 'Distinct CLOs mapped to each PLO at a level, as a percentage of all CLOs in program courses.'],
+                        'covering_course_count' => ['Covering courses', 'Distinct courses covering each PLO at a level, as a percentage of all program courses.'],
+                        'required_course_count' => ['Required covering courses', 'Distinct required courses covering each PLO at a level, as a percentage of all program courses.'],
+                        'non_required_course_count' => ['Non-required covering courses', 'Distinct non-required courses covering each PLO at a level, as a percentage of all program courses.'],
                     ];
                 @endphp
                 @foreach ($coverageMetrics as $key => [$label, $description])
                     <div class="border rounded p-3 mb-3" data-coverage-metric="{{ $key }}" data-metric-label="{{ $label }}">
                         <div class="form-check">
-                            <input id="gap-coverage-{{ $key }}-enabled" type="checkbox" class="form-check-input" aria-controls="gap-coverage-{{ $key }}-bounds" aria-describedby="gap-coverage-{{ $key }}-description">
+                            <input id="gap-coverage-{{ $key }}-enabled" type="checkbox" class="form-check-input" aria-controls="gap-coverage-{{ $key }}-options" aria-expanded="false" aria-describedby="gap-coverage-{{ $key }}-description gap-coverage-{{ $key }}-enabled-error">
                             <label for="gap-coverage-{{ $key }}-enabled" class="form-check-label fw-bold">{{ $label }}</label>
+                            <div id="gap-coverage-{{ $key }}-enabled-error" class="invalid-feedback"></div>
                         </div>
                         <p id="gap-coverage-{{ $key }}-description" class="small text-muted mb-0">{{ $description }}</p>
-                        <div id="gap-coverage-{{ $key }}-bounds" class="row g-3 mt-1 d-none">
-                            @foreach (['min' => 'Minimum (potential gap)', 'max' => 'Maximum (potential redundancy)'] as $bound => $boundLabel)
-                                <div class="col-sm-6">
-                                    <label for="gap-coverage-{{ $key }}-{{ $bound }}" class="form-label">{{ $boundLabel }}</label>
-                                    <input id="gap-coverage-{{ $key }}-{{ $bound }}" type="text" inputmode="numeric" class="form-control" aria-describedby="gap-coverage-bounds-help gap-coverage-{{ $key }}-{{ $bound }}-error" disabled>
-                                    <div id="gap-coverage-{{ $key }}-{{ $bound }}-error" class="invalid-feedback"></div>
-                                </div>
-                            @endforeach
+                        <div id="gap-coverage-{{ $key }}-options" class="mt-3 d-none">
+                            <div id="gap-coverage-{{ $key }}-levels" class="row g-3"></div>
                         </div>
                     </div>
                 @endforeach
@@ -108,6 +104,17 @@
     </section>
 </div>
 
+<template id="gap-coverage-level-template">
+    <fieldset class="col-sm-6 col-lg-4">
+        <legend class="float-none fs-6 fw-bold"></legend>
+        <label data-slider-label class="form-label">Minimum coverage</label>
+        <input type="range" min="0" max="100" step="1" value="0" class="form-range" data-percentage-slider disabled>
+        <label data-percentage-label class="form-label small">Minimum (%)</label>
+        <input type="text" inputmode="numeric" class="form-control" placeholder="Not set" data-percentage disabled>
+        <div class="invalid-feedback"></div>
+    </fieldset>
+</template>
+
 <script type="module">
     import { normalizeExpectations } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/coverage-expectations.js'));
 
@@ -115,8 +122,58 @@
         let gapCoverageData = null;
         let gapCoverageLoading = false;
         let appliedExpectations = null;
+        let mappingScaleLevels = [];
         const expectationsForm = document.getElementById('gap-coverage-expectations-form');
         const metricSections = [...expectationsForm.querySelectorAll('[data-coverage-metric]')];
+        const reviewGaps = document.getElementById('gap-coverage-review-gaps');
+
+        function initializeLevelInputs() {
+            const template = document.getElementById('gap-coverage-level-template');
+            metricSections.forEach(function (section) {
+                const key = section.dataset.coverageMetric;
+                const container = document.getElementById(`gap-coverage-${key}-levels`);
+                mappingScaleLevels.forEach(function (level) {
+                    const fields = template.content.firstElementChild.cloneNode(true);
+                    fields.dataset.levelId = level.map_scale_id;
+                    fields.querySelector('legend').textContent = level.title + (level.abbreviation ? ` (${level.abbreviation})` : '');
+                    const input = fields.querySelector('[data-percentage]');
+                    const slider = fields.querySelector('[data-percentage-slider]');
+                    input.id = `gap-coverage-${key}-levels-${level.map_scale_id}`;
+                    slider.id = `${input.id}-slider`;
+                    fields.querySelector('[data-percentage-label]').htmlFor = input.id;
+                    fields.querySelector('[data-slider-label]').htmlFor = slider.id;
+                    input.nextElementSibling.id = `${input.id}-error`;
+                    [input, slider].forEach(function (control) {
+                        control.setAttribute('aria-describedby', `gap-coverage-${key}-description gap-coverage-percentage-help ${input.id}-error`);
+                    });
+                    input.setAttribute('aria-label', `${section.dataset.metricLabel}, ${level.title}: minimum percentage`);
+                    slider.setAttribute('aria-label', `${section.dataset.metricLabel}, ${level.title}: minimum coverage`);
+                    slider.addEventListener('input', function () {
+                        input.value = slider.value;
+                        syncPercentageSlider(fields);
+                    });
+                    input.addEventListener('input', function () { syncPercentageSlider(fields); });
+                    container.appendChild(fields);
+                });
+            });
+            document.getElementById('gap-coverage-no-levels').classList.toggle('d-none', mappingScaleLevels.length > 0);
+            updateExpectationInputs();
+        }
+
+        function syncPercentageSlider(fields) {
+            const input = fields.querySelector('[data-percentage]');
+            const slider = fields.querySelector('[data-percentage-slider]');
+            const value = input.value.trim();
+            if (value === '') {
+                slider.value = '0';
+                slider.setAttribute('aria-valuetext', 'Not set');
+            } else if (/^\d+$/.test(value) && Number(value) <= 100) {
+                slider.value = value;
+                slider.setAttribute('aria-valuetext', `${Number(value)}% minimum`);
+            } else {
+                slider.setAttribute('aria-valuetext', 'Enter a whole percentage from 0 to 100');
+            }
+        }
 
         function clearExpectationErrors() {
             expectationsForm.querySelectorAll('.is-invalid').forEach(function (input) {
@@ -130,35 +187,40 @@
 
         function updateExpectationInputs() {
             clearExpectationErrors();
-            const mode = document.getElementById('gap-coverage-mode').value;
             metricSections.forEach(function (section) {
                 const key = section.dataset.coverageMetric;
-                const enabled = document.getElementById(`gap-coverage-${key}-enabled`).checked;
-                document.getElementById(`gap-coverage-${key}-bounds`).classList.toggle('d-none', !enabled);
-                document.getElementById(`gap-coverage-${key}-min`).disabled = !enabled || mode === 'redundancies';
-                document.getElementById(`gap-coverage-${key}-max`).disabled = !enabled || mode === 'gaps';
+                const checkbox = document.getElementById(`gap-coverage-${key}-enabled`);
+                checkbox.disabled = !reviewGaps.checked || mappingScaleLevels.length === 0;
+                const enabled = checkbox.checked && !checkbox.disabled;
+                checkbox.setAttribute('aria-expanded', String(enabled));
+                document.getElementById(`gap-coverage-${key}-options`).classList.toggle('d-none', !enabled);
+                section.querySelectorAll('[data-percentage], [data-percentage-slider]').forEach(function (input) {
+                    input.disabled = !enabled;
+                });
+                section.querySelectorAll('[data-level-id]').forEach(syncPercentageSlider);
             });
         }
 
-        $('#gap-coverage-mode, [data-coverage-metric] input[type="checkbox"]').on('change', updateExpectationInputs);
+        $('#gap-coverage-review-gaps, [data-coverage-metric] input[type="checkbox"]').on('change', updateExpectationInputs);
         expectationsForm.addEventListener('submit', function (event) {
             event.preventDefault();
             if (gapCoverageData === null || gapCoverageData.coverage.length === 0) return;
 
             clearExpectationErrors();
-            const draft = { mode: document.getElementById('gap-coverage-mode').value, metrics: {} };
+            const draft = { reviewGaps: reviewGaps.checked, metrics: {} };
             metricSections.forEach(function (section) {
                 const key = section.dataset.coverageMetric;
                 draft.metrics[key] = {
                     enabled: document.getElementById(`gap-coverage-${key}-enabled`).checked,
-                    min: document.getElementById(`gap-coverage-${key}-min`).value,
-                    max: document.getElementById(`gap-coverage-${key}-max`).value,
+                    levels: Object.fromEntries([...section.querySelectorAll('[data-level-id]')].map(function (fields) {
+                        return [fields.dataset.levelId, fields.querySelector('[data-percentage]').value];
+                    })),
                 };
             });
-            const { settings, errors } = normalizeExpectations(draft);
+            const { settings, errors } = normalizeExpectations(draft, mappingScaleLevels);
             if (Object.keys(errors).length) {
                 Object.entries(errors).forEach(function ([key, message]) {
-                    const id = `gap-coverage-${key.replace('.', '-')}`;
+                    const id = `gap-coverage-${key.replaceAll('.', '-')}`;
                     const input = document.getElementById(id);
                     input.classList.add('is-invalid');
                     input.setAttribute('aria-invalid', 'true');
@@ -184,25 +246,26 @@
             }
 
             const heading = document.createElement('h6');
-            heading.textContent = 'Your expectations — overall counts for each PLO';
-            const mode = document.createElement('p');
-            const modeLabels = { gaps: 'Potential gaps', redundancies: 'Potential redundancies', both: 'Potential gaps and redundancies' };
-            mode.textContent = `Selected concerns: ${modeLabels[appliedExpectations.mode]}.`;
+            heading.textContent = 'Your expectations — minimum percentages for each PLO';
+            const concern = document.createElement('p');
+            concern.textContent = 'Selected concerns: Potential gaps.';
             const list = document.createElement('ul');
             metricSections.forEach(function (section) {
-                const bounds = appliedExpectations.metrics[section.dataset.coverageMetric];
-                if (!bounds) return;
-                const item = document.createElement('li');
-                const range = [];
-                if (bounds.min !== null) range.push(`minimum ${bounds.min}`);
-                if (bounds.max !== null) range.push(`maximum ${bounds.max}`);
-                item.textContent = `${section.dataset.metricLabel}: ${range.join(', ')}.`;
-                list.appendChild(item);
+                const metric = appliedExpectations.metrics[section.dataset.coverageMetric];
+                if (!metric) return;
+                mappingScaleLevels.forEach(function (level) {
+                    const percentage = metric.levels[level.map_scale_id];
+                    if (percentage === undefined) return;
+                    const label = level.title + (level.abbreviation ? ` (${level.abbreviation})` : '');
+                    const item = document.createElement('li');
+                    item.textContent = `${section.dataset.metricLabel}: minimum ${percentage}% (${label}).`;
+                    list.appendChild(item);
+                });
             });
             const note = document.createElement('p');
             note.classList.add('small', 'text-muted');
             note.textContent = 'Expectations are shown for reference. Coverage statistics are not highlighted.';
-            summary.append(heading, mode, list, note);
+            summary.append(heading, concern, list, note);
         }
 
         $('#nav-gap-coverage-tab').on('shown.bs.tab', loadGapCoverage);
@@ -251,6 +314,9 @@
                 success: function (data) {
                     renderGapCoverage(data);
                     gapCoverageData = data;
+                    mappingScaleLevels = (data.coverage[0]?.mapping_scale_histogram ?? [])
+                        .filter(level => Number(level.map_scale_id) !== 0);
+                    initializeLevelInputs();
                     $('#gap-coverage-expectations-fields').prop('disabled', data.coverage.length === 0);
                 },
                 error: function () {
