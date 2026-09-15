@@ -18,19 +18,25 @@
     </div>
 
     <div id="gap-coverage-empty" class="alert alert-warning d-none" role="alert">
-        There are no program learning outcomes to analyze.
+        There are no program learning outcomes to analyze. Add program learning outcomes before setting expectations or viewing this report.
+    </div>
+
+    <div id="gap-coverage-incomplete" class="alert alert-warning d-none" role="alert">
+        Some course learning outcomes have not been fully mapped to this program. Coverage results may be incomplete.
+        Missing mapping decisions are different from explicit N/A mappings.
+        <a href="{{ route('programWizard.step3', $program->program_id) }}">Review course mappings</a>.
     </div>
 
     <section id="gap-coverage-expectations" aria-labelledby="gap-coverage-expectations-heading">
         <h5 id="gap-coverage-expectations-heading" tabindex="-1">Set expectations</h5>
         <p>Set optional coverage percentage ranges at each mapping level. The same expectations apply to every PLO.</p>
-        <p id="gap-coverage-percentage-help">Below your minimum indicates a potential gap; above your maximum indicates a potential redundancy. Leave either bound blank for no expectation. Minimum 0% sets no lower requirement; maximum 0% means no coverage is expected.</p>
-        <p class="small text-muted">Each slider is independent: percentages can total more than 100% because a course or CLO can contribute at several levels. N/A is counted separately.</p>
+        <p id="gap-coverage-percentage-help">Below your minimum indicates a potential gap; above your maximum indicates a potential redundancy. Values on either boundary are within your range. Leave either bound blank for no expectation. Minimum 0% sets no lower requirement; maximum 0% means no coverage is expected.</p>
+        <p class="small text-muted">Each mapping level has an independent range. Percentages across levels can total more than 100% because a course or CLO can contribute at several levels. N/A mappings do not contribute to coverage and are counted separately.</p>
         <p id="gap-coverage-no-levels" class="alert alert-info d-none">No non-N/A mapping levels are configured. You can still view statistics without setting expectations.</p>
         <form id="gap-coverage-expectations-form" novalidate>
             <fieldset id="gap-coverage-expectations-fields" disabled>
                 <legend class="fs-6">Choose your expectations</legend>
-                <fieldset class="mb-3">
+                <fieldset class="mb-3" aria-describedby="gap-coverage-concerns-help">
                     <legend class="fs-6">Which potential concerns do you want to review?</legend>
                     <div class="form-check">
                         <input id="gap-coverage-review-gaps" type="checkbox" class="form-check-input" checked>
@@ -40,6 +46,7 @@
                         <input id="gap-coverage-review-redundancies" type="checkbox" class="form-check-input">
                         <label for="gap-coverage-review-redundancies" class="form-check-label">Potential redundancies</label>
                     </div>
+                    <p id="gap-coverage-concerns-help" class="form-text mb-0">Choose either or both: gaps use minimums, redundancies use maximums. Unselected bounds are ignored and kept for editing. With neither selected, you can view statistics only.</p>
                 </fieldset>
 
                 @php
@@ -65,6 +72,7 @@
                 @endforeach
 
                 <p class="small text-muted">These settings last while this page is open. You can also view all statistics without expectations.</p>
+                <p class="small text-muted">Your selected ranges will appear alongside the statistics. Highlighting based on these selections is not available yet.</p>
                 <div class="d-flex flex-wrap gap-2">
                     <button type="submit" class="btn btn-primary">View report</button>
                     <button id="gap-coverage-view-report" type="button" class="btn btn-outline-primary">View statistics only</button>
@@ -80,11 +88,6 @@
         </div>
         <div id="gap-coverage-expectations-summary" class="mb-3">
             <p>Showing statistics only. No coverage expectations have been applied.</p>
-        </div>
-
-        <div id="gap-coverage-incomplete" class="alert alert-warning d-none" role="alert">
-            Some course learning outcomes have not been fully mapped to this program. Coverage results may be incomplete.
-            <a href="{{ route('programWizard.step3', $program->program_id) }}">Review course mappings</a>.
         </div>
 
         <div id="gap-coverage-results" class="table-responsive position-relative d-none">
@@ -206,7 +209,7 @@
                     container.appendChild(fields);
                 });
             });
-            document.getElementById('gap-coverage-no-levels').classList.toggle('d-none', mappingScaleLevels.length > 0);
+            document.getElementById('gap-coverage-no-levels').classList.toggle('d-none', mappingScaleLevels.length > 0 || gapCoverageData.coverage.length === 0);
             updateExpectationInputs();
         }
 
@@ -248,6 +251,9 @@
         }
 
         function updateExpectationInputs() {
+            Object.values(concernInputs).forEach(function (input) {
+                input.disabled = mappingScaleLevels.length === 0;
+            });
             metricSections.forEach(function (section) {
                 const key = section.dataset.coverageMetric;
                 const checkbox = document.getElementById(`gap-coverage-${key}-enabled`);
@@ -418,7 +424,7 @@
 
             $('#gap-coverage-incomplete').toggleClass(
                 'd-none',
-                !data.mapping_completeness.has_incomplete_mappings
+                data.coverage.length === 0 || !data.mapping_completeness.has_incomplete_mappings
             );
 
             if (data.coverage.length === 0) {
