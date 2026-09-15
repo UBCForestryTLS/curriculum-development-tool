@@ -120,6 +120,7 @@
                     <label class="form-label small">{{ $label }} (%)</label>
                     <input type="text" inputmode="numeric" class="form-control" placeholder="Not set" data-bound="{{ $bound }}" disabled>
                     <div class="invalid-feedback"></div>
+                    <div class="form-text" data-bound-status></div>
                 </div>
             @endforeach
         </div>
@@ -128,12 +129,12 @@
 
 <style>
     /* Two native range inputs share a track; only their handles receive pointer events. */
-    .coverage-range { position: relative; height: 1.5rem; }
+    .coverage-range { position: relative; height: 2.5rem; touch-action: none; }
     .coverage-range::before {
-        content: ''; position: absolute; inset: .5rem 0;
+        content: ''; position: absolute; inset: 1rem 0;
         background: var(--bs-secondary-bg, #e9ecef); border-radius: 1rem;
     }
-    .coverage-range .form-range { position: absolute; inset: 0; pointer-events: none; }
+    .coverage-range .form-range { position: absolute; top: .5rem; left: 0; pointer-events: none; }
     .coverage-range .form-range:focus { z-index: 1; }
     .coverage-range .form-range::-webkit-slider-runnable-track { background: transparent; }
     .coverage-range .form-range::-moz-range-track { background: transparent; }
@@ -141,6 +142,11 @@
     .coverage-range .form-range::-moz-range-thumb { pointer-events: auto; }
     .coverage-range .form-range:disabled::-webkit-slider-thumb { pointer-events: none; }
     .coverage-range .form-range:disabled::-moz-range-thumb { pointer-events: none; }
+    /* Separate nearby handles vertically so both can be dragged, even at 0 or 100. */
+    .coverage-range[data-overlap] [data-slider="min"]::-webkit-slider-thumb { transform: translateY(-.5rem); }
+    .coverage-range[data-overlap] [data-slider="max"]::-webkit-slider-thumb { transform: translateY(.5rem); }
+    .coverage-range[data-overlap] [data-slider="min"]::-moz-range-thumb { transform: translateY(-.5rem); }
+    .coverage-range[data-overlap] [data-slider="max"]::-moz-range-thumb { transform: translateY(.5rem); }
 </style>
 
 <script type="module">
@@ -151,6 +157,7 @@
         let gapCoverageLoading = false;
         let appliedExpectations = null;
         let mappingScaleLevels = [];
+        let validationStarted = false;
         const expectationsForm = document.getElementById('gap-coverage-expectations-form');
         const metricSections = [...expectationsForm.querySelectorAll('[data-coverage-metric]')];
         const concernInputs = {
@@ -189,8 +196,12 @@
                             }
                             input.value = slider.value;
                             syncRangeInputs(fields);
+                            if (validationStarted) validateExpectations();
                         });
-                        input.addEventListener('input', function () { syncRangeInputs(fields); });
+                        input.addEventListener('input', function () {
+                            syncRangeInputs(fields);
+                            if (validationStarted) validateExpectations();
+                        });
                     });
                     container.appendChild(fields);
                 });
@@ -203,6 +214,7 @@
             fields.querySelectorAll('[data-bound]').forEach(function (input) {
                 const slider = fields.querySelector(`[data-slider="${input.dataset.bound}"]`);
                 const value = input.value.trim();
+                input.parentElement.querySelector('[data-bound-status]').textContent = input.disabled ? 'Not selected' : value === '' ? 'No bound set' : '';
                 if (value === '') {
                     slider.value = input.dataset.bound === 'min' ? '0' : '100';
                     slider.setAttribute('aria-valuetext', 'Not set');
@@ -213,10 +225,20 @@
                     slider.setAttribute('aria-valuetext', 'Enter a whole percentage from 0 to 100');
                 }
             });
+            const min = fields.querySelector('[data-slider="min"]');
+            const max = fields.querySelector('[data-slider="max"]');
+            const track = fields.querySelector('.coverage-range');
+            if (track.clientWidth === 0) return;
+            const distance = Math.abs(Number(max.value) - Number(min.value)) / 100 * Math.max(0, track.clientWidth - 16);
+            track.toggleAttribute('data-overlap', !min.disabled && !max.disabled && distance < 20);
         }
 
+        window.addEventListener('resize', function () {
+            expectationsForm.querySelectorAll('[data-level-id]').forEach(syncRangeInputs);
+        });
+
         function clearExpectationErrors() {
-            expectationsForm.querySelectorAll('.is-invalid').forEach(function (input) {
+            expectationsForm.querySelectorAll('.is-invalid, [aria-invalid]').forEach(function (input) {
                 input.classList.remove('is-invalid');
                 input.removeAttribute('aria-invalid');
             });
@@ -226,7 +248,6 @@
         }
 
         function updateExpectationInputs() {
-            clearExpectationErrors();
             metricSections.forEach(function (section) {
                 const key = section.dataset.coverageMetric;
                 const checkbox = document.getElementById(`gap-coverage-${key}-enabled`);
@@ -239,13 +260,12 @@
                 });
                 section.querySelectorAll('[data-level-id]').forEach(syncRangeInputs);
             });
+            if (validationStarted) validateExpectations();
+            else clearExpectationErrors();
         }
 
         $('#gap-coverage-review-gaps, #gap-coverage-review-redundancies, [data-coverage-metric] input[type="checkbox"]').on('change', updateExpectationInputs);
-        expectationsForm.addEventListener('submit', function (event) {
-            event.preventDefault();
-            if (gapCoverageData === null || gapCoverageData.coverage.length === 0) return;
-
+        function validateExpectations() {
             clearExpectationErrors();
             const draft = { concerns: { gaps: concernInputs.min.checked, redundancies: concernInputs.max.checked }, metrics: {} };
             metricSections.forEach(function (section) {
@@ -261,14 +281,23 @@
                 };
             });
             const { settings, errors } = normalizeExpectations(draft, mappingScaleLevels);
-            if (Object.keys(errors).length) {
-                Object.entries(errors).forEach(function ([key, message]) {
-                    const id = `gap-coverage-${key.replaceAll('.', '-')}`;
-                    const input = document.getElementById(id);
-                    input.classList.add('is-invalid');
-                    input.setAttribute('aria-invalid', 'true');
-                    document.getElementById(`${id}-error`).textContent = message;
-                });
+            Object.entries(errors).forEach(function ([key, message]) {
+                const id = `gap-coverage-${key.replaceAll('.', '-')}`;
+                const input = document.getElementById(id);
+                input.classList.add('is-invalid');
+                input.setAttribute('aria-invalid', 'true');
+                document.getElementById(`${id}-slider`)?.setAttribute('aria-invalid', 'true');
+                document.getElementById(`${id}-error`).textContent = message;
+            });
+            return settings;
+        }
+
+        expectationsForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            if (gapCoverageData === null || gapCoverageData.coverage.length === 0) return;
+            validationStarted = true;
+            const settings = validateExpectations();
+            if (!settings) {
                 expectationsForm.querySelector('.is-invalid').focus();
                 return;
             }
@@ -317,11 +346,15 @@
             summary.append(heading, concern, list, note);
         }
 
-        $('#nav-gap-coverage-tab').on('shown.bs.tab', loadGapCoverage);
+        $('#nav-gap-coverage-tab').on('shown.bs.tab', function () {
+            loadGapCoverage();
+            expectationsForm.querySelectorAll('[data-level-id]').forEach(syncRangeInputs);
+        });
         $('#gap-coverage-retry').on('click', loadGapCoverage);
         $('#gap-coverage-view-report').on('click', function () {
             if (gapCoverageData !== null && gapCoverageData.coverage.length > 0) {
                 expectationsForm.reset();
+                validationStarted = false;
                 updateExpectationInputs();
                 appliedExpectations = null;
                 renderExpectationsSummary();
@@ -336,6 +369,7 @@
         function showReportStep(showReport) {
             $('#gap-coverage-expectations').toggleClass('d-none', showReport);
             $('#gap-coverage-report').toggleClass('d-none', !showReport);
+            if (!showReport) expectationsForm.querySelectorAll('[data-level-id]').forEach(syncRangeInputs);
             $('#gap-coverage-expectations-step').toggleClass('fw-bold', !showReport)
                 .attr('aria-current', showReport ? null : 'step');
             $('#gap-coverage-report-step').toggleClass('fw-bold', showReport)

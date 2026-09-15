@@ -98,3 +98,34 @@ test('accepts custom levels and statistics only, but rejects N/A or unavailable 
         assert.deepEqual(Object.keys(result.errors), ['non_required_course_count.enabled']);
     }
 });
+
+test('inactive numeric bounds do not create inverted-range errors', () => {
+    for (const concerns of [{ gaps: true, redundancies: false }, { gaps: false, redundancies: true }]) {
+        const draft = { concerns, metrics: {
+            covering_course_count: { enabled: true, levels: { 90: { min: '100', max: '0' } } },
+        } };
+        const before = structuredClone(draft);
+        assert.deepEqual(normalizeExpectations(draft, configuredLevels), {
+            errors: {}, settings: { concerns, metrics: { covering_course_count: { levels: {
+                90: { min: concerns.gaps ? 100 : null, max: concerns.redundancies ? 0 : null },
+            } } } },
+        });
+        assert.deepEqual(draft, before);
+    }
+});
+
+test('reports all active field errors and omits corrected or disabled checks', () => {
+    const draft = { concerns: both, metrics: {
+        mapped_clo_count: { enabled: true, levels: { 90: { min: '-1', max: '101' } } },
+        covering_course_count: { enabled: true, levels: { 3: { min: '90', max: '80' } } },
+    } };
+    assert.deepEqual(Object.keys(normalizeExpectations(draft, configuredLevels).errors), [
+        'mapped_clo_count.levels.90.min', 'mapped_clo_count.levels.90.max', 'covering_course_count.levels.3.max',
+    ]);
+    draft.metrics.mapped_clo_count.enabled = false;
+    assert.deepEqual(Object.keys(normalizeExpectations(draft, configuredLevels).errors), ['covering_course_count.levels.3.max']);
+    draft.metrics.covering_course_count.levels[3].min = ' 80 ';
+    assert.deepEqual(normalizeExpectations(draft, configuredLevels), {
+        errors: {}, settings: { concerns: both, metrics: { covering_course_count: { levels: { 3: { min: 80, max: 80 } } } } },
+    });
+});
