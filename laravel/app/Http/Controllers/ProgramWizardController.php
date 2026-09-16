@@ -408,6 +408,7 @@ class ProgramWizardController extends Controller
 
         return response()->json([
             'program_id' => (int) $program->program_id,
+            'program_totals' => ProgramGapCoverage::programTotals($program),
             'mapping_completeness' => ProgramGapCoverage::mappingCompleteness($program),
             'coverage' => ProgramGapCoverage::analyze($program),
         ]);

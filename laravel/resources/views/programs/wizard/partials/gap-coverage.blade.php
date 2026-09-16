@@ -578,7 +578,9 @@
                 courseName.textContent = `${course.course_code} ${course.course_num}: ${course.course_title}`;
                 courseType.classList.add('badge', 'ms-2');
                 courseType.classList.add(course.course_required ? 'bg-primary' : 'bg-secondary');
-                courseType.textContent = course.course_required ? 'Required' : 'Non-Required';
+                courseType.textContent = course.course_required === null
+                    ? 'Required status unspecified'
+                    : (course.course_required ? 'Required' : 'Non-Required');
                 outcomes.classList.add('mb-0', 'mt-2');
 
                 course.learning_outcomes.forEach(function (outcome) {

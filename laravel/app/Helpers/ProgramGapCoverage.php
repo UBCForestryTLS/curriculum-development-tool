@@ -10,6 +10,24 @@ use Illuminate\Support\Facades\DB;
 class ProgramGapCoverage
 {
     /**
+     * Counts all current program courses and CLOs, including those without mappings.
+     */
+    public static function programTotals(Program $program): array
+    {
+        $totals = DB::table('course_programs')
+            ->join('courses', 'course_programs.course_id', '=', 'courses.course_id')
+            ->leftJoin('learning_outcomes', 'courses.course_id', '=', 'learning_outcomes.course_id')
+            ->where('course_programs.program_id', $program->program_id)
+            ->selectRaw('COUNT(DISTINCT courses.course_id) as course_count, COUNT(DISTINCT learning_outcomes.l_outcome_id) as clo_count')
+            ->first();
+
+        return [
+            'course_count' => (int) $totals->course_count,
+            'clo_count' => (int) $totals->clo_count,
+        ];
+    }
+
+    /**
      * Checks whether every course CLO has a mapping row for every program PLO.
      */
     public static function mappingCompleteness(Program $program): array
@@ -162,8 +180,8 @@ class ProgramGapCoverage
                             'colour' => $scale->colour,
                             'mapped_clo_count' => $scaleRows->pluck('l_outcome_id')->unique()->count(),
                             'covering_course_count' => $scaleRows->pluck('course_id')->unique()->count(),
-                            'required_course_count' => $scaleRows->where('course_required', 1)->pluck('course_id')->unique()->count(),
-                            'non_required_course_count' => $scaleRows->where('course_required', 0)->pluck('course_id')->unique()->count(),
+                            'required_course_count' => $scaleRows->whereNotNull('course_required')->where('course_required', 1)->pluck('course_id')->unique()->count(),
+                            'non_required_course_count' => $scaleRows->whereNotNull('course_required')->where('course_required', 0)->pluck('course_id')->unique()->count(),
                         ];
                     })
                     ->values()
@@ -218,8 +236,8 @@ class ProgramGapCoverage
                     'plo_category_id' => $plo->plo_category_id === null ? null : (int) $plo->plo_category_id,
                     'mapped_clo_count' => $coveredRows->pluck('l_outcome_id')->unique()->count(),
                     'covering_course_count' => $coveringCourseCount,
-                    'required_course_count' => $coveredRows->where('course_required', 1)->pluck('course_id')->unique()->count(),
-                    'non_required_course_count' => $coveredRows->where('course_required', 0)->pluck('course_id')->unique()->count(),
+                    'required_course_count' => $coveredRows->whereNotNull('course_required')->where('course_required', 1)->pluck('course_id')->unique()->count(),
+                    'non_required_course_count' => $coveredRows->whereNotNull('course_required')->where('course_required', 0)->pluck('course_id')->unique()->count(),
                     'n_a_clo_count' => $programRows->where('map_scale_id', 0)->pluck('l_outcome_id')->unique()->count(),
                     'multi_level_mapping_count' => $multiLevelMappingCount,
                     'mapping_scale_histogram' => $mappingScaleHistogram,
