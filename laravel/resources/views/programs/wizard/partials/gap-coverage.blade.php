@@ -24,6 +24,7 @@
     <div id="gap-coverage-incomplete" class="alert alert-warning d-none" role="alert">
         Some course learning outcomes have not been fully mapped to this program. Coverage results may be incomplete.
         Missing mapping decisions are different from explicit N/A mappings.
+        Any potential gap or redundancy findings are provisional until mapping is complete.
         <a href="{{ route('programWizard.step3', $program->program_id) }}">Review course mappings</a>.
     </div>
 
@@ -72,7 +73,6 @@
                 @endforeach
 
                 <p class="small text-muted">These settings last while this page is open. You can also view all statistics without expectations.</p>
-                <p class="small text-muted">Your selected ranges will appear alongside the statistics. Highlighting based on these selections is not available yet.</p>
                 <div class="d-flex flex-wrap gap-2">
                     <button type="submit" class="btn btn-primary">View report</button>
                     <button id="gap-coverage-view-report" type="button" class="btn btn-outline-primary">View statistics only</button>
@@ -90,22 +90,28 @@
             <p>Showing statistics only. No coverage expectations have been applied.</p>
         </div>
 
-        <div id="gap-coverage-results" class="table-responsive position-relative d-none">
-            <table class="table table-bordered align-middle">
-                <thead class="table-primary">
-                    <tr>
-                        <th class="text-start">Program Learning Outcome</th>
-                        <th>CLOs</th>
-                        <th>Courses</th>
-                        <th>Required Courses</th>
-                        <th>Non-Required Courses</th>
-                        <th>N/A CLOs</th>
-                        <th class="text-start">Mapping Scales</th>
-                        <th><span class="visually-hidden">Actions</span></th>
-                    </tr>
-                </thead>
-                <tbody id="gap-coverage-rows"></tbody>
-            </table>
+        <div id="gap-coverage-results" class="position-relative d-none">
+            <div class="mb-3">
+                <label for="gap-coverage-metric" class="form-label fw-bold">Coverage metric</label>
+                <select id="gap-coverage-metric" class="form-select w-auto mw-100" aria-describedby="gap-coverage-metric-description">
+                    @foreach ($coverageMetrics as $key => [$label, $description])
+                        <option value="{{ $key }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                <p id="gap-coverage-metric-description" class="form-text"></p>
+            </div>
+            <p id="gap-coverage-report-no-levels" class="alert alert-info d-none">No non-N/A mapping levels are configured. Overall statistics and course details remain available below.</p>
+            <p class="small text-muted">Each level is compared independently with your applied expectations. View details for overall counts and contributing courses.</p>
+            <p class="small text-muted d-sm-none">Scroll horizontally to see all mapping levels and details.</p>
+            <div class="table-responsive" role="region" aria-label="Coverage comparisons" tabindex="0">
+                <table class="table table-bordered align-middle">
+                    <caption class="visually-hidden">Coverage by PLO and mapping level</caption>
+                    <thead class="table-primary">
+                        <tr id="gap-coverage-columns"></tr>
+                    </thead>
+                    <tbody id="gap-coverage-rows"></tbody>
+                </table>
+            </div>
         </div>
     </section>
 </div>
@@ -131,6 +137,7 @@
 </template>
 
 <style>
+    #gap-coverage-columns th:not(:last-child) { min-width: 12rem; }
     /* Two native range inputs share a track; only their handles receive pointer events. */
     .coverage-range { position: relative; height: 2.5rem; touch-action: none; }
     .coverage-range::before {
@@ -154,6 +161,7 @@
 
 <script type="module">
     import { normalizeExpectations } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/coverage-expectations.js'));
+    import { evaluateCoverage } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/coverage-report.js'));
 
     $(document).ready(function () {
         let gapCoverageData = null;
@@ -163,6 +171,7 @@
         let validationStarted = false;
         const expectationsForm = document.getElementById('gap-coverage-expectations-form');
         const metricSections = [...expectationsForm.querySelectorAll('[data-coverage-metric]')];
+        const reportMetric = document.getElementById('gap-coverage-metric');
         const concernInputs = {
             min: document.getElementById('gap-coverage-review-gaps'),
             max: document.getElementById('gap-coverage-review-redundancies'),
@@ -309,7 +318,9 @@
             }
 
             appliedExpectations = settings;
+            reportMetric.value = Object.keys(settings.metrics)[0] ?? 'mapped_clo_count';
             renderExpectationsSummary();
+            renderGapCoverage(gapCoverageData);
             showReportStep(true);
         });
 
@@ -359,11 +370,12 @@
                 details.append(description, levels);
                 metrics.append(name, details);
             });
-            const note = document.createElement('p');
-            note.classList.add('small', 'text-muted');
-            note.textContent = 'Expectations are shown for reference. Coverage statistics are not highlighted.';
-            summary.append(heading, concern, scope, metrics, note);
+            summary.append(heading, concern, scope, metrics);
         }
+
+        reportMetric.addEventListener('change', function () {
+            if (gapCoverageData !== null) renderGapCoverage(gapCoverageData);
+        });
 
         $('#nav-gap-coverage-tab').on('shown.bs.tab', function () {
             loadGapCoverage();
@@ -376,7 +388,9 @@
                 validationStarted = false;
                 updateExpectationInputs();
                 appliedExpectations = null;
+                reportMetric.value = 'mapped_clo_count';
                 renderExpectationsSummary();
+                renderGapCoverage(gapCoverageData);
                 showReportStep(true);
             }
         });
@@ -414,11 +428,11 @@
                 url: @json(route('programWizard.gapCoverage', $program->program_id)),
                 dataType: 'json',
                 success: function (data) {
-                    renderGapCoverage(data);
                     gapCoverageData = data;
                     mappingScaleLevels = (data.coverage[0]?.mapping_scale_histogram ?? [])
                         .filter(level => Number(level.map_scale_id) !== 0);
                     initializeLevelInputs();
+                    renderGapCoverage(data);
                     $('#gap-coverage-expectations-fields').prop('disabled', data.coverage.length === 0);
                 },
                 error: function () {
@@ -433,6 +447,8 @@
 
         function renderGapCoverage(data) {
             const rows = document.getElementById('gap-coverage-rows');
+            const expandedIds = new Set([...rows.querySelectorAll('button[aria-expanded="true"]')]
+                .map(button => button.getAttribute('aria-controls')));
             rows.replaceChildren();
 
             $('#gap-coverage-incomplete').toggleClass(
@@ -446,9 +462,19 @@
                 return;
             }
 
+            const metric = reportMetric.value;
+            document.getElementById('gap-coverage-metric-description').textContent =
+                document.getElementById(`gap-coverage-${metric}-description`).textContent;
+            reportMetric.disabled = mappingScaleLevels.length === 0;
+            $('#gap-coverage-report-no-levels').toggleClass('d-none', mappingScaleLevels.length > 0);
+            renderComparisonColumns(metric);
+            const report = evaluateCoverage(data, appliedExpectations);
+
             data.coverage.forEach(function (coverage, index) {
                 const row = document.createElement('tr');
-                const outcomeCell = document.createElement('td');
+                const outcomeCell = document.createElement('th');
+                outcomeCell.scope = 'row';
+                outcomeCell.classList.add('fw-normal');
                 const outcomeName = document.createElement('strong');
 
                 outcomeName.textContent = coverage.plo_shortphrase || `PLO #${index + 1}`;
@@ -460,44 +486,28 @@
                 }
 
                 row.appendChild(outcomeCell);
-                appendCountCell(row, coverage.mapped_clo_count);
-                appendCountCell(row, coverage.covering_course_count);
-                appendCountCell(row, coverage.required_course_count);
-                appendCountCell(row, coverage.non_required_course_count);
-                appendCountCell(row, coverage.n_a_clo_count);
-                row.appendChild(createScaleCell(
-                    coverage.mapping_scale_histogram,
-                    coverage.multi_level_mapping_count
-                ));
-                row.appendChild(createDetailsButtonCell(coverage));
+                report.plos[index].comparisons.filter(comparison => comparison.metric === metric)
+                    .forEach(comparison => row.appendChild(createComparisonCell(comparison)));
+                const expanded = expandedIds.has(`gap-coverage-details-${coverage.pl_outcome_id}`);
+                row.appendChild(createDetailsButtonCell(coverage, expanded));
                 rows.appendChild(row);
-                rows.appendChild(createDetailsRow(coverage));
+                rows.appendChild(createDetailsRow(coverage, expanded));
             });
 
             $('#gap-coverage-empty').addClass('d-none');
             $('#gap-coverage-results').removeClass('d-none');
         }
 
-        function appendCountCell(row, count) {
-            const cell = document.createElement('td');
-            cell.classList.add('text-center');
-            cell.textContent = count;
-            row.appendChild(cell);
-        }
-
-        function createScaleCell(scales, multiLevelMappingCount) {
-            const cell = document.createElement('td');
-
-            if (scales.length === 0) {
-                cell.textContent = 'No mapping scale configured';
-                return cell;
-            }
-
-            scales.forEach(function (scale, index) {
-                if (index > 0) {
-                    cell.appendChild(document.createElement('br'));
-                }
-
+        function renderComparisonColumns(metric) {
+            const columns = document.getElementById('gap-coverage-columns');
+            columns.replaceChildren();
+            const ploHeading = document.createElement('th');
+            ploHeading.scope = 'col';
+            ploHeading.textContent = 'Program Learning Outcome';
+            columns.appendChild(ploHeading);
+            mappingScaleLevels.forEach(function (scale) {
+                const heading = document.createElement('th');
+                heading.scope = 'col';
                 const swatch = document.createElement('span');
                 swatch.classList.add('d-inline-block', 'me-2');
                 swatch.style.backgroundColor = scale.colour;
@@ -505,32 +515,69 @@
                 swatch.style.width = '10px';
                 swatch.setAttribute('aria-hidden', 'true');
 
-                cell.appendChild(swatch);
-                cell.appendChild(document.createTextNode(
-                    `${scale.abbreviation || scale.title}: ${scale.mapped_clo_count} CLOs / ${scale.covering_course_count} courses (${scale.required_course_count} required, ${scale.non_required_course_count} non-required)`
-                ));
+                heading.append(swatch, document.createTextNode(scale.title + (scale.abbreviation ? ` (${scale.abbreviation})` : '')));
+                const target = document.createElement('small');
+                target.classList.add('d-block', 'fw-normal', 'mt-1');
+                const bounds = appliedExpectations?.metrics[metric]?.levels[scale.map_scale_id];
+                const labels = [];
+                if (bounds?.min != null) labels.push(`Minimum ${bounds.min}%`);
+                if (bounds?.max != null) labels.push(`Maximum ${bounds.max}%`);
+                target.textContent = labels.length ? labels.join(' · ') : 'No expectation set';
+                heading.appendChild(target);
+                columns.appendChild(heading);
             });
+            const actions = document.createElement('th');
+            actions.scope = 'col';
+            actions.textContent = 'Details';
+            columns.appendChild(actions);
+        }
 
-            if (multiLevelMappingCount > 0) {
-                const warning = document.createElement('small');
-                warning.classList.add('d-block', 'mt-2', 'text-warning');
-                warning.textContent = `${multiLevelMappingCount} CLO mapping(s) use multiple levels.`;
-                cell.appendChild(warning);
+        function createComparisonCell(comparison) {
+            const cell = document.createElement('td');
+            const value = document.createElement('strong');
+            const basis = document.createElement('small');
+            basis.classList.add('d-block');
+            const unit = comparison.metric === 'mapped_clo_count' ? 'CLOs in program courses' : 'program courses';
+            if (comparison.percentage === null) {
+                value.textContent = 'Not applicable';
+                basis.textContent = `No ${unit}.`;
+                cell.append(value, basis);
+                return cell;
             }
 
+            let percentage = Number(comparison.percentage.toFixed(2));
+            // Keep extra precision when rounding would make a flagged value look in range.
+            if ((comparison.status === 'gap' && percentage >= comparison.min)
+                || (comparison.status === 'redundancy' && percentage <= comparison.max)) {
+                percentage = comparison.percentage;
+            }
+            value.textContent = `${percentage}%`;
+            basis.textContent = `${comparison.count} of ${comparison.denominator} ${unit}`;
+            const finding = document.createElement('span');
+            finding.classList.add('d-block', 'small', 'mt-1');
+            if (comparison.status === 'gap') {
+                cell.classList.add('table-warning');
+                finding.textContent = `Potential gap — below minimum ${comparison.min}%`;
+            } else if (comparison.status === 'redundancy') {
+                cell.classList.add('table-info');
+                finding.textContent = `Potential redundancy — above maximum ${comparison.max}%`;
+            } else {
+                finding.textContent = comparison.status === 'within_expectations' ? 'Within expectations' : 'No expectation set';
+            }
+            cell.append(value, basis, finding);
             return cell;
         }
 
-        function createDetailsButtonCell(coverage) {
+        function createDetailsButtonCell(coverage, expanded) {
             const cell = document.createElement('td');
             const button = document.createElement('button');
             const detailsId = `gap-coverage-details-${coverage.pl_outcome_id}`;
 
             button.type = 'button';
-            button.classList.add('btn', 'btn-sm', 'btn-outline-primary');
-            button.textContent = 'View details';
+            button.classList.add('btn', 'btn-sm', 'btn-outline-primary', 'text-nowrap');
+            button.textContent = expanded ? 'Hide details' : 'View details';
             button.setAttribute('aria-controls', detailsId);
-            button.setAttribute('aria-expanded', 'false');
+            button.setAttribute('aria-expanded', String(expanded));
             button.addEventListener('click', function () {
                 const detailsRow = document.getElementById(detailsId);
                 const isExpanded = button.getAttribute('aria-expanded') === 'true';
@@ -545,18 +592,24 @@
             return cell;
         }
 
-        function createDetailsRow(coverage) {
+        function createDetailsRow(coverage, expanded) {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
             const summary = document.createElement('p');
 
             row.id = `gap-coverage-details-${coverage.pl_outcome_id}`;
-            row.classList.add('d-none');
-            cell.colSpan = 8;
+            row.classList.toggle('d-none', !expanded);
+            cell.colSpan = mappingScaleLevels.length + 2;
 
             summary.classList.add('mb-3');
             summary.textContent = `${coverage.mapped_clo_count} CLOs across ${coverage.covering_course_count} courses: ${coverage.required_course_count} required, ${coverage.non_required_course_count} non-required, and ${coverage.n_a_clo_count} N/A CLOs.`;
             cell.appendChild(summary);
+            if (coverage.multi_level_mapping_count > 0) {
+                const multiLevel = document.createElement('p');
+                multiLevel.classList.add('small');
+                multiLevel.textContent = `${coverage.multi_level_mapping_count} CLO mapping(s) use multiple levels. Overall counts count each CLO or course once.`;
+                cell.appendChild(multiLevel);
+            }
 
             if (coverage.courses.length === 0) {
                 cell.appendChild(document.createTextNode('No courses currently provide coverage for this PLO.'));
