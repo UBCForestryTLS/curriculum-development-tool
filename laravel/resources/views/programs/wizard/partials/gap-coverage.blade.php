@@ -92,6 +92,16 @@
 
         <div id="gap-coverage-results" class="position-relative d-none">
             <div class="mb-3">
+                <h6>Potential concerns</h6>
+                <p id="gap-coverage-concern-summary" role="status"></p>
+                <p id="gap-coverage-concern-scope" class="small text-muted">Counts and filtering include all applied metrics and levels, regardless of the metric displayed below. A PLO can have both potential gaps and potential redundancies.</p>
+                <label for="gap-coverage-filter" class="form-label fw-bold">Show PLOs</label>
+                <select id="gap-coverage-filter" class="form-select w-auto mw-100" aria-describedby="gap-coverage-concern-summary gap-coverage-concern-scope">
+                    <option value="all">All PLOs</option>
+                    <option value="concerns">PLOs with concerns</option>
+                </select>
+            </div>
+            <div class="mb-3">
                 <label for="gap-coverage-metric" class="form-label fw-bold">Coverage metric</label>
                 <select id="gap-coverage-metric" class="form-select w-auto mw-100" aria-describedby="gap-coverage-metric-description">
                     @foreach ($coverageMetrics as $key => [$label, $description])
@@ -172,6 +182,7 @@
         const expectationsForm = document.getElementById('gap-coverage-expectations-form');
         const metricSections = [...expectationsForm.querySelectorAll('[data-coverage-metric]')];
         const reportMetric = document.getElementById('gap-coverage-metric');
+        const reportFilter = document.getElementById('gap-coverage-filter');
         const concernInputs = {
             min: document.getElementById('gap-coverage-review-gaps'),
             max: document.getElementById('gap-coverage-review-redundancies'),
@@ -373,8 +384,10 @@
             summary.append(heading, concern, scope, metrics);
         }
 
-        reportMetric.addEventListener('change', function () {
-            if (gapCoverageData !== null) renderGapCoverage(gapCoverageData);
+        [reportMetric, reportFilter].forEach(function (control) {
+            control.addEventListener('change', function () {
+                if (gapCoverageData !== null) renderGapCoverage(gapCoverageData);
+            });
         });
 
         $('#nav-gap-coverage-tab').on('shown.bs.tab', function () {
@@ -469,8 +482,11 @@
             $('#gap-coverage-report-no-levels').toggleClass('d-none', mappingScaleLevels.length > 0);
             renderComparisonColumns(metric);
             const report = evaluateCoverage(data, appliedExpectations);
+            renderConcernSummary(report);
 
             data.coverage.forEach(function (coverage, index) {
+                const plo = report.plos[index];
+                if (reportFilter.value === 'concerns' && !plo.has_gap && !plo.has_redundancy) return;
                 const row = document.createElement('tr');
                 const outcomeCell = document.createElement('th');
                 outcomeCell.scope = 'row';
@@ -486,7 +502,7 @@
                 }
 
                 row.appendChild(outcomeCell);
-                report.plos[index].comparisons.filter(comparison => comparison.metric === metric)
+                plo.comparisons.filter(comparison => comparison.metric === metric)
                     .forEach(comparison => row.appendChild(createComparisonCell(comparison)));
                 const expanded = expandedIds.has(`gap-coverage-details-${coverage.pl_outcome_id}`);
                 row.appendChild(createDetailsButtonCell(coverage, expanded));
@@ -494,8 +510,43 @@
                 rows.appendChild(createDetailsRow(coverage, expanded));
             });
 
+            if (rows.children.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = mappingScaleLevels.length + 2;
+                cell.textContent = 'No PLOs match the concern filter. Select All PLOs to view the statistics.';
+                row.appendChild(cell);
+                rows.appendChild(row);
+            }
+
             $('#gap-coverage-empty').addClass('d-none');
             $('#gap-coverage-results').removeClass('d-none');
+        }
+
+        function renderConcernSummary(report) {
+            const summary = report.summary;
+            const hasExpectations = appliedExpectations !== null && Object.keys(appliedExpectations.metrics).length > 0;
+            const canCompare = summary.evaluated_plo_count > 0;
+            reportFilter.disabled = !canCompare;
+            if (!canCompare) reportFilter.value = 'all';
+            $('#gap-coverage-concern-scope').toggleClass('d-none', !canCompare);
+
+            let message;
+            if (!hasExpectations) {
+                message = 'No concern checks applied. All PLO statistics are available.';
+            } else if (!canCompare) {
+                message = 'Your expectations cannot be evaluated with the available data. No concern checks could be completed.';
+            } else {
+                message = `PLOs with any concern: ${summary.concern_plo_count} of ${report.plos.length}. `
+                    + `With potential gaps: ${summary.gap_plo_count}. With potential redundancies: ${summary.redundancy_plo_count}.`;
+                if (summary.concern_plo_count === 0) {
+                    message = 'No potential concerns found against your applied expectations. ' + message;
+                }
+                if (summary.evaluated_plo_count < report.plos.length) {
+                    message += ` Comparisons were available for ${summary.evaluated_plo_count} of ${report.plos.length} PLOs.`;
+                }
+            }
+            document.getElementById('gap-coverage-concern-summary').textContent = message;
         }
 
         function renderComparisonColumns(metric) {
