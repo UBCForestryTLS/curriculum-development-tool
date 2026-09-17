@@ -237,6 +237,10 @@
                             syncRangeInputs(fields);
                             if (validationStarted) validateExpectations();
                         });
+                        input.addEventListener('blur', function () {
+                            validationStarted = true;
+                            validateExpectations();
+                        });
                     });
                     container.appendChild(fields);
                 });
