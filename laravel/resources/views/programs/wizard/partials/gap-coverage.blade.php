@@ -173,6 +173,7 @@
 
 <style>
     #gap-coverage-columns th:not(:last-child) { min-width: 12rem; }
+    #gap-coverage-details-comparisons { min-width: 620px; }
     /* Two native range inputs share a track; only their handles receive pointer events. */
     .coverage-range { position: relative; height: 2.5rem; touch-action: none; }
     .coverage-range::before {
@@ -540,9 +541,9 @@
 
                 row.appendChild(outcomeCell);
                 const comparisons = plo.comparisons.filter(comparison => comparison.metric === metric);
-                visiblePlos.push({ label: outcomeName.textContent, comparisons });
+                visiblePlos.push({ id: coverage.pl_outcome_id, label: outcomeName.textContent, comparisons });
                 comparisons.forEach(comparison => row.appendChild(createComparisonCell(comparison)));
-                row.appendChild(createDetailsButtonCell(coverage, outcomeName.textContent));
+                row.appendChild(createDetailsButtonCell(coverage, outcomeName.textContent, plo.comparisons));
                 rows.appendChild(row);
             });
 
@@ -602,7 +603,19 @@
                     itemStyle: { cursor: 'default' },
                     events: { itemClick: function () { return false; } },
                 },
-                plotOptions: { series: { animation: false } },
+                plotOptions: {
+                    series: {
+                        animation: false,
+                        cursor: 'pointer',
+                        point: {
+                            events: {
+                                click: function () {
+                                    document.getElementById(`gap-coverage-details-button-${plos[this.index].id}`).click();
+                                },
+                            },
+                        },
+                    },
+                },
                 // The comparison table provides the accessible values and findings.
                 accessibility: { enabled: false },
                 exporting: { enabled: false },
@@ -747,30 +760,152 @@
         }
 
         function comparisonFinding(comparison) {
+            if (comparison.status === 'not_applicable') return 'Not applicable';
             if (comparison.status === 'gap') return `Potential gap — below minimum ${comparison.min}%`;
             if (comparison.status === 'redundancy') return `Potential redundancy — above maximum ${comparison.max}%`;
             return comparison.status === 'within_expectations' ? 'Within expectations' : 'No expectation set';
         }
 
-        function createDetailsButtonCell(coverage, label) {
+        function createDetailsButtonCell(coverage, label, comparisons) {
             const cell = document.createElement('td');
             const button = document.createElement('button');
 
             button.type = 'button';
+            button.id = `gap-coverage-details-button-${coverage.pl_outcome_id}`;
             button.classList.add('btn', 'btn-sm', 'btn-outline-primary', 'text-nowrap');
             button.textContent = 'View details';
-            button.setAttribute('data-bs-toggle', 'modal');
-            button.setAttribute('data-bs-target', '#gap-coverage-details-modal');
             button.setAttribute('aria-controls', 'gap-coverage-details-modal');
             button.setAttribute('aria-haspopup', 'dialog');
             button.addEventListener('click', function () {
+                coverageChart?.tooltip.hide(0);
                 document.getElementById('gap-coverage-details-title').textContent = `Details — ${label}`;
-                document.getElementById('gap-coverage-details-content').replaceChildren(createDetailsContent(coverage));
+                document.getElementById('gap-coverage-details-content').replaceChildren(createPloDetailsContent(coverage, comparisons));
+                const modal = document.getElementById('gap-coverage-details-modal');
+                // Chart entry also returns focus to Details without scrolling away from the chart.
+                modal.addEventListener('hidden.bs.modal', () => button.focus({ preventScroll: true }), { once: true });
+                bootstrap.Modal.getOrCreateInstance(modal).show(button);
             });
 
             cell.appendChild(button);
 
             return cell;
+        }
+
+        function createPloDetailsContent(coverage, comparisons) {
+            const content = document.createDocumentFragment();
+            const description = document.createElement('p');
+            description.textContent = coverage.pl_outcome;
+            content.appendChild(description);
+
+            if (gapCoverageData.mapping_completeness.has_incomplete_mappings) {
+                const warning = document.createElement('p');
+                warning.classList.add('alert', 'alert-warning', 'small');
+                warning.textContent = 'Program mappings are incomplete. Potential gap and redundancy findings are provisional.';
+                content.appendChild(warning);
+            }
+
+            const findingsHeading = document.createElement('h6');
+            findingsHeading.textContent = 'Potential concerns across all applied metrics';
+            content.appendChild(findingsHeading);
+            const findings = comparisons.filter(comparison => ['gap', 'redundancy'].includes(comparison.status));
+            if (findings.length) {
+                const list = document.createElement('ul');
+                metricSections.forEach(function (section) {
+                    findings.filter(comparison => comparison.metric === section.dataset.coverageMetric).forEach(function (comparison) {
+                        const scale = mappingScaleLevels.find(level => level.map_scale_id === comparison.map_scale_id);
+                        const item = document.createElement('li');
+                        item.textContent = `${section.dataset.metricLabel} — ${scale.title}: `
+                            + `${comparison.count} of ${comparison.denominator} (${formatCoveragePercentage(comparison)}). `
+                            + comparisonFinding(comparison);
+                        list.appendChild(item);
+                    });
+                });
+                content.appendChild(list);
+            } else {
+                const message = document.createElement('p');
+                const hasExpectations = appliedExpectations !== null && Object.keys(appliedExpectations.metrics).length > 0;
+                message.textContent = !hasExpectations
+                    ? 'No concern checks applied. All PLO statistics are available.'
+                    : comparisons.some(comparison => comparison.status === 'within_expectations')
+                        ? 'No potential concerns found against your applied expectations.'
+                        : 'Your expectations cannot be evaluated with the available data. No concern checks could be completed.';
+                content.appendChild(message);
+            }
+
+            const label = document.createElement('label');
+            label.htmlFor = 'gap-coverage-details-metric';
+            label.classList.add('form-label', 'fw-bold');
+            label.textContent = 'Coverage comparisons';
+            const metric = document.createElement('select');
+            metric.id = label.htmlFor;
+            metric.classList.add('form-select', 'w-auto', 'mw-100', 'mb-2');
+            metric.replaceChildren(...[...reportMetric.options].map(option => option.cloneNode(true)));
+            metric.value = reportMetric.value;
+            metric.disabled = mappingScaleLevels.length === 0;
+            metric.setAttribute('aria-describedby', 'gap-coverage-details-metric-description');
+            const metricDescription = document.createElement('p');
+            metricDescription.id = 'gap-coverage-details-metric-description';
+            metricDescription.classList.add('small', 'text-muted');
+            const region = document.createElement('div');
+            region.classList.add('table-responsive', 'mb-4');
+            region.setAttribute('role', 'region');
+            region.setAttribute('aria-label', 'PLO coverage comparisons');
+            region.tabIndex = 0;
+
+            const renderComparisons = function () {
+                metricDescription.textContent = document.getElementById(`gap-coverage-${metric.value}-description`).textContent;
+                region.replaceChildren(createPloComparisonTable(comparisons.filter(comparison => comparison.metric === metric.value)));
+            };
+            metric.addEventListener('change', renderComparisons);
+            renderComparisons();
+            content.append(label, metric, metricDescription, region);
+
+            const evidenceHeading = document.createElement('h6');
+            evidenceHeading.textContent = 'Overall counts and contributing courses';
+            content.append(evidenceHeading, createDetailsContent(coverage));
+            return content;
+        }
+
+        function createPloComparisonTable(comparisons) {
+            const table = document.createElement('table');
+            table.id = 'gap-coverage-details-comparisons';
+            table.classList.add('table', 'table-bordered', 'align-middle');
+            const caption = table.createCaption();
+            caption.classList.add('visually-hidden');
+            caption.textContent = 'Actual coverage and applied expectations for this PLO';
+            const header = table.createTHead().insertRow();
+            header.classList.add('table-primary');
+            ['Mapping level', 'Actual coverage', 'Minimum', 'Maximum', 'Result'].forEach(function (text) {
+                const cell = document.createElement('th');
+                cell.scope = 'col';
+                cell.textContent = text;
+                header.appendChild(cell);
+            });
+            const body = table.createTBody();
+            comparisons.forEach(function (comparison) {
+                const row = body.insertRow();
+                const scale = mappingScaleLevels.find(level => level.map_scale_id === comparison.map_scale_id);
+                const level = document.createElement('th');
+                level.scope = 'row';
+                level.textContent = scale.title + (scale.abbreviation ? ` (${scale.abbreviation})` : '');
+                row.appendChild(level);
+                const unit = comparison.metric === 'mapped_clo_count' ? 'CLOs in program courses' : 'program courses';
+                row.insertCell().textContent = comparison.percentage === null
+                    ? `Not applicable — no ${unit}.`
+                    : `${comparison.count} of ${comparison.denominator} ${unit} (${formatCoveragePercentage(comparison)})`;
+                row.insertCell().textContent = comparison.min === null ? 'Not set' : `${comparison.min}%`;
+                row.insertCell().textContent = comparison.max === null ? 'Not set' : `${comparison.max}%`;
+                const result = row.insertCell();
+                result.textContent = comparisonFinding(comparison);
+                if (comparison.status === 'gap') result.classList.add('table-warning');
+                else if (comparison.status === 'redundancy') result.classList.add('table-info');
+            });
+            if (comparisons.length === 0) {
+                const cell = body.insertRow().insertCell();
+                cell.colSpan = 5;
+                cell.textContent = 'No non-N/A mapping levels are configured. Overall statistics remain available below.';
+            }
+            return table;
         }
 
         function createDetailsContent(coverage) {
