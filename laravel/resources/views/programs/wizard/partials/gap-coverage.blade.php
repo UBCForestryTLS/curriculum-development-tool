@@ -136,6 +136,21 @@
     </section>
 </div>
 
+<div class="modal fade" id="gap-coverage-details-modal" tabindex="-1" aria-labelledby="gap-coverage-details-title" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="gap-coverage-details-title">PLO details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="gap-coverage-details-content"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <template id="gap-coverage-level-template">
     <fieldset class="col-sm-6 col-lg-4">
         <legend class="float-none fs-6 fw-bold"></legend>
@@ -253,7 +268,7 @@
             fields.querySelectorAll('[data-bound]').forEach(function (input) {
                 const slider = fields.querySelector(`[data-slider="${input.dataset.bound}"]`);
                 const value = input.value.trim();
-                input.parentElement.querySelector('[data-bound-status]').textContent = input.disabled ? 'Not selected' : value === '' ? 'No bound set' : '';
+                input.parentElement.querySelector('[data-bound-status]').textContent = input.disabled ? 'Not selected' : '';
                 if (value === '') {
                     slider.value = input.dataset.bound === 'min' ? '0' : '100';
                     slider.setAttribute('aria-valuetext', 'Not set');
@@ -482,8 +497,6 @@
 
         function renderGapCoverage(data) {
             const rows = document.getElementById('gap-coverage-rows');
-            const expandedIds = new Set([...rows.querySelectorAll('button[aria-expanded="true"]')]
-                .map(button => button.getAttribute('aria-controls')));
             rows.replaceChildren();
 
             $('#gap-coverage-incomplete').toggleClass(
@@ -529,10 +542,8 @@
                 const comparisons = plo.comparisons.filter(comparison => comparison.metric === metric);
                 visiblePlos.push({ label: outcomeName.textContent, comparisons });
                 comparisons.forEach(comparison => row.appendChild(createComparisonCell(comparison)));
-                const expanded = expandedIds.has(`gap-coverage-details-${coverage.pl_outcome_id}`);
-                row.appendChild(createDetailsButtonCell(coverage, expanded));
+                row.appendChild(createDetailsButtonCell(coverage, outcomeName.textContent));
                 rows.appendChild(row);
-                rows.appendChild(createDetailsRow(coverage, expanded));
             });
 
             if (rows.children.length === 0) {
@@ -741,23 +752,20 @@
             return comparison.status === 'within_expectations' ? 'Within expectations' : 'No expectation set';
         }
 
-        function createDetailsButtonCell(coverage, expanded) {
+        function createDetailsButtonCell(coverage, label) {
             const cell = document.createElement('td');
             const button = document.createElement('button');
-            const detailsId = `gap-coverage-details-${coverage.pl_outcome_id}`;
 
             button.type = 'button';
             button.classList.add('btn', 'btn-sm', 'btn-outline-primary', 'text-nowrap');
-            button.textContent = expanded ? 'Hide details' : 'View details';
-            button.setAttribute('aria-controls', detailsId);
-            button.setAttribute('aria-expanded', String(expanded));
+            button.textContent = 'View details';
+            button.setAttribute('data-bs-toggle', 'modal');
+            button.setAttribute('data-bs-target', '#gap-coverage-details-modal');
+            button.setAttribute('aria-controls', 'gap-coverage-details-modal');
+            button.setAttribute('aria-haspopup', 'dialog');
             button.addEventListener('click', function () {
-                const detailsRow = document.getElementById(detailsId);
-                const isExpanded = button.getAttribute('aria-expanded') === 'true';
-
-                detailsRow.classList.toggle('d-none', isExpanded);
-                button.setAttribute('aria-expanded', String(!isExpanded));
-                button.textContent = isExpanded ? 'View details' : 'Hide details';
+                document.getElementById('gap-coverage-details-title').textContent = `Details — ${label}`;
+                document.getElementById('gap-coverage-details-content').replaceChildren(createDetailsContent(coverage));
             });
 
             cell.appendChild(button);
@@ -765,29 +773,23 @@
             return cell;
         }
 
-        function createDetailsRow(coverage, expanded) {
-            const row = document.createElement('tr');
-            const cell = document.createElement('td');
+        function createDetailsContent(coverage) {
+            const content = document.createDocumentFragment();
             const summary = document.createElement('p');
-
-            row.id = `gap-coverage-details-${coverage.pl_outcome_id}`;
-            row.classList.toggle('d-none', !expanded);
-            cell.colSpan = mappingScaleLevels.length + 2;
 
             summary.classList.add('mb-3');
             summary.textContent = `${coverage.mapped_clo_count} CLOs across ${coverage.covering_course_count} courses: ${coverage.required_course_count} required, ${coverage.non_required_course_count} non-required, and ${coverage.n_a_clo_count} N/A CLOs.`;
-            cell.appendChild(summary);
+            content.appendChild(summary);
             if (coverage.multi_level_mapping_count > 0) {
                 const multiLevel = document.createElement('p');
                 multiLevel.classList.add('small');
                 multiLevel.textContent = `${coverage.multi_level_mapping_count} CLO mapping(s) use multiple levels. Overall counts count each CLO or course once.`;
-                cell.appendChild(multiLevel);
+                content.appendChild(multiLevel);
             }
 
             if (coverage.courses.length === 0) {
-                cell.appendChild(document.createTextNode('No courses currently provide coverage for this PLO.'));
-                row.appendChild(cell);
-                return row;
+                content.appendChild(document.createTextNode('No courses currently provide coverage for this PLO.'));
+                return content;
             }
 
             coverage.courses.forEach(function (course, index) {
@@ -829,12 +831,10 @@
                 courseSection.appendChild(courseName);
                 courseSection.appendChild(courseType);
                 courseSection.appendChild(outcomes);
-                cell.appendChild(courseSection);
+                content.appendChild(courseSection);
             });
 
-            row.appendChild(cell);
-
-            return row;
+            return content;
         }
     });
 </script>
