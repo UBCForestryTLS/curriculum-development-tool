@@ -2513,7 +2513,8 @@
         // Enables functionality of tool tips
         $('[data-bs-toggle="tooltip"]').tooltip({html:true});
 
-        $("form").submit(function () {
+        // Coverage expectations are validated and applied in-page, without a server submission.
+        $("form").not('#gap-coverage-expectations-form').submit(function () {
             // prevent duplicate form submissions
             $(this).find(":submit").attr('disabled', 'disabled');
             $(this).find(":submit").html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
