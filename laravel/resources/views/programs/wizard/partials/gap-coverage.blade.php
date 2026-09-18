@@ -174,6 +174,7 @@
 <style>
     #gap-coverage-columns th:not(:last-child) { min-width: 12rem; }
     #gap-coverage-details-comparisons { min-width: 620px; }
+    #gap-coverage-details-findings::before { content: none; }
     /* Two native range inputs share a track; only their handles receive pointer events. */
     .coverage-range { position: relative; height: 2.5rem; touch-action: none; }
     .coverage-range::before {
@@ -816,6 +817,7 @@
             const findings = comparisons.filter(comparison => ['gap', 'redundancy'].includes(comparison.status));
             if (findings.length) {
                 const list = document.createElement('ul');
+                list.id = 'gap-coverage-details-findings';
                 metricSections.forEach(function (section) {
                     findings.filter(comparison => comparison.metric === section.dataset.coverageMetric).forEach(function (comparison) {
                         const scale = mappingScaleLevels.find(level => level.map_scale_id === comparison.map_scale_id);
