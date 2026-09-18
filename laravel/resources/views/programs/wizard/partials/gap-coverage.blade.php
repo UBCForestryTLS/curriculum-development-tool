@@ -36,7 +36,12 @@
         <p id="gap-coverage-no-levels" class="alert alert-info d-none">No non-N/A mapping levels are configured. You can still view statistics without setting expectations.</p>
         <form id="gap-coverage-expectations-form" novalidate>
             <fieldset id="gap-coverage-expectations-fields" disabled>
-                <legend class="fs-6">Choose your expectations</legend>
+                <legend class="visually-hidden">Choose your expectations</legend>
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                    <span aria-hidden="true">Choose your expectations</span>
+                    <button id="gap-coverage-defaults-all" type="button" class="btn btn-sm btn-outline-primary" aria-describedby="gap-coverage-defaults-help" disabled>Use defaults for all metrics</button>
+                </div>
+                <p id="gap-coverage-defaults-help" class="small text-muted">Default values are temporary placeholders pending review. They replace the relevant ranges; your concern selections stay the same.</p>
                 <fieldset class="mb-3" aria-describedby="gap-coverage-concerns-help">
                     <legend class="fs-6">Which potential concerns do you want to review?</legend>
                     <div class="form-check">
@@ -60,10 +65,13 @@
                 @endphp
                 @foreach ($coverageMetrics as $key => [$label, $description])
                     <div class="border rounded p-3 mb-3" data-coverage-metric="{{ $key }}" data-metric-label="{{ $label }}">
-                        <div class="form-check">
-                            <input id="gap-coverage-{{ $key }}-enabled" type="checkbox" class="form-check-input" aria-controls="gap-coverage-{{ $key }}-options" aria-expanded="false" aria-describedby="gap-coverage-{{ $key }}-description gap-coverage-{{ $key }}-enabled-error">
-                            <label for="gap-coverage-{{ $key }}-enabled" class="form-check-label fw-bold">{{ $label }}</label>
-                            <div id="gap-coverage-{{ $key }}-enabled-error" class="invalid-feedback"></div>
+                        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                            <div class="form-check">
+                                <input id="gap-coverage-{{ $key }}-enabled" type="checkbox" class="form-check-input" aria-controls="gap-coverage-{{ $key }}-options" aria-expanded="false" aria-describedby="gap-coverage-{{ $key }}-description gap-coverage-{{ $key }}-enabled-error">
+                                <label for="gap-coverage-{{ $key }}-enabled" class="form-check-label fw-bold">{{ $label }}</label>
+                                <div id="gap-coverage-{{ $key }}-enabled-error" class="invalid-feedback"></div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary d-none" data-metric-defaults aria-label="Use default for {{ $label }}" aria-describedby="gap-coverage-defaults-help" disabled>Use default</button>
                         </div>
                         <p id="gap-coverage-{{ $key }}-description" class="small text-muted mb-0">{{ $description }}</p>
                         <div id="gap-coverage-{{ $key }}-options" class="mt-3 d-none">
@@ -212,6 +220,13 @@
         const reportMetric = document.getElementById('gap-coverage-metric');
         const reportFilter = document.getElementById('gap-coverage-filter');
         const reportUnits = document.getElementById('gap-coverage-units');
+        // Temporary ranges for each metric; replace when the distributions are agreed.
+        const metricDefaults = {
+            mapped_clo_count: { min: 20, max: 80 },
+            covering_course_count: { min: 25, max: 75 },
+            required_course_count: { min: 15, max: 60 },
+            non_required_course_count: { min: 5, max: 40 },
+        };
         const concernInputs = {
             min: document.getElementById('gap-coverage-review-gaps'),
             max: document.getElementById('gap-coverage-review-redundancies'),
@@ -305,6 +320,8 @@
         }
 
         function updateExpectationInputs() {
+            document.getElementById('gap-coverage-defaults-all').disabled = !gapCoverageData?.coverage.length
+                || mappingScaleLevels.length === 0 || (!concernInputs.min.checked && !concernInputs.max.checked);
             Object.values(concernInputs).forEach(function (input) {
                 input.disabled = mappingScaleLevels.length === 0;
             });
@@ -313,6 +330,9 @@
                 const checkbox = document.getElementById(`gap-coverage-${key}-enabled`);
                 checkbox.disabled = (!concernInputs.min.checked && !concernInputs.max.checked) || mappingScaleLevels.length === 0;
                 const enabled = checkbox.checked && !checkbox.disabled;
+                const defaultsButton = section.querySelector('[data-metric-defaults]');
+                defaultsButton.classList.toggle('d-none', !enabled);
+                defaultsButton.disabled = !enabled;
                 checkbox.setAttribute('aria-expanded', String(enabled));
                 document.getElementById(`gap-coverage-${key}-options`).classList.toggle('d-none', !enabled);
                 section.querySelectorAll('[data-bound], [data-slider]').forEach(function (input) {
@@ -325,6 +345,25 @@
         }
 
         $('#gap-coverage-review-gaps, #gap-coverage-review-redundancies, [data-coverage-metric] input[type="checkbox"]').on('change', updateExpectationInputs);
+        function fillMetricDefaults(section) {
+            const key = section.dataset.coverageMetric;
+            document.getElementById(`gap-coverage-${key}-enabled`).checked = true;
+            section.querySelectorAll('[data-bound]').forEach(function (input) {
+                input.value = metricDefaults[key][input.dataset.bound];
+            });
+        }
+
+        metricSections.forEach(function (section) {
+            section.querySelector('[data-metric-defaults]').addEventListener('click', function () {
+                fillMetricDefaults(section);
+                updateExpectationInputs();
+            });
+        });
+        document.getElementById('gap-coverage-defaults-all').addEventListener('click', function () {
+            metricSections.forEach(fillMetricDefaults);
+            updateExpectationInputs();
+        });
+
         function validateExpectations() {
             clearExpectationErrors();
             const draft = { concerns: { gaps: concernInputs.min.checked, redundancies: concernInputs.max.checked }, metrics: {} };
