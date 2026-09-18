@@ -541,7 +541,7 @@
 
                 row.appendChild(outcomeCell);
                 const comparisons = plo.comparisons.filter(comparison => comparison.metric === metric);
-                visiblePlos.push({ id: coverage.pl_outcome_id, label: outcomeName.textContent, comparisons });
+                visiblePlos.push({ coverage, label: outcomeName.textContent, comparisons, allComparisons: plo.comparisons });
                 comparisons.forEach(comparison => row.appendChild(createComparisonCell(comparison)));
                 row.appendChild(createDetailsButtonCell(coverage, outcomeName.textContent, plo.comparisons));
                 rows.appendChild(row);
@@ -610,7 +610,8 @@
                         point: {
                             events: {
                                 click: function () {
-                                    document.getElementById(`gap-coverage-details-button-${plos[this.index].id}`).click();
+                                    const plo = plos[this.index];
+                                    openPloDetails(plo.coverage, plo.label, plo.allComparisons);
                                 },
                             },
                         },
@@ -777,18 +778,23 @@
             button.setAttribute('aria-controls', 'gap-coverage-details-modal');
             button.setAttribute('aria-haspopup', 'dialog');
             button.addEventListener('click', function () {
-                coverageChart?.tooltip.hide(0);
-                document.getElementById('gap-coverage-details-title').textContent = `Details — ${label}`;
-                document.getElementById('gap-coverage-details-content').replaceChildren(createPloDetailsContent(coverage, comparisons));
-                const modal = document.getElementById('gap-coverage-details-modal');
-                // Chart entry also returns focus to Details without scrolling away from the chart.
-                modal.addEventListener('hidden.bs.modal', () => button.focus({ preventScroll: true }), { once: true });
-                bootstrap.Modal.getOrCreateInstance(modal).show(button);
+                openPloDetails(coverage, label, comparisons);
             });
 
             cell.appendChild(button);
 
             return cell;
+        }
+
+        function openPloDetails(coverage, label, comparisons) {
+            coverageChart?.tooltip.hide(0);
+            document.getElementById('gap-coverage-details-title').textContent = `Details — ${label}`;
+            document.getElementById('gap-coverage-details-content').replaceChildren(createPloDetailsContent(coverage, comparisons));
+            const modal = document.getElementById('gap-coverage-details-modal');
+            const button = document.getElementById(`gap-coverage-details-button-${coverage.pl_outcome_id}`);
+            // Chart entry also returns focus to Details without scrolling away from the chart.
+            modal.addEventListener('hidden.bs.modal', () => button.focus({ preventScroll: true }), { once: true });
+            bootstrap.Modal.getOrCreateInstance(modal).show(button);
         }
 
         function createPloDetailsContent(coverage, comparisons) {
@@ -860,9 +866,12 @@
             renderComparisons();
             content.append(label, metric, metricDescription, region);
 
+            const totalsHeading = document.createElement('h6');
+            totalsHeading.textContent = 'Overall PLO totals';
+            content.append(totalsHeading, createCoverageSummary(coverage));
             const evidenceHeading = document.createElement('h6');
-            evidenceHeading.textContent = 'Overall counts and contributing courses';
-            content.append(evidenceHeading, createDetailsContent(coverage));
+            evidenceHeading.textContent = 'Contributing courses and CLOs';
+            content.append(evidenceHeading, createCourseEvidence(coverage.courses));
             return content;
         }
 
@@ -890,7 +899,8 @@
                 level.textContent = scale.title + (scale.abbreviation ? ` (${scale.abbreviation})` : '');
                 row.appendChild(level);
                 const unit = comparison.metric === 'mapped_clo_count' ? 'CLOs in program courses' : 'program courses';
-                row.insertCell().textContent = comparison.percentage === null
+                const actual = row.insertCell();
+                actual.textContent = comparison.percentage === null
                     ? `Not applicable — no ${unit}.`
                     : `${comparison.count} of ${comparison.denominator} ${unit} (${formatCoveragePercentage(comparison)})`;
                 row.insertCell().textContent = comparison.min === null ? 'Not set' : `${comparison.min}%`;
@@ -908,7 +918,7 @@
             return table;
         }
 
-        function createDetailsContent(coverage) {
+        function createCoverageSummary(coverage) {
             const content = document.createDocumentFragment();
             const summary = document.createElement('p');
 
@@ -922,23 +932,37 @@
                 content.appendChild(multiLevel);
             }
 
-            if (coverage.courses.length === 0) {
+            return content;
+        }
+
+        function createCourseEvidence(courses) {
+            const content = document.createDocumentFragment();
+            if (courses.length === 0) {
                 content.appendChild(document.createTextNode('No courses currently provide coverage for this PLO.'));
                 return content;
             }
 
-            coverage.courses.forEach(function (course, index) {
+            const orderedCourses = [...courses].sort((a, b) =>
+                String(a.course_num).localeCompare(String(b.course_num), undefined, { numeric: true })
+                || a.course_code.localeCompare(b.course_code));
+            orderedCourses.forEach(function (course, index) {
                 const courseSection = document.createElement('div');
-                const courseName = document.createElement('strong');
+                const courseName = document.createElement('a');
                 const courseType = document.createElement('span');
                 const outcomes = document.createElement('ul');
 
                 courseSection.classList.add('py-2');
-                if (index < coverage.courses.length - 1) {
+                if (index < courses.length - 1) {
                     courseSection.classList.add('border-bottom');
                 }
 
                 courseName.textContent = `${course.course_code} ${course.course_num}: ${course.course_title}`;
+                courseName.classList.add('fw-bold');
+                courseName.href = @json(route('courseWizard.step7', ['course' => '__COURSE_ID__']))
+                    .replace('__COURSE_ID__', encodeURIComponent(course.course_id));
+                courseName.target = '_blank';
+                courseName.rel = 'noopener';
+                courseName.setAttribute('aria-label', `${courseName.textContent} (opens in a new tab)`);
                 courseType.classList.add('badge', 'ms-2');
                 courseType.classList.add(course.course_required ? 'bg-primary' : 'bg-secondary');
                 courseType.textContent = course.course_required === null
@@ -955,7 +979,13 @@
                     groupedOutcomes.get(outcome.l_outcome_id).scaleIds.add(outcome.map_scale_id);
                 });
 
-                groupedOutcomes.forEach(function ({ outcome, scaleIds }) {
+                // Place multi-level CLOs at their first configured level, showing each CLO once.
+                const firstLevel = ({ scaleIds }) => {
+                    const index = mappingScaleLevels.findIndex(scale => scaleIds.has(scale.map_scale_id));
+                    return index === -1 ? mappingScaleLevels.length : index;
+                };
+                const orderedOutcomes = [...groupedOutcomes.values()].sort((a, b) => firstLevel(a) - firstLevel(b));
+                orderedOutcomes.forEach(function ({ outcome, scaleIds }) {
                     const item = document.createElement('li');
 
                     if (outcome.clo_shortphrase) {
