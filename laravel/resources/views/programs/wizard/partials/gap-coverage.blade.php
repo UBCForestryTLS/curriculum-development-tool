@@ -1005,7 +1005,7 @@
                 courseName.rel = 'noopener';
                 courseName.setAttribute('aria-label', `${courseName.textContent} (opens in a new tab)`);
                 courseType.classList.add('badge', 'ms-2');
-                courseType.classList.add(course.course_required ? 'bg-primary' : 'bg-secondary');
+                courseType.classList.add(course.course_required ? 'text-bg-primary' : 'text-bg-secondary');
                 courseType.textContent = course.course_required === null
                     ? 'Required status unspecified'
                     : (course.course_required ? 'Required' : 'Non-Required');
