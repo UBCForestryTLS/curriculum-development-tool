@@ -946,9 +946,17 @@
                     : (course.course_required ? 'Required' : 'Non-Required');
                 outcomes.classList.add('mb-0', 'mt-2');
 
+                // A CLO can have one row per mapping level.
+                const groupedOutcomes = new Map();
                 course.learning_outcomes.forEach(function (outcome) {
+                    if (!groupedOutcomes.has(outcome.l_outcome_id)) {
+                        groupedOutcomes.set(outcome.l_outcome_id, { outcome, scaleIds: new Set() });
+                    }
+                    groupedOutcomes.get(outcome.l_outcome_id).scaleIds.add(outcome.map_scale_id);
+                });
+
+                groupedOutcomes.forEach(function ({ outcome, scaleIds }) {
                     const item = document.createElement('li');
-                    const scaleName = outcome.map_scale_abbreviation || outcome.map_scale_title;
 
                     if (outcome.clo_shortphrase) {
                         const outcomeName = document.createElement('strong');
@@ -959,7 +967,13 @@
                         item.appendChild(document.createTextNode(outcome.l_outcome));
                     }
 
-                    item.appendChild(document.createTextNode(` - ${scaleName}`));
+                    const levels = document.createElement('small');
+                    levels.classList.add('d-block', 'text-muted');
+                    levels.textContent = 'Mapping levels: ' + mappingScaleLevels
+                        .filter(scale => scaleIds.has(scale.map_scale_id))
+                        .map(scale => scale.title + (scale.abbreviation ? ` (${scale.abbreviation})` : ''))
+                        .join(', ');
+                    item.appendChild(levels);
                     outcomes.appendChild(item);
                 });
 
