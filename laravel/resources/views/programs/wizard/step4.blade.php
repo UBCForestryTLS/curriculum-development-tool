@@ -104,6 +104,7 @@
                                 <button class="nav-link active flex-fill" id="nav-bar-charts-tab" href="javascript:;" data-bs-toggle="tab" data-bs-target="#nav-bar-charts" type="button" role="tab" aria-controls="nav-bar-charts" aria-selected="true">Bar Charts</button>
                                 <button class="nav-link flex-fill" id="getData" href="javascript:;" data-bs-toggle="tab" data-bs-target="#nav-charts" type="button" role="tab" aria-controls="nav-charts" aria-selected="false">Frequency Distribution Tables</button>
                                 <button class="nav-link flex-fill" id="nav-gap-coverage-tab" data-bs-toggle="tab" data-bs-target="#nav-gap-coverage" type="button" role="tab" aria-controls="nav-gap-coverage" aria-selected="false">Gap and Redundancy Report</button>
+                                <button class="nav-link flex-fill" id="nav-progression-tab" data-bs-toggle="tab" data-bs-target="#nav-progression" type="button" role="tab" aria-controls="nav-progression" aria-selected="false">Progression Report</button>
                                 <button class="nav-link flex-fill" id="nav-plo-tab" data-bs-toggle="tab" data-bs-target="#nav-plo" type="button" role="tab" aria-controls="nav-plo" aria-selected="false">Program Learning Outcomes</button>
                                 <button class="nav-link flex-fill" id="nav-mapping-scale-tab" data-bs-toggle="tab" data-bs-target="#nav-mapping-scale" type="button" role="tab" aria-controls="nav-mapping-scale" aria-selected="false">Mapping Scale</button>
                             </div>
@@ -113,6 +114,13 @@
 
                             <div class="tab-pane fade" id="nav-gap-coverage" role="tabpanel" aria-labelledby="nav-gap-coverage-tab">
                                 @include('programs.wizard.partials.gap-coverage', ['program' => $program])
+                            </div>
+
+                            <div class="tab-pane fade" id="nav-progression" role="tabpanel" aria-labelledby="nav-progression-tab" tabindex="0">
+                                <div class="py-4">
+                                    <h4>Progression Report</h4>
+                                    <p>Progression reporting using Bloom’s cognitive taxonomy is coming soon.</p>
+                                </div>
                             </div>
 
                             <!-- Program Learning Outcome Tab -->
