@@ -414,6 +414,45 @@ class ProgramWizardController extends Controller
         ]);
     }
 
+    /**
+     * Returns current courses and CLOs for progression reporting.
+     */
+    public function getProgression($program_id): JsonResponse
+    {
+        $program = Program::findOrFail($program_id);
+        $courses = $program->courses()
+            ->select('courses.course_id', 'course_code', 'course_num', 'course_title')
+            ->with(['learningOutcomes' => fn ($query) => $query
+                ->select('l_outcome_id', 'course_id', 'l_outcome', 'clo_shortphrase')
+                ->orderBy('l_outcome_id')])
+            ->orderBy('courses.course_id')
+            ->get()
+            ->unique('course_id')
+            ->values()
+            ->map(fn ($course) => [
+                'course_id' => (int) $course->course_id,
+                'course_code' => $course->course_code,
+                'course_num' => $course->course_num,
+                'course_title' => $course->course_title,
+                'course_required' => $course->pivot->course_required === null
+                    ? null : (bool) $course->pivot->course_required,
+                'clos' => $course->learningOutcomes->map(fn ($clo) => [
+                    'l_outcome_id' => (int) $clo->l_outcome_id,
+                    'l_outcome' => $clo->l_outcome,
+                    'clo_shortphrase' => $clo->clo_shortphrase,
+                ]),
+            ]);
+
+        return response()->json([
+            'program_id' => (int) $program->program_id,
+            'program_totals' => [
+                'course_count' => $courses->count(),
+                'clo_count' => $courses->sum(fn ($course) => $course['clos']->count()),
+            ],
+            'courses' => $courses,
+        ]);
+    }
+
     public function resetKeys($array)
     {
         $newArray = [];
