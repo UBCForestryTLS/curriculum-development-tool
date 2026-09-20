@@ -117,10 +117,7 @@
                             </div>
 
                             <div class="tab-pane fade" id="nav-progression" role="tabpanel" aria-labelledby="nav-progression-tab" tabindex="0">
-                                <div class="py-4">
-                                    <h4>Progression Report</h4>
-                                    <p>Progression reporting using Bloom’s cognitive taxonomy is coming soon.</p>
-                                </div>
+                                @include('programs.wizard.partials.progression', ['program' => $program])
                             </div>
 
                             <!-- Program Learning Outcome Tab -->
