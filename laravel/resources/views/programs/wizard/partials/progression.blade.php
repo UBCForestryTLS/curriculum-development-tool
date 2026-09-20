@@ -26,7 +26,16 @@
         <p id="progression-no-courses" class="alert alert-info d-none">There are no courses in this program. Add courses to begin reviewing progression.</p>
         <p id="progression-no-clos" class="alert alert-info d-none">The courses in this program do not have any CLOs yet. Add course learning outcomes to begin reviewing progression.</p>
     </div>
+
+    <section id="progression-courses" class="d-none" aria-labelledby="progression-courses-heading">
+        <h5 id="progression-courses-heading">Courses and learning outcomes</h5>
+        <div id="progression-course-list" class="text-break"></div>
+    </section>
 </div>
+
+<style>
+    #progression-course-list ul::before { content: none; }
+</style>
 
 <script type="module">
     $(document).ready(function () {
@@ -58,6 +67,7 @@
                     $('#progression-clo-count').text(totals.clo_count);
                     $('#progression-no-courses').toggleClass('d-none', totals.course_count !== 0);
                     $('#progression-no-clos').toggleClass('d-none', totals.course_count === 0 || totals.clo_count !== 0);
+                    renderCourses(data.courses);
                     $('#progression-results').removeClass('d-none');
                 },
                 error: function () {
@@ -67,6 +77,56 @@
                     progressionLoading = false;
                     $('#progression-loading').addClass('d-none');
                 }
+            });
+        }
+
+        function renderCourses(courses) {
+            const list = document.getElementById('progression-course-list');
+            list.replaceChildren();
+            $('#progression-courses').toggleClass('d-none', courses.length === 0);
+
+            courses.forEach(function (course) {
+                const section = document.createElement('section');
+                section.className = 'border rounded p-3 mb-3';
+                const heading = document.createElement('h6');
+                const link = document.createElement('a');
+                const code = [course.course_code, course.course_num].filter(Boolean).join(' ');
+                link.textContent = [code, course.course_title].filter(Boolean).join(': ') || `Course ${course.course_id}`;
+                link.href = @json(route('courseWizard.step7', ['course' => '__COURSE_ID__']))
+                    .replace('__COURSE_ID__', encodeURIComponent(course.course_id));
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.setAttribute('aria-label', `${link.textContent} (opens in a new tab)`);
+                heading.appendChild(link);
+
+                const status = document.createElement('span');
+                status.className = 'badge mb-2 ' + (course.course_required ? 'text-bg-primary' : 'text-bg-secondary');
+                status.textContent = course.course_required === null
+                    ? 'Required status unspecified'
+                    : (course.course_required ? 'Required' : 'Non-required');
+                section.append(heading, status);
+
+                if (course.clos.length === 0) {
+                    const empty = document.createElement('p');
+                    empty.className = 'mb-0 text-muted';
+                    empty.textContent = 'No course learning outcomes have been added yet.';
+                    section.appendChild(empty);
+                } else {
+                    const outcomes = document.createElement('ul');
+                    outcomes.className = 'mb-0';
+                    course.clos.forEach(function (clo) {
+                        const item = document.createElement('li');
+                        if (clo.clo_shortphrase) {
+                            const label = document.createElement('strong');
+                            label.textContent = `${clo.clo_shortphrase}: `;
+                            item.appendChild(label);
+                        }
+                        item.appendChild(document.createTextNode(clo.l_outcome ?? ''));
+                        outcomes.appendChild(item);
+                    });
+                    section.appendChild(outcomes);
+                }
+                list.appendChild(section);
             });
         }
     });
