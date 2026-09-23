@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\AssessmentMethod;
 use App\Models\Campus;
 use App\Models\Course;
-use App\Models\CourseDescription;
 use App\Models\Department;
 use App\Models\Faculty;
 use App\Models\LearningActivity;
@@ -26,8 +25,6 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
-use App\Models\CourseTopic;
-use App\Models\CourseMaterial;
 
 class HomeController extends Controller
 {
@@ -73,7 +70,11 @@ class HomeController extends Controller
             ->paginate(15, ['*'], 'courses_page')
             ->withQueryString()
             ->fragment('dashboard-courses');
-        $myCourses = $coursesPaginator->getCollection()->map(function ($course) {
+        $myCourses = $coursesPaginator->getCollection()
+            ->load('courseDescription')
+            ->loadCount('learningOutcomes')
+            ->loadExists(['courseTopics', 'courseMaterials', 'assessmentMethods', 'learningActivities']);
+        $myCourses = $myCourses->map(function ($course) {
             $course['timeSince'] = $this->timeSince(time() - strtotime($course->updated_at));
 
             return $course;
@@ -117,7 +118,7 @@ class HomeController extends Controller
         $count = 0;
         foreach ($myCourses as $course) {
 
-            $numClos = LearningOutcome::where('course_id', $course->course_id)->count();
+            $numClos = $course->learning_outcomes_count;
             // get the total number of program outcome maps possible for a course
             $coursePrograms = $course->programs;
             if (count($coursePrograms) <= 1) {
@@ -145,34 +146,34 @@ class HomeController extends Controller
             $progressBarMsg[$courseId]['statusMsg'] = '<b>Remaining Tasks</b> <ol>';
             $hasNoStandards = false;
             // gets the count for each step used to check if progress has been made
-            if(strlen(CourseDescription::where('course_id', $courseId)->first()?->description)){
+            if (strlen($course->courseDescription?->description ?? '') > 0) {
                 $count++;
             } else{
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Course Description (Step 1)</li>';
             }
-            if (CourseTopic::where('course_id', $courseId)->count() > 0) {
+            if ($course->course_topics_exists) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Course Topics (Step 2)</li>';
             }
 
-            if (CourseMaterial::where('course_id', $courseId)->count() > 0) {
+            if ($course->course_materials_exists) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Course Materials (Step 3)</li>';
             }
 
-            if (LearningOutcome::where('course_id', $courseId)->count() > 0) {
+            if ($numClos > 0) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Course Learning Outcomes (Step 4)</li>';
             }
-            if (AssessmentMethod::where('course_id', $courseId)->count() > 0) {
+            if ($course->assessment_methods_exists) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Student Assessment Methods (Step 5)</li>';
             }
-            if (LearningActivity::where('course_id', $courseId)->count() > 0) {
+            if ($course->learning_activities_exists) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Teaching and Learning Activities (Step 6)</li>';
