@@ -53,20 +53,18 @@ class HomeController extends Controller
         $departments = Department::orderBy('department')->get();
         // get the current authenticated user
         $user = User::find(Auth::id());
-        // get my programs
-//        $myPrograms = $user->programs->map(function ($program) {
-//            $program['timeSince'] = $this->timeSince(time() - strtotime($program->updated_at));
-//            $program['userPermission'] = $program->pivot->permission;
-//
-//            return $program;
-//        })->sortByDesc('updated_at')->values(); // Values is used to reset the index for sort statement
-
-        $myPrograms = $user->allPrograms()->map(function ($program) use ($user){
+        $programsPaginator = $user->dashboardProgramsQuery()
+            ->with('users')
+            ->orderByDesc('programs.updated_at')
+            ->orderByDesc('programs.program_id')
+            ->paginate(15, ['*'], 'programs_page')
+            ->withQueryString()
+            ->fragment('dashboard-programs');
+        $myPrograms = $programsPaginator->getCollection()->map(function ($program) {
             $program['timeSince'] = $this->timeSince(time() - strtotime($program->updated_at));
-            $program['userPermission'] = $user->effectivePermissionForProgram($program->program_id);
 
             return $program;
-        })->sortByDesc('updated_at')->values(); // Values is used to reset the index for sort statement
+        });
 
         $coursesPaginator = $user->dashboardCoursesQuery()
             ->with(['users', 'programs'])
@@ -97,8 +95,7 @@ class HomeController extends Controller
         // returns a collection of programs associated with users (Collaborators Icon)
         $programUsers = [];
         foreach ($myPrograms as $program) {
-            $programsUsers = $program->users()->get();
-            $programUsers[$program->program_id] = $programsUsers;
+            $programUsers[$program->program_id] = $program->users;
         }
         // returns a collection of courses associated with users
         $courseUsers = [];
@@ -225,7 +222,7 @@ class HomeController extends Controller
         // return dashboard view
         return view('pages.home')->with('myCourses', $myCourses)->with('myPrograms', $myPrograms)->with('user', $user)->with('coursesPrograms', $coursesPrograms)->with('standard_categories', $standard_categories)->with('programUsers', $programUsers)
             ->with('courseUsers', $courseUsers)->with('mySyllabi', $mySyllabi)->with('syllabiUsers', $syllabiUsers)->with('progressBar', $progressBar)->with('progressBarMsg', $progressBarMsg)->with('campuses', $campuses)->with('faculties', $faculties)
-            ->with('departments', $departments)->with('coursesPaginator', $coursesPaginator);
+            ->with('departments', $departments)->with('coursesPaginator', $coursesPaginator)->with('programsPaginator', $programsPaginator);
     }
 
     public function getProgramUsers($program_id): View
