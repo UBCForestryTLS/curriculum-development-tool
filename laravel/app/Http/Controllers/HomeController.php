@@ -68,20 +68,18 @@ class HomeController extends Controller
             return $program;
         })->sortByDesc('updated_at')->values(); // Values is used to reset the index for sort statement
 
-        // get my courses
-        $myCourses = $user->allCourses()->map(function ($course) use ($user) {
+        $coursesPaginator = $user->dashboardCoursesQuery()
+            ->with(['users', 'programs'])
+            ->orderByDesc('courses.updated_at')
+            ->orderByDesc('courses.course_id')
+            ->paginate(15, ['*'], 'courses_page')
+            ->withQueryString()
+            ->fragment('dashboard-courses');
+        $myCourses = $coursesPaginator->getCollection()->map(function ($course) {
             $course['timeSince'] = $this->timeSince(time() - strtotime($course->updated_at));
-            $course['userPermission'] = $user->effectivePermissionForCourse($course->course_id);
 
             return $course;
-        })->sortByDesc('updated_at')->values(); // Values is used to reset the index for sort statement
-//        // get my courses
-//        $myCourses = $user->courses->map(function ($course) {
-//            $course['timeSince'] = $this->timeSince(time() - strtotime($course->updated_at));
-//            $course['userPermission'] = $course->pivot->permission;
-//
-//            return $course;
-//        })->sortByDesc('updated_at')->values(); // Values is used to reset the index for sort statement
+        });
         // get my syllabi
         $mySyllabi = $user->syllabi->map(function ($syllabus) {
             $syllabus['timeSince'] = $this->timeSince(time() - strtotime($syllabus->updated_at));
@@ -105,9 +103,7 @@ class HomeController extends Controller
         // returns a collection of courses associated with users
         $courseUsers = [];
         foreach ($myCourses as $course) {
-            $coursesUsers = $course->users()->get();
-            #$coursesUsers = $course->collaborators();
-            $courseUsers[$course->course_id] = $coursesUsers;
+            $courseUsers[$course->course_id] = $course->users;
         }
         // get the associated users for every one of this users syllabi
         $syllabiUsers = [];
@@ -229,7 +225,7 @@ class HomeController extends Controller
         // return dashboard view
         return view('pages.home')->with('myCourses', $myCourses)->with('myPrograms', $myPrograms)->with('user', $user)->with('coursesPrograms', $coursesPrograms)->with('standard_categories', $standard_categories)->with('programUsers', $programUsers)
             ->with('courseUsers', $courseUsers)->with('mySyllabi', $mySyllabi)->with('syllabiUsers', $syllabiUsers)->with('progressBar', $progressBar)->with('progressBarMsg', $progressBarMsg)->with('campuses', $campuses)->with('faculties', $faculties)
-            ->with('departments', $departments);
+            ->with('departments', $departments)->with('coursesPaginator', $coursesPaginator);
     }
 
     public function getProgramUsers($program_id): View

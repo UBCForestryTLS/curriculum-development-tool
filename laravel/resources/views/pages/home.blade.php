@@ -312,7 +312,7 @@
             <!-- End of Programs -->
 
             <!-- Start of Courses -->
-            <div class="card shadow rounded m-4" style="border-style: solid;border-color: #1E90FF;">
+            <div id="dashboard-courses" class="card shadow rounded m-4" style="border-style: solid;border-color: #1E90FF;scroll-margin-top: 6rem;">
                 <div class="card-title bg-primary p-3">
                     <h3 style="color: white;">
                         Courses
@@ -917,6 +917,14 @@
                         </table>
                     @endif
                 </div>
+                @if($coursesPaginator->total() > 0)
+                    <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <p class="mb-0">
+                            Showing {{ $coursesPaginator->firstItem() ?? 0 }}–{{ $coursesPaginator->lastItem() ?? 0 }} of {{ $coursesPaginator->total() }} courses
+                        </p>
+                        {{ $coursesPaginator->onEachSide(1)->links() }}
+                    </div>
+                @endif
             </div>
             <!-- End of Courses -->
 
