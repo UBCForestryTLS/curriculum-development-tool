@@ -137,6 +137,31 @@ class User extends Authenticatable implements MustVerifyEmail
         return $rolePrograms->merge($permissionPrograms)->unique('program_id')->values();
     }
 
+    /**
+     * Query visible dashboard programs without loading the full access lists.
+     */
+    public function dashboardProgramsQuery(): Builder
+    {
+        $directAccess = DB::table('program_users')
+            ->select('program_id', 'permission')->where('user_id', $this->id);
+        $elevatedAccess = DB::table('program_user_role')
+            ->join('roles', 'roles.id', '=', 'program_user_role.role_id')
+            ->where('program_user_role.user_id', $this->id)
+            ->whereIn('roles.role', ['administrator', 'program director', 'department head'])
+            ->select('program_user_role.program_id')->distinct();
+
+        return Program::query()
+            ->select('programs.*')
+            ->leftJoinSub($directAccess, 'direct_access', 'direct_access.program_id', '=', 'programs.program_id')
+            ->leftJoinSub($elevatedAccess, 'elevated_access', 'elevated_access.program_id', '=', 'programs.program_id')
+            ->where(function (Builder $query) {
+                $query->whereNotNull('elevated_access.program_id')
+                    ->orWhereIn('direct_access.permission', [1, 2, 3]);
+            })
+            ->selectRaw('CASE WHEN elevated_access.program_id IS NOT NULL THEN 1 ELSE direct_access.permission END AS "userPermission"')
+            ->withCasts(['userPermission' => 'integer']);
+    }
+
     public function effectivePermissionForProgram($programId)
     {
         $elevatedRoleIds = Role::whereIn('role', ['administrator', 'program director', 'department head'])
