@@ -147,7 +147,7 @@
                                 </div>
 
                                 <!-- program collaborators modal -->
-                                @include('programs.programCollabs', ['program-' . $program->program_id, $program->program_id])
+                                @include('programs.programCollabs', ['programUserPermission' => $program->userPermission])
 
                                 <!-- Delete Confirmation Modal -->
                                 <div class="modal fade" id="deleteProgram{{$index}}" tabindex="-1" role="dialog" aria-labelledby="deleteProgram{{$index}}" aria-hidden="true">
@@ -257,7 +257,7 @@
                                 </div>
 
                                 <!-- program collaborators modal -->
-                                @include('programs.programCollabs', ['program-' . $program->program_id, $program->program_id])
+                                @include('programs.programCollabs', ['programUserPermission' => $program->userPermission])
                             </td>
                         </tr>
                     </tbody>
@@ -301,7 +301,7 @@
                                 <!-- end drop down -->
 
                                 <!-- program collaborators modal -->
-                                @include('programs.programCollabs', ['program-' . $program->program_id, $program->program_id])
+                                @include('programs.programCollabs', ['programUserPermission' => $program->userPermission])
                             </td>
                         </tr>
                     </tbody>

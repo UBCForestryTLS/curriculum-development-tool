@@ -1,8 +1,8 @@
 <!-- start of add/edit program collaborators modal -->
-<?php //$programPermission = $user->programs->where('program_id', $program->program_id)->first();
-use App\Models\Role;
-
-$programPermission = $user->allPrograms()->where('program_id', $program->program_id)->first(); ?><!---->
+@php
+    $programUserPermission = $programUserPermission ?? $user->effectivePermissionForProgram($program->program_id);
+    $isDirectProgramOwner = $program->users->firstWhere('id', $user->id)?->pivot->permission == 1;
+@endphp
 <div id="addProgramCollaboratorsModal{{$program->program_id}}" class="modal fade" data-bs-backdrop="static"
      data-bs-keyboard="false" tabindex="-1" role="dialog"
      aria-labelledby="addProgramCollaboratorsModalLabel{{$program->program_id}}" aria-hidden="true">
@@ -25,8 +25,7 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
                     </li>
                 </div>
 
-                {{--                @if ($programPermission->pivot->permission == 1)--}}
-                @if ($user->effectivePermissionForProgram($programPermission->program_id) == 1)
+                @if ($programUserPermission == 1)
                     <form class="addProgramCollabForm needs-validation" novalidate
                           data-program_id="{{$program->program_id}}">
                         @csrf
@@ -91,7 +90,7 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
                                     </td>
                                     <td colspan="2"></td>
                                 @else
-                                    @if ($programPermission->pivot->permission == 1 or $user->effectivePermissionForProgram($programPermission->program_id) == 1)
+                                    @if ($programUserPermission == 1)
                                         <td class="align-middle">
                                             <select
                                                 id="program_collab_permission{{$program->program_id}}-{{$programCollaborator->id}}"
@@ -174,14 +173,14 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
                                             </div>
                                         </div>
                                     @else
-                                        @if ($programPermission->pivot->permission == 1 or $user->effectivePermissionForProgram($programPermission->program_id) == 1)
+                                        @if ($programUserPermission == 1)
                                             <td class="text-center align-middle">
                                                 <button type="input" class="btn btn-danger btn"
                                                         onclick="deleteProgramCollab(this)">Remove
                                                 </button>
                                             </td>
 
-                                                @if ($programPermission->pivot->permission == 1)
+                                                @if ($isDirectProgramOwner)
                                                     <td class="text-center align-middle">
                                                         <button type="input" class="btn btn-primary btn-sm" data-bs-toggle="modal"
                                                                 data-bs-target="#transferProgramConfirmation{{$program->program_id}}">
