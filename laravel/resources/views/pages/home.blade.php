@@ -474,7 +474,7 @@
                                             </div>
                                         </div>
 
-                                        @include('courses.courseCollabs')
+                                        @include('courses.courseCollabs', ['courseUserPermission' => $course->userPermission])
 
                                         <!-- Delete Confirmation Modal -->
                                         <div class="modal fade" id="deleteCourseConfirmation{{$course->course_id}}" tabindex="-1" role="dialog" aria-labelledby="deleteCourseConfirmation{{$course->course_id}}" aria-hidden="true">
@@ -706,7 +706,7 @@
                                             </div>
                                         </div>
 
-                                        @include('courses.courseCollabs')
+                                        @include('courses.courseCollabs', ['courseUserPermission' => $course->userPermission])
 
                                         <!-- Duplicate Course Confirmation Modal -->
                                         <div class="modal fade" id="duplicateCourseConfirmation{{$course->course_id}}" tabindex="-1" role="dialog" aria-labelledby="duplicateCourseConfirmation{{$course->course_id}}" aria-hidden="true">
@@ -909,7 +909,7 @@
                                             </div>
                                         </div>
 
-                                        @include('courses.courseCollabs')
+                                        @include('courses.courseCollabs', ['courseUserPermission' => $course->userPermission])
                                     </td>
                                 </tr>
                             </tbody>

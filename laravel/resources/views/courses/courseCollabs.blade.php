@@ -1,9 +1,8 @@
 <!-- start of add/edit course collaborators modal -->
-<?php //$coursePermission = $user->courses->where('course_id', $course->course_id)->first(); ?><!---->
-<?php use App\Models\Role;
-
-$coursePermission = $user->allCourses()->where('course_id', $course->course_id)->first();
-?>
+@php
+    $courseUserPermission = $courseUserPermission ?? $user->effectivePermissionForCourse($course->course_id);
+    $isDirectCourseOwner = $course->users->firstWhere('id', $user->id)?->pivot->permission == 1;
+@endphp
 <div id="addCourseCollaboratorsModal{{$course->course_id}}" class="modal fade" data-bs-backdrop="static"
      data-bs-keyboard="false" tabindex="-1" role="dialog"
      aria-labelledby="addCourseCollaboratorsModalLabel{{$course->course_id}}" aria-hidden="true">
@@ -26,8 +25,7 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                     </li>
                 </div>
 
-                {{--                @if ($coursePermission->pivot->permission == 1)--}}
-                @if ($user->effectivePermissionForCourse($coursePermission->course_id) == 1)
+                @if ($courseUserPermission == 1)
                     <form class="addCourseCollabForm needs-validation" novalidate
                           data-course_id="{{$course->course_id}}">
                         @csrf
@@ -92,7 +90,7 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                                     </td>
                                     <td colspan="2"></td>
                                 @else
-                                    @if ($coursePermission->pivot->permission == 1 or $user->effectivePermissionForCourse($coursePermission->course_id) == 1)
+                                    @if ($courseUserPermission == 1)
                                         <td class="align-middle">
                                             <select
                                                 id="course_collab_permission{{$course->course_id}}-{{$courseCollaborator->id}}"
@@ -174,7 +172,7 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                                             </div>
                                         </div>
                                     @else
-                                        @if ($coursePermission->pivot->permission == 1)
+                                        @if ($isDirectCourseOwner)
                                             <td class="text-center align-middle">
                                                 <button type="input" class="btn btn-danger btn"
                                                         onclick="deleteCourseCollab(this)">Remove
@@ -182,14 +180,12 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                                             </td>
 
 
-                                            @if ($coursePermission->pivot->permission == 1)
                                             <td class="text-center align-middle">
                                                 <button type="input" class="btn btn-primary btn-sm" data-bs-toggle="modal"
                                                         data-bs-target="#transferCourseConfirmation{{$course->course_id}}">
                                                     Transfer Ownership
                                                 </button>
                                             </td>
-                                                @endif
 
                                             <!-- Transfer Confirmation Modal -->
                                             <div class="modal fade"
