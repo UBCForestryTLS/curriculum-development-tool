@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -63,6 +65,31 @@ class User extends Authenticatable implements MustVerifyEmail
         $roleCourses = $this->coursesWithElevatedRoleAccess()->get();
 
         return $roleCourses->merge($permissionCourses)->unique('course_id')->values();
+    }
+
+    /**
+     * Query visible dashboard courses without loading the full access lists.
+     */
+    public function dashboardCoursesQuery(): Builder
+    {
+        $directAccess = DB::table('course_users')
+            ->select('course_id', 'permission')->where('user_id', $this->id);
+        $elevatedAccess = DB::table('course_user_role')
+            ->join('roles', 'roles.id', '=', 'course_user_role.role_id')
+            ->where('course_user_role.user_id', $this->id)
+            ->whereIn('roles.role', ['administrator', 'program director', 'department head'])
+            ->select('course_user_role.course_id')->distinct();
+
+        return Course::query()
+            ->select('courses.*')
+            ->leftJoinSub($directAccess, 'direct_access', 'direct_access.course_id', '=', 'courses.course_id')
+            ->leftJoinSub($elevatedAccess, 'elevated_access', 'elevated_access.course_id', '=', 'courses.course_id')
+            ->where(function (Builder $query) {
+                $query->whereNotNull('elevated_access.course_id')
+                    ->orWhereIn('direct_access.permission', [1, 2, 3]);
+            })
+            ->selectRaw('CASE WHEN elevated_access.course_id IS NOT NULL THEN 1 ELSE direct_access.permission END AS "userPermission"')
+            ->withCasts(['userPermission' => 'integer']);
     }
 
     public function effectivePermissionForCourse($courseId)
