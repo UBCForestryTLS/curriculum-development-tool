@@ -24,7 +24,8 @@ class DashboardCourseProgressTest extends TestCase
         DB::flushQueryLog();
         try {
             $response = $this->get(route('home'))->assertOk();
-            $queries = collect(DB::getQueryLog())->pluck('query');
+            $queryLog = collect(DB::getQueryLog());
+            $queries = $queryLog->pluck('query');
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();
@@ -40,7 +41,13 @@ class DashboardCourseProgressTest extends TestCase
             $this->assertSame(1, preg_match('/ in \(([\d, ]+)\)/', $sql, $matches));
             $this->assertEqualsCanonicalizing($visibleIds, array_map('intval', explode(',', $matches[1])));
         }
-        // Simple per-course counts were replaced; alignment joins are a later step.
+        $alignmentQueries = $queryLog->filter(fn ($entry) => str_contains($entry['query'], '"outcome_assessments"')
+            || str_contains($entry['query'], '"outcome_activities"'));
+        $this->assertCount(3, $alignmentQueries);
+        foreach ($alignmentQueries as $entry) {
+            $this->assertSame($visibleIds, $entry['bindings']);
+        }
+        // Simple per-course counts were replaced by the batched facts.
         $oldCounts = $queries->filter(fn ($sql) => str_starts_with($sql, 'select count(*) as aggregate from ')
             && ! str_contains($sql, ' join ') && preg_match('/"(learning_outcomes|assessment_methods|learning_activities)"/', $sql));
         $this->assertCount(0, $oldCounts);

@@ -9,8 +9,6 @@ use App\Models\Department;
 use App\Models\Faculty;
 use App\Models\LearningActivity;
 use App\Models\LearningOutcome;
-use App\Models\OutcomeActivity;
-use App\Models\OutcomeAssessment;
 use App\Models\Program;
 use App\Models\ProgramLearningOutcome;
 use App\Models\ProgramUser;
@@ -112,6 +110,27 @@ class HomeController extends Controller
         // returns a collection of standard_categories, used in the create course modal
         $standard_categories = DB::table('standard_categories')->get();
 
+        // Gather alignment facts for the displayed courses before calculating progress.
+        $courseIds = $myCourses->modelKeys();
+        $coursesWithUnalignedClos = LearningOutcome::whereIn('course_id', $courseIds)
+            ->where(function ($query) {
+                $query->whereNotExists(function ($query) {
+                    $query->selectRaw('1')->from('outcome_assessments')
+                        ->whereColumn('outcome_assessments.l_outcome_id', 'learning_outcomes.l_outcome_id');
+                })->orWhereNotExists(function ($query) {
+                    $query->selectRaw('1')->from('outcome_activities')
+                        ->whereColumn('outcome_activities.l_outcome_id', 'learning_outcomes.l_outcome_id');
+                });
+            })->distinct()->pluck('course_id');
+        $coursesWithAlignedActivities = LearningActivity::join('outcome_activities', 'learning_activities.l_activity_id', '=', 'outcome_activities.l_activity_id')
+            ->join('learning_outcomes', 'outcome_activities.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')
+            ->whereIn('learning_activities.course_id', $courseIds)
+            ->distinct()->pluck('learning_activities.course_id');
+        $coursesWithAlignedAssessments = AssessmentMethod::join('outcome_assessments', 'assessment_methods.a_method_id', '=', 'outcome_assessments.a_method_id')
+            ->join('learning_outcomes', 'outcome_assessments.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')
+            ->whereIn('assessment_methods.course_id', $courseIds)
+            ->distinct()->pluck('assessment_methods.course_id');
+
         //for progress bar
         $progressBar = [];
         $progressBarMsg = [];
@@ -130,15 +149,6 @@ class HomeController extends Controller
             foreach ($coursePrograms as $program) {
                 // multiple number of CLOs by num of PLOs
                 $expectedProgramOutcomeMapCount += $program->programLearningOutcomes->count() * $numClos;
-            }
-            // checks if all learning outcomes have been aligned to a student assessment method AND a Teaching and Learning Outcome. Breaks and returns true if a clo is not aligned.
-            $l_outcomes = LearningOutcome::where('course_id', $course->course_id)->get();
-            $hasNonAlignedCLO = false;
-            foreach ($l_outcomes as $clo) {
-                if ((! OutcomeAssessment::where('l_outcome_id', $clo->l_outcome_id)->exists()) || (! OutcomeActivity::where('l_outcome_id', $clo->l_outcome_id)->exists())) {
-                    $hasNonAlignedCLO = true;
-                    break;
-                }
             }
             // Used for getting the status (progress) for each course displayed on the dashboard
             // get course id for each course
@@ -178,18 +188,10 @@ class HomeController extends Controller
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Teaching and Learning Activities (Step 6)</li>';
             }
-            if ((! LearningActivity::join('outcome_activities', 'learning_activities.l_activity_id', '=', 'outcome_activities.l_activity_id')->join('learning_outcomes', 'outcome_activities.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')->select('outcome_activities.l_activity_id', 'learning_activities.l_activity', 'outcome_activities.l_outcome_id', 'learning_outcomes.l_outcome')->where('learning_activities.course_id', '=', $courseId)->count() > 0) && (! AssessmentMethod::join('outcome_assessments', 'assessment_methods.a_method_id', '=', 'outcome_assessments.a_method_id')->join('learning_outcomes', 'outcome_assessments.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')->select('assessment_methods.a_method_id', 'assessment_methods.a_method', 'outcome_assessments.l_outcome_id', 'learning_outcomes.l_outcome')->where('assessment_methods.course_id', '=', $courseId)->count() > 0)) {
-                if (LearningActivity::join('outcome_activities', 'learning_activities.l_activity_id', '=', 'outcome_activities.l_activity_id')->join('learning_outcomes', 'outcome_activities.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')->select('outcome_activities.l_activity_id', 'learning_activities.l_activity', 'outcome_activities.l_outcome_id', 'learning_outcomes.l_outcome')->where('learning_activities.course_id', '=', $courseId)->count() > 0) {
-                    $count++;
-                } else {
-                    $progressBarMsg[$courseId]['statusMsg'] .= '<li>Assessment Methods - Course Alignment (Step 7)</li>';
-                }
-                if (AssessmentMethod::join('outcome_assessments', 'assessment_methods.a_method_id', '=', 'outcome_assessments.a_method_id')->join('learning_outcomes', 'outcome_assessments.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')->select('assessment_methods.a_method_id', 'assessment_methods.a_method', 'outcome_assessments.l_outcome_id', 'learning_outcomes.l_outcome')->where('assessment_methods.course_id', '=', $courseId)->count() > 0) {
-                    $count++;
-                } else {
-                    $progressBarMsg[$courseId]['statusMsg'] .= '<li>Learning Activities - Course Alignment (Step 7)</li>';
-                }
-            } elseif ($hasNonAlignedCLO) {
+            if (! $coursesWithAlignedActivities->contains($courseId) && ! $coursesWithAlignedAssessments->contains($courseId)) {
+                $progressBarMsg[$courseId]['statusMsg'] .= '<li>Assessment Methods - Course Alignment (Step 7)</li>';
+                $progressBarMsg[$courseId]['statusMsg'] .= '<li>Learning Activities - Course Alignment (Step 7)</li>';
+            } elseif ($coursesWithUnalignedClos->contains($courseId)) {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Course Alignment (Step 7)</li>';
                 $count++;
             } else {
