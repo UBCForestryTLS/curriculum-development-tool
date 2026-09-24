@@ -59,13 +59,11 @@
                     </div>
                 </div>
 
-                @if ($course->users->count() < 1)
-                    <div class="alert alert-warning wizard">
+                    <div class="collaborators-empty alert alert-warning wizard @if ($course->users->isNotEmpty()) d-none @endif">
                         <i class="bi bi-exclamation-circle-fill"></i>You have not added any collaborators to this course
                         yet.
                     </div>
-                @else
-                    <table id="addCourseCollabsTbl{{$course->course_id}}" class="table table-light borderless">
+                    <table id="addCourseCollabsTbl{{$course->course_id}}" class="table table-light borderless @if ($course->users->isEmpty()) d-none @endif">
                         <thead>
                         <tr class="table-primary">
                             <th>Collaborators</th>
@@ -238,7 +236,6 @@
                         @endforeach
                         </tbody>
                     </table>
-                @endif
             </div>
 
             <form method="POST" id="saveCourseCollabChanges{{$course->course_id}}"
@@ -265,7 +262,7 @@
             var courseId = event.currentTarget.dataset.course_id;
             // prevent default form submission handling
             event.preventDefault();
-            event.stopPropagation();
+            event.stopImmediatePropagation();
             // check if input fields contain data
             var email = $('#course_collab_email' + courseId);
             if (isEmailValid(email.val())
@@ -325,12 +322,16 @@
     }
 
     function deleteCourseCollab(submitter) {
-        $(submitter).parents('tr')[0].remove();
+        const table = $(submitter).closest('table');
+        $(submitter).closest('tr').remove();
+        const isEmpty = table.find('tbody tr').length === 0;
+        table.toggleClass('d-none', isEmpty);
+        table.siblings('.collaborators-empty').toggleClass('d-none', !isEmpty);
     }
 
     function addCourseCollab(courseId) {
-        // prepend assessment method to the table
-        $('#addCourseCollabsTbl' + courseId + ' tbody').prepend(`
+        const table = $('#addCourseCollabsTbl' + courseId);
+        table.find('tbody').prepend(`
             <tr>
                 <td>
                     <input type="text" class="form-control " name="course_new_collabs[]" value = "${$('#course_collab_email' + courseId).val()}" placeholder="E.g. john.doe@ubc.ca" form="saveCourseCollabChanges${courseId}" required>
@@ -348,5 +349,7 @@
                 <td></td>
             </tr>
         `);
+        table.removeClass('d-none');
+        table.siblings('.collaborators-empty').addClass('d-none');
     }
 </script>

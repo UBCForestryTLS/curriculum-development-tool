@@ -59,13 +59,11 @@
                     </div>
                 </div>
 
-                @if ($program->users->count() < 1)
-                    <div class="alert alert-warning wizard">
+                    <div class="collaborators-empty alert alert-warning wizard @if ($program->users->isNotEmpty()) d-none @endif">
                         <i class="bi bi-exclamation-circle-fill"></i>You have not added any collaborators to this
                         program yet.
                     </div>
-                @else
-                    <table id="addProgramCollabsTbl{{$program->program_id}}" class="table table-light borderless">
+                    <table id="addProgramCollabsTbl{{$program->program_id}}" class="table table-light borderless @if ($program->users->isEmpty()) d-none @endif">
                         <thead>
                         <tr class="table-primary">
                             <th>Collaborators</th>
@@ -240,7 +238,6 @@
                         @endforeach
                         </tbody>
                     </table>
-                @endif
             </div>
 
             <form method="POST" id="saveProgramCollabChanges{{$program->program_id}}"
@@ -268,7 +265,7 @@
             var programId = event.currentTarget.dataset.program_id;
             // prevent default form submission handling
             event.preventDefault();
-            event.stopPropagation();
+            event.stopImmediatePropagation();
             // check if input fields contain data
             var email = $('#program_collab_email' + programId);
             if (isEmailValid(email.val())
@@ -327,12 +324,16 @@
     }
 
     function deleteProgramCollab(submitter) {
-        $(submitter).parents('tr')[0].remove();
+        const table = $(submitter).closest('table');
+        $(submitter).closest('tr').remove();
+        const isEmpty = table.find('tbody tr').length === 0;
+        table.toggleClass('d-none', isEmpty);
+        table.siblings('.collaborators-empty').toggleClass('d-none', !isEmpty);
     }
 
     function addProgramCollab(programId) {
-        // prepend assessment method to the table
-        $('#addProgramCollabsTbl' + programId + ' tbody').prepend(`
+        const table = $('#addProgramCollabsTbl' + programId);
+        table.find('tbody').prepend(`
             <tr>
                 <td>
                     <input type="text" class="form-control " name="program_new_collabs[]" value = "${$('#program_collab_email' + programId).val()}" placeholder="E.g. john.doe@ubc.ca" form="saveProgramCollabChanges${programId}" required>
@@ -350,5 +351,7 @@
                 <td></td>
             </tr>
         `);
+        table.removeClass('d-none');
+        table.siblings('.collaborators-empty').addClass('d-none');
     }
 </script>
