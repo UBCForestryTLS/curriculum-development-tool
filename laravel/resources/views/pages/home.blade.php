@@ -1,6 +1,16 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    #dashboard-programs .pagination,
+    #dashboard-courses .pagination {
+        flex-wrap: wrap;
+    }
+    #dashboard-programs .card-footer nav,
+    #dashboard-courses .card-footer nav {
+        max-width: 100%;
+    }
+</style>
 <!-- Browser Notification -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastPlacement" style="z-index: 11">
     <div id="browser-notification" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
@@ -56,6 +66,7 @@
                 </div>
 
                 @if(count($myPrograms) > 0)
+                <div class="table-responsive">
                 <table class="table table-hover dashBoard">
                     <thead>
                         <tr>
@@ -88,7 +99,7 @@
                             <td>
                                 <!-- actions drop down -->
                                 <div class="btn-group">
-                                <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
+                                <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                     <div class="dropdown-menu">
                                         <a class="dropdown-item" href="{{route('programWizard.step1', $program->program_id)}}">Edit</a>
                                         <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
@@ -198,7 +209,7 @@
                             <td>
                                 <!-- actions drop down -->
                                 <div class="btn-group">
-                                <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
+                                <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                     <div class="dropdown-menu">
                                         <a class="dropdown-item" href="{{route('programWizard.step1', $program->program_id)}}">Edit</a>
                                         <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
@@ -280,7 +291,7 @@
                             <td>
                                 <!-- actions drop down -->
                                 <div class="btn-group">
-                                <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
+                                <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                     <div class="dropdown-menu">
                                         <a class="dropdown-item" href="{{route('programWizard.step4', $program->program_id)}}">View</a>
                                         <button type="button" class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($programUsers[$program->program_id] as $counter => $programUser){{$counter + 1}}. {{$programUser->name}}<br>@endforeach" data-modal="addProgramCollaboratorsModal{{$program->program_id}}">
@@ -301,6 +312,7 @@
                     </tbody>
                     @endforeach
                 </table>
+                </div>
                 @endif
                 @if($programsPaginator->total() > 0)
                     <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -336,6 +348,7 @@
 
                 <div class="card-body" style="padding:0%;">
                     @if(count($myCourses)>0)
+                        <div class="table-responsive">
                         <table class="table table-hover dashBoard">
                             <thead>
                                 <tr>
@@ -457,7 +470,7 @@
                                     <td>
                                         <!-- actions drop down -->
                                         <div class="btn-group">
-                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
+                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('courseWizard.step8', $course->course_id)}}">Edit</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
@@ -689,7 +702,7 @@
                                     <td>
                                         <!-- actions drop down -->
                                         <div class="btn-group">
-                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
+                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('courseWizard.step8', $course->course_id)}}">Edit</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
@@ -891,7 +904,7 @@
                                     <td>
                                         <!-- actions drop down -->
                                         <div class="btn-group">
-                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
+                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('courseWizard.step7', $course->course_id)}}">View</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
@@ -911,6 +924,7 @@
                             </tbody>
                             @endforeach
                         </table>
+                        </div>
                     @endif
                 </div>
                 @if($coursesPaginator->total() > 0)
@@ -950,6 +964,7 @@
 
                 <div class="card-body" style="padding:0%;">
                     @if(count($mySyllabi)>0)
+                        <div class="table-responsive">
                         <table class="table table-hover dashBoard">
                             <thead>
                                 <tr>
@@ -999,7 +1014,7 @@
                                     <td>
                                         <!-- actions drop down -->
                                         <div class="btn-group">
-                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
+                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('syllabus', $syllabus->id)}}">Edit</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
@@ -1142,7 +1157,7 @@
                                     <td>
                                         <!-- actions drop down -->
                                         <div class="btn-group">
-                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
+                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('syllabus', $syllabus->id)}}">Edit</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
@@ -1255,7 +1270,7 @@
                                     <td>
                                         <!-- actions drop down -->
                                         <div class="btn-group">
-                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
+                                            <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('syllabus', $syllabus->id)}}">View</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
@@ -1275,6 +1290,7 @@
                             </tbody>
                             @endforeach
                         </table>
+                        </div>
                     @endif
                 </div>
             </div>
