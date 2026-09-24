@@ -47,6 +47,15 @@ class DashboardCourseProgressTest extends TestCase
         foreach ($alignmentQueries as $entry) {
             $this->assertSame($visibleIds, $entry['bindings']);
         }
+        $mappingQueries = $queryLog->filter(fn ($entry) => str_contains($entry['query'], '"outcome_maps"')
+            || str_contains($entry['query'], '"standards_outcome_maps"'));
+        $this->assertCount(2, $mappingQueries);
+        foreach ($mappingQueries as $entry) {
+            $this->assertSame($visibleIds, $entry['bindings']);
+        }
+        $this->assertCount(1, $queries->filter(fn ($sql) => str_contains($sql, 'from "standards"')));
+        $this->assertCount(1, $queries->filter(fn ($sql) => str_contains($sql, 'from "program_learning_outcomes"') && ! str_contains($sql, ' join ')));
+        $this->assertCount(0, $queries->filter(fn ($sql) => str_starts_with($sql, 'select * from "courses" where "courses"."course_id" =')));
         // Simple per-course counts were replaced by the batched facts.
         $oldCounts = $queries->filter(fn ($sql) => str_starts_with($sql, 'select count(*) as aggregate from ')
             && ! str_contains($sql, ' join ') && preg_match('/"(learning_outcomes|assessment_methods|learning_activities)"/', $sql));
