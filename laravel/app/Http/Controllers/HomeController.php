@@ -13,7 +13,6 @@ use App\Models\Program;
 use App\Models\ProgramLearningOutcome;
 use App\Models\ProgramUser;
 use App\Models\Standard;
-use App\Models\StandardCategory;
 use App\Models\StandardsOutcomeMap;
 use App\Models\User;
 use Illuminate\Contracts\Support\Renderable;
@@ -131,6 +130,19 @@ class HomeController extends Controller
             ->whereIn('assessment_methods.course_id', $courseIds)
             ->distinct()->pluck('assessment_methods.course_id');
 
+        $programIds = $myCourses->flatMap(fn ($course) => $course->programs->modelKeys())->unique()->values()->all();
+        $ploCounts = ProgramLearningOutcome::whereIn('program_id', $programIds)
+            ->selectRaw('program_id, COUNT(*) as total')->groupBy('program_id')->pluck('total', 'program_id');
+        $mappingCounts = ProgramLearningOutcome::join('outcome_maps', 'program_learning_outcomes.pl_outcome_id', '=', 'outcome_maps.pl_outcome_id')
+            ->join('learning_outcomes', 'outcome_maps.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')
+            ->whereIn('learning_outcomes.course_id', $courseIds)
+            ->selectRaw('learning_outcomes.course_id, COUNT(*) as total')
+            ->groupBy('learning_outcomes.course_id')->pluck('total', 'course_id');
+        $standardCounts = Standard::whereIn('standard_category_id', $myCourses->pluck('standard_category_id')->unique())
+            ->selectRaw('standard_category_id, COUNT(*) as total')->groupBy('standard_category_id')->pluck('total', 'standard_category_id');
+        $standardMappingCounts = StandardsOutcomeMap::whereIn('course_id', $courseIds)
+            ->selectRaw('course_id, COUNT(*) as total')->groupBy('course_id')->pluck('total', 'course_id');
+
         //for progress bar
         $progressBar = [];
         $progressBarMsg = [];
@@ -148,7 +160,7 @@ class HomeController extends Controller
             // This loop will not run if the course does not have any programs
             foreach ($coursePrograms as $program) {
                 // multiple number of CLOs by num of PLOs
-                $expectedProgramOutcomeMapCount += $program->programLearningOutcomes->count() * $numClos;
+                $expectedProgramOutcomeMapCount += ($ploCounts[$program->program_id] ?? 0) * $numClos;
             }
             // Used for getting the status (progress) for each course displayed on the dashboard
             // get course id for each course
@@ -197,15 +209,14 @@ class HomeController extends Controller
             } else {
                 $count = $count + 2;
             }
-            if (ProgramLearningOutcome::join('outcome_maps', 'program_learning_outcomes.pl_outcome_id', '=', 'outcome_maps.pl_outcome_id')->join('learning_outcomes', 'outcome_maps.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')->select('outcome_maps.map_scale_value', 'outcome_maps.pl_outcome_id', 'program_learning_outcomes.pl_outcome', 'outcome_maps.l_outcome_id', 'learning_outcomes.l_outcome')->where('learning_outcomes.course_id', '=', $courseId)->count() >= ($expectedProgramOutcomeMapCount == 1 ? $expectedProgramOutcomeMapCount : $expectedProgramOutcomeMapCount - 1)) {
+            if (($mappingCounts[$courseId] ?? 0) >= ($expectedProgramOutcomeMapCount == 1 ? $expectedProgramOutcomeMapCount : $expectedProgramOutcomeMapCount - 1)) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Program Outcome Mapping (Step 8)</li>';
             }
-            $course = Course::find($courseId);
             if ($course->standard_category_id == 0) {
                 $hasNoStandards = true;
-            } elseif (StandardsOutcomeMap::where('course_id', $courseId)->count() == StandardCategory::find($course->standard_category_id)->standards->count()) {
+            } elseif (($standardMappingCounts[$courseId] ?? 0) == ($standardCounts[$course->standard_category_id] ?? 0)) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Standards (Step 9)</li>';
