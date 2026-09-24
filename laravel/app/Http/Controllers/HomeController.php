@@ -38,7 +38,7 @@ class HomeController extends Controller
     /**
      * Show the application dashboard.
      */
-    public function index(Request $request): Renderable
+    public function index(Request $request): Renderable|RedirectResponse
     {
         //Artisan::call('route:clear', []);
 
@@ -54,11 +54,6 @@ class HomeController extends Controller
             ->paginate(15, ['*'], 'programs_page')
             ->withQueryString()
             ->fragment('dashboard-programs');
-        $myPrograms = $programsPaginator->getCollection()->map(function ($program) {
-            $program['timeSince'] = $this->timeSince(time() - strtotime($program->updated_at));
-
-            return $program;
-        });
 
         $coursesPaginator = $user->dashboardCoursesQuery()
             ->with(['users', 'programs'])
@@ -67,6 +62,23 @@ class HomeController extends Controller
             ->paginate(15, ['*'], 'courses_page')
             ->withQueryString()
             ->fragment('dashboard-courses');
+        $pageCorrections = [];
+        $fragment = null;
+        foreach (['programs' => $programsPaginator, 'courses' => $coursesPaginator] as $section => $paginator) {
+            if ($paginator->currentPage() > $paginator->lastPage()) {
+                $pageCorrections[$paginator->getPageName()] = $paginator->lastPage();
+                $fragment ??= 'dashboard-'.$section;
+            }
+        }
+        if ($pageCorrections) {
+            return redirect()->to($request->fullUrlWithQuery($pageCorrections).'#'.$fragment);
+        }
+
+        $myPrograms = $programsPaginator->getCollection()->map(function ($program) {
+            $program['timeSince'] = $this->timeSince(time() - strtotime($program->updated_at));
+
+            return $program;
+        });
         $myCourses = $coursesPaginator->getCollection()
             ->load('courseDescription')
             ->loadCount('learningOutcomes')

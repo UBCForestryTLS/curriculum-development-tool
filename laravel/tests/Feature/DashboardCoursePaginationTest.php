@@ -49,7 +49,7 @@ class DashboardCoursePaginationTest extends TestCase
         $expectedIds = $courses->take(15)->reverse()->values()->modelKeys();
         Course::factory()->create(['course_title' => 'Inaccessible dashboard course']);
 
-        $first = $this->actingAs($user)->get(route('home', ['programs_page' => 2]))->assertOk();
+        $first = $this->actingAs($user)->get(route('home', ['programs_page' => 1]))->assertOk();
         $this->assertSame($expectedIds, $first->viewData('myCourses')->modelKeys());
         $this->assertSame($expectedIds, array_keys($first->viewData('progressBar')));
         $this->assertSame(16, $first->viewData('coursesPaginator')->total());
@@ -61,7 +61,7 @@ class DashboardCoursePaginationTest extends TestCase
             ->assertDontSee('Inaccessible dashboard course')
             ->assertDontSee('id="addCourseCollaboratorsModal'.$courses->last()->course_id.'"', false);
         $nextUrl = $first->viewData('coursesPaginator')->nextPageUrl();
-        $this->assertStringContainsString('programs_page=2', $nextUrl);
+        $this->assertStringContainsString('programs_page=1', $nextUrl);
         $this->assertStringContainsString('courses_page=2#dashboard-courses', $nextUrl);
         $first->assertSee('href="'.e($nextUrl).'"', false);
 
