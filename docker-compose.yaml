@@ -7,6 +7,7 @@ services:
     env_file: laravel/.env.docker
     environment:
       LO_MAPPING_SERVICE_URL: http://lo-mapper
+      TEXT_EXTRACTION_SERVICE_URL: http://text-extracter
     ports:
       - 9000:80
     volumes:
@@ -74,6 +75,22 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+  
+  text-extracter:
+    build:
+      context: python/services/text_extraction_service
+    volumes:
+      - text-extracter-logs:/usr/src/logs
+      - text-extracter-models:/usr/src/app/models
+    env_file: python/services/text_extraction_service/.env.docker
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '1'
+          memory: 512M
     
 volumes:
   pgdata:
@@ -81,3 +98,5 @@ volumes:
   uploads:
   syllabus-parser-logs:
   lo-mapper-logs:
+  text-extracter-logs:
+  text-extracter-models:

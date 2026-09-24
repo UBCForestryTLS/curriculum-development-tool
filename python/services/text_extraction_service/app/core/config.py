@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     AWS_S3_BUCKET: str = "text-extraction-temp"
     AWS_ACCESS_KEY_ID: str | None = None
     AWS_SECRET_ACCESS_KEY: str | None = None
+    AWS_SESSION_TOKEN: str | None = None
 
     @field_validator("ALLOWED_ORIGINS")
     def parse_allowed_origins(cls, v: str) -> List[str]:

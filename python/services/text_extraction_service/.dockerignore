@@ -20,3 +20,6 @@ README*
 **/__pycache__/
 **/.pytest*/
 **/*.cache
+
+# Other
+**/models

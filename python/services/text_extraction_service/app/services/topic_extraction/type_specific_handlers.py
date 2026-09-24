@@ -36,7 +36,6 @@ class MaterialTypeHandler:
     def extract_topics(self, pages: list[ExtractedPage], existing_topics: list[str] = []) -> list[Topic]:
         text = self.pages_to_text(pages)
         preprocessed_text = self.preprocess(text)
-        print("Extracting topics from preprocessed_text...")
         
         matched_topics = self.match_topics(preprocessed_text, existing_topics)
 

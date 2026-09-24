@@ -15,10 +15,9 @@ laravel/database/seeders/UserSeeder.php
 laravel/database/seeders/LocalSearchSeeder.php
 laravel/resources/views/emails/
 laravel/.phpunit.cache
-.phpunit.result.cache
 laravel/.phpunit.cache
-
 laravel/tests/Browser/Screenshots
+.phpunit.result.cache
 
 Homestead.json
 Homestead.yaml
@@ -26,26 +25,29 @@ npm-debug.log
 yarn-error.log
 /nbproject
 python/my_v_env/
-python/.env
-__pycache__/
-python/logs/
-.DS_Store/
-.vscode
 
-experiments/llm-evaluation/venv
-.venv/
-.pytest_cache/
-.idea/
-python/services/logs/
-python/services/*/env/
-python/services/lo_mapping_service/app/services/batch_inputs/**
+**/.DS_Store/
+**/.vscode/
+
+**/dist/
+
+**/env/
+**/venv/
+**/.env/
+**/.venv/
+**/.idea/
+**/logs/
 **.env*
 !**.env*.example
-**.dockerenv
+
+**/__pycache__/
+**/.pytest_cache/
+
+python/services/lo_mapping_service/app/services/batch_inputs/**
 python/services/lo_mapping_service/deploy/*.zip
 python/services/lo_mapping_service/env
-python/services/syllabi_service/env
-**/dist/
+
+python/services/text_extraction_service/app/models/
 
 # This is generated and downloaded by SyllabiTest.php
 laravel/syllabus.docx

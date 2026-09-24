@@ -107,11 +107,16 @@ class TextractClient:
             raise ValueError("AWS_S3_BUCKET is not set")
 
     def _create_boto_session(self) -> boto3.Session:
-        return boto3.Session(
-            aws_access_key_id=self.settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=self.settings.AWS_SECRET_ACCESS_KEY,
-            region_name=self.settings.AWS_REGION,
-        )
+        session_kwargs = {
+            "aws_access_key_id": self.settings.AWS_ACCESS_KEY_ID,
+            "aws_secret_access_key": self.settings.AWS_SECRET_ACCESS_KEY,
+            "region_name": self.settings.AWS_REGION
+        }
+
+        if self.settings.AWS_SESSION_TOKEN is not None:
+            session_kwargs["aws_session_token"] = self.settings.AWS_SESSION_TOKEN
+
+        return boto3.Session(**session_kwargs)
 
 
 def _parse_textract_response(response: dict) -> list[ExtractedPage]:
