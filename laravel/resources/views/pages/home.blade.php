@@ -92,15 +92,13 @@
                                     <div class="dropdown-menu">
                                         <a class="dropdown-item" href="{{route('programWizard.step1', $program->program_id)}}">Edit</a>
                                         <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
-                                        <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($programUsers[$program->program_id] as $counter => $programUser){{$counter + 1}}. {{$programUser->name}}<br>@endforeach" data-modal="addProgramCollaboratorsModal{{$program->program_id}}">
-                                            <div>
-                                                Collaborators
-                                                <!-- <i class="bi bi-person-plus-fill"></i> -->
-                                                <span class="badge rounded-pill badge badge bg-dark">
-                                                    {{ count($programUsers[$program->program_id]) }}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        <button type="button" class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($programUsers[$program->program_id] as $counter => $programUser){{$counter + 1}}. {{$programUser->name}}<br>@endforeach" data-modal="addProgramCollaboratorsModal{{$program->program_id}}">
+                                            Collaborators
+                                            <!-- <i class="bi bi-person-plus-fill"></i> -->
+                                            <span class="badge rounded-pill badge badge bg-dark">
+                                                {{ count($programUsers[$program->program_id]) }}
+                                            </span>
+                                        </button>
                                         <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#duplicateProgramConfirmation{{$program->program_id}}">Duplicate</a>
                                         <div class="dropdown-divider"></div>
                                         <a class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteProgram{{$index}}" href=#>Delete</a>
@@ -204,15 +202,13 @@
                                     <div class="dropdown-menu">
                                         <a class="dropdown-item" href="{{route('programWizard.step1', $program->program_id)}}">Edit</a>
                                         <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
-                                        <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($programUsers[$program->program_id] as $counter => $programUser){{$counter + 1}}. {{$programUser->name}}<br>@endforeach" data-modal="addProgramCollaboratorsModal{{$program->program_id}}">
-                                            <div>
-                                                Collaborators
-                                                <!-- <i class="bi bi-person-plus-fill"></i> -->
-                                                <span class="badge rounded-pill badge badge bg-dark">
-                                                    {{ count($programUsers[$program->program_id]) }}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        <button type="button" class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($programUsers[$program->program_id] as $counter => $programUser){{$counter + 1}}. {{$programUser->name}}<br>@endforeach" data-modal="addProgramCollaboratorsModal{{$program->program_id}}">
+                                            Collaborators
+                                            <!-- <i class="bi bi-person-plus-fill"></i> -->
+                                            <span class="badge rounded-pill badge badge bg-dark">
+                                                {{ count($programUsers[$program->program_id]) }}
+                                            </span>
+                                        </button>
                                         <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#duplicateProgramConfirmation{{$program->program_id}}">Duplicate</a>
                                     </div>
                                 </div>
@@ -287,15 +283,13 @@
                                 <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="bi bi-gear-fill"></i> </button>
                                     <div class="dropdown-menu">
                                         <a class="dropdown-item" href="{{route('programWizard.step4', $program->program_id)}}">View</a>
-                                        <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($programUsers[$program->program_id] as $counter => $programUser){{$counter + 1}}. {{$programUser->name}}<br>@endforeach" data-modal="addProgramCollaboratorsModal{{$program->program_id}}">
-                                            <div>
-                                                Collaborators
-                                                <!-- <i class="bi bi-person-plus-fill"></i> -->
-                                                <span class="badge rounded-pill badge badge bg-dark">
-                                                    {{ count($programUsers[$program->program_id]) }}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        <button type="button" class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($programUsers[$program->program_id] as $counter => $programUser){{$counter + 1}}. {{$programUser->name}}<br>@endforeach" data-modal="addProgramCollaboratorsModal{{$program->program_id}}">
+                                            Collaborators
+                                            <!-- <i class="bi bi-person-plus-fill"></i> -->
+                                            <span class="badge rounded-pill badge badge bg-dark">
+                                                {{ count($programUsers[$program->program_id]) }}
+                                            </span>
+                                        </button>
                                     </div>
                                 </div>
                                 <!-- end drop down -->
@@ -467,15 +461,13 @@
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('courseWizard.step8', $course->course_id)}}">Edit</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
-                                                <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($courseUsers[$course->course_id] as $counter => $courseUser){{$counter + 1}}. {{$courseUser->name}}<br>@endforeach" data-modal="addCourseCollaboratorsModal{{$course->course_id}}">
-                                                    <div>
-                                                        Collaborators
-                                                        <!-- <i class="bi bi-person-plus-fill"></i> -->
-                                                        <span class="badge rounded-pill badge badge bg-dark">
-                                                            {{ count($courseUsers[$course->course_id]) }}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                                <button type="button" class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($courseUsers[$course->course_id] as $counter => $courseUser){{$counter + 1}}. {{$courseUser->name}}<br>@endforeach" data-modal="addCourseCollaboratorsModal{{$course->course_id}}">
+                                                    Collaborators
+                                                    <!-- <i class="bi bi-person-plus-fill"></i> -->
+                                                    <span class="badge rounded-pill badge badge bg-dark">
+                                                        {{ count($courseUsers[$course->course_id]) }}
+                                                    </span>
+                                                </button>
                                                 <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#duplicateCourseConfirmation{{$course->course_id}}">Duplicate</a>
                                                 <div class="dropdown-divider"></div>
                                                 <a class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteCourseConfirmation{{$course->course_id}}" href=#>Delete</a>
@@ -701,15 +693,13 @@
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('courseWizard.step8', $course->course_id)}}">Edit</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
-                                                <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($courseUsers[$course->course_id] as $counter => $courseUser){{$counter + 1}}. {{$courseUser->name}}<br>@endforeach" data-modal="addCourseCollaboratorsModal{{$course->course_id}}">
-                                                    <div>
-                                                        Collaborators
-                                                        <!-- <i class="bi bi-person-plus-fill"></i> -->
-                                                        <span class="badge rounded-pill badge badge bg-dark">
-                                                            {{ count($courseUsers[$course->course_id]) }}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                                <button type="button" class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($courseUsers[$course->course_id] as $counter => $courseUser){{$counter + 1}}. {{$courseUser->name}}<br>@endforeach" data-modal="addCourseCollaboratorsModal{{$course->course_id}}">
+                                                    Collaborators
+                                                    <!-- <i class="bi bi-person-plus-fill"></i> -->
+                                                    <span class="badge rounded-pill badge badge bg-dark">
+                                                        {{ count($courseUsers[$course->course_id]) }}
+                                                    </span>
+                                                </button>
                                                 <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#duplicateCourseConfirmation{{$course->course_id}}">Duplicate</a>
                                             </div>
                                         </div>
@@ -905,15 +895,13 @@
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('courseWizard.step7', $course->course_id)}}">View</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
-                                                <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($courseUsers[$course->course_id] as $counter => $courseUser){{$counter + 1}}. {{$courseUser->name}}<br>@endforeach" data-modal="addCourseCollaboratorsModal{{$course->course_id}}">
-                                                    <div>
-                                                        Collaborators
-                                                        <!-- <i class="bi bi-person-plus-fill"></i> -->
-                                                        <span class="badge rounded-pill badge badge bg-dark">
-                                                            {{ count($courseUsers[$course->course_id]) }}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                                <button type="button" class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($courseUsers[$course->course_id] as $counter => $courseUser){{$counter + 1}}. {{$courseUser->name}}<br>@endforeach" data-modal="addCourseCollaboratorsModal{{$course->course_id}}">
+                                                    Collaborators
+                                                    <!-- <i class="bi bi-person-plus-fill"></i> -->
+                                                    <span class="badge rounded-pill badge badge bg-dark">
+                                                        {{ count($courseUsers[$course->course_id]) }}
+                                                    </span>
+                                                </button>
                                             </div>
                                         </div>
 
@@ -1015,15 +1003,13 @@
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('syllabus', $syllabus->id)}}">Edit</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
-                                                <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($syllabiUsers[$syllabus->id] as $userIndex => $syllabusUser){{$userIndex + 1}}. {{$syllabusUser->name}}<br>@endforeach" data-modal="addSyllabusCollaboratorsModal{{$syllabus->id}}">
-                                                    <div>
-                                                        Collaborators
-                                                        <!-- <i class="bi bi-person-plus-fill"></i> -->
-                                                        <span class="badge rounded-pill badge badge bg-dark">
-                                                            {{ count($syllabiUsers[$syllabus->id]) }}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                                <button type="button" class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($syllabiUsers[$syllabus->id] as $userIndex => $syllabusUser){{$userIndex + 1}}. {{$syllabusUser->name}}<br>@endforeach" data-modal="addSyllabusCollaboratorsModal{{$syllabus->id}}">
+                                                    Collaborators
+                                                    <!-- <i class="bi bi-person-plus-fill"></i> -->
+                                                    <span class="badge rounded-pill badge badge bg-dark">
+                                                        {{ count($syllabiUsers[$syllabus->id]) }}
+                                                    </span>
+                                                </button>
                                                 <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#duplicateSyllabusConfirmation{{$syllabus->id}}">Duplicate</a>
                                                 <div class="dropdown-divider"></div>
                                                 <a class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteSyllabusConfirmation{{$syllabus->id}}" href=#>Delete</a>
@@ -1160,15 +1146,13 @@
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('syllabus', $syllabus->id)}}">Edit</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
-                                                <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($syllabiUsers[$syllabus->id] as $userIndex => $syllabusUser){{$userIndex + 1}}. {{$syllabusUser->name}}<br>@endforeach" data-modal="addSyllabusCollaboratorsModal{{$syllabus->id}}">
-                                                    <div>
-                                                        Collaborators
-                                                        <!-- <i class="bi bi-person-plus-fill"></i> -->
-                                                        <span class="badge rounded-pill badge badge bg-dark">
-                                                            {{ count($syllabiUsers[$syllabus->id]) }}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                                <button type="button" class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($syllabiUsers[$syllabus->id] as $userIndex => $syllabusUser){{$userIndex + 1}}. {{$syllabusUser->name}}<br>@endforeach" data-modal="addSyllabusCollaboratorsModal{{$syllabus->id}}">
+                                                    Collaborators
+                                                    <!-- <i class="bi bi-person-plus-fill"></i> -->
+                                                    <span class="badge rounded-pill badge badge bg-dark">
+                                                        {{ count($syllabiUsers[$syllabus->id]) }}
+                                                    </span>
+                                                </button>
                                                 <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#duplicateSyllabusConfirmation{{$syllabus->id}}">Duplicate</a>
                                             </div>
                                         </div>
@@ -1275,15 +1259,13 @@
                                             <div class="dropdown-menu">
                                                 <a class="dropdown-item" href="{{route('syllabus', $syllabus->id)}}">View</a>
                                                 <!-- <a class="dropdown-item" href="#">Collaborators</a> -->
-                                                <div class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($syllabiUsers[$syllabus->id] as $userIndex => $syllabusUser){{$userIndex + 1}}. {{$syllabusUser->name}}<br>@endforeach" data-modal="addSyllabusCollaboratorsModal{{$syllabus->id}}">
-                                                    <div>
-                                                        Collaborators
-                                                        <!-- <i class="bi bi-person-plus-fill"></i> -->
-                                                        <span class="badge rounded-pill badge badge bg-dark">
-                                                            {{ count($syllabiUsers[$syllabus->id]) }}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                                <button type="button" class="dropdown-item collabIcon btn bg-transparent position-relative" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="@foreach($syllabiUsers[$syllabus->id] as $userIndex => $syllabusUser){{$userIndex + 1}}. {{$syllabusUser->name}}<br>@endforeach" data-modal="addSyllabusCollaboratorsModal{{$syllabus->id}}">
+                                                    Collaborators
+                                                    <!-- <i class="bi bi-person-plus-fill"></i> -->
+                                                    <span class="badge rounded-pill badge badge bg-dark">
+                                                        {{ count($syllabiUsers[$syllabus->id]) }}
+                                                    </span>
+                                                </button>
                                             </div>
                                         </div>
 
