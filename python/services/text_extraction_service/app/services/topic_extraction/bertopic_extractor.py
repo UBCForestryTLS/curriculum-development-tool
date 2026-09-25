@@ -1,7 +1,7 @@
 import math
-from pathlib import Path
 
 from app.schemas import Topic, TopicSource
+from app.core.config import settings, MODELS_DIR
 
 from bertopic import BERTopic
 from bertopic.representation import MaximalMarginalRelevance
@@ -9,8 +9,6 @@ from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS
 import spacy
 
 from sentence_transformers import SentenceTransformer
-
-MODELS_DIR = Path(__file__).parents[2] / "models"
 
 TOPICS_COUNT = 20          # max topics returned - we will likely never get so many, just prevents DB overloading
 TOPICS_PER_CLUSTER = 10     # top words taken from each cluster
@@ -46,7 +44,8 @@ def extract(text: str, min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
     print("Extracting topics from text...")
 
     # min_df is an integer count of documents, while max_df is a proportion of the total number of documents
-    min_df = min(2, round(doc_count * 0.01, 1))
+    # If min_df is an int, it must be in the range [1, inf)
+    min_df = max(1, int(round(doc_count * 0.01, 1)))
     max_df = 1.0
     print(f"Using min_df={min_df} and max_df={max_df} with {doc_count} docs for CountVectorizer")
 
@@ -57,11 +56,11 @@ def extract(text: str, min_topic_size = MIN_TOPIC_SIZE) -> list[Topic]:
         max_df=max_df,
         lowercase=False, # This is useful to keep abbreviations in UPPERCASE, but can cause duplication
     )
-    # TODO: Add a local copy of the model in case the HF repo is taken down
+    
     if not MODELS_DIR.is_dir():
         MODELS_DIR.mkdir()
 
-    model_path = MODELS_DIR / "sentence-transformers" / "all-mpnet-base-v2"
+    model_path = MODELS_DIR.joinpath(settings.BERTOPIC_MODEL).resolve()
 
     if not model_path.is_dir():
         embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")

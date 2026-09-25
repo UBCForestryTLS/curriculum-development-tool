@@ -1,31 +1,32 @@
-import pymupdf
 import re
 from collections import defaultdict
+import pymupdf
 import nltk
 import string
-from nltk.corpus import stopwords
-from tabula import read_pdf
 from datetime import datetime
 
 from app.schema.courseSyllabi import Course
 
-
 nltk.download('stopwords')
 
-learning_goals_starting_words = ('demonstrate', 'develop', 'conduct', 'describe', 'understand', "outline", "diagnose", "show",
-                      "sketch", "read", "recognize", "explain", "define", "make", "geocode", "produce", "utilize",
-                      "acquire","complete", "compare", "identify", "provide", "evaluate", "prepare", "appreciate", "know",
-                      "proficient", "efficiently", "perform", "create", "generate", "data handling and analyzing",
-                      "importexport", "managing", "plan", "enhance", "explore", "have a thorough understanding",
-                      "apply", "analyze", "interpret", "discuss", "suggest", "communicate", "give",
-                      "be able to put", "be able to plot", "organize", "acheive", "become familiar",
-                      "gain a foundation", "critically engage", "gain understanding", "gain specific understanding", "to understand",
-                      "to become", "select", "design", "calculate", "incorporate", "working in groups",
-                      "assess the challenges", "propose", "contrast the evolution", "name and describe", "integrate",
-                      "manage large", "derive", "solve", "illustrate", "assess", "critically evaluate", "display",
-                      "participate in inter-governmental", "follow the developments", "use simpler procedures",
-                      "give specific examples", "given particular", "for each of these", "relate these concepts",
-                      "thoughtfully reflect on", "clearly and concisely communicate", "summarize", "choose")
+from nltk.corpus import stopwords
+
+learning_goals_starting_words = (
+    "demonstrate", "develop", "conduct", "describe", "understand", "outline", "diagnose", "show",
+    "sketch", "read", "recognize", "explain", "define", "make", "geocode", "produce", "utilize",
+    "acquire","complete", "compare", "identify", "provide", "evaluate", "prepare", "appreciate", "know",
+    "proficient", "efficiently", "perform", "create", "generate", "data handling and analyzing",
+    "importexport", "managing", "plan", "enhance", "explore", "have a thorough understanding",
+    "apply", "analyze", "interpret", "discuss", "suggest", "communicate", "give",
+    "be able to put", "be able to plot", "organize", "acheive", "become familiar",
+    "gain a foundation", "critically engage", "gain understanding", "gain specific understanding", "to understand",
+    "to become", "select", "design", "calculate", "incorporate", "working in groups",
+    "assess the challenges", "propose", "contrast the evolution", "name and describe", "integrate",
+    "manage large", "derive", "solve", "illustrate", "assess", "critically evaluate", "display",
+    "participate in inter-governmental", "follow the developments", "use simpler procedures",
+    "give specific examples", "given particular", "for each of these", "relate these concepts",
+    "thoughtfully reflect on", "clearly and concisely communicate", "summarize", "choose"
+)
 
 only_bullet_pattern = re.compile(r"^([(]?\d+(\.\d+)*[.)]?|[•\-–*¢●]|\([a-zA-Z]\))\s*")
 topic_word_pattern = re.compile(r"[^\W\d_]{2,}(?:[-‐‑–—][^\W\d_]{2,})*") 
