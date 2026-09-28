@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Helpers\BloomClassifier;
 use App\Models\BloomDomain;
 use App\Models\BloomLevel;
 use App\Models\BloomVerb;
@@ -43,6 +44,50 @@ class BloomReferenceTest extends TestCase
         $this->assertSame([$first->id, $this->level->id], $this->domain->levels->pluck('id')->all());
         $this->assertSame([1, 2], $this->domain->levels->pluck('position')->all());
         $this->assertCount(1, $this->level->verbs);
+    }
+
+    public function test_classifier_loads_only_cognitive_reference_once_for_a_batch(): void
+    {
+        $domain = BloomDomain::create(['name' => ' Cognitive ']);
+        $later = $domain->levels()->create(['position' => 2, 'name' => 'Later']);
+        $earlier = $domain->levels()->create(['position' => 1, 'name' => 'Earlier']);
+        foreach ([$later, $earlier] as $level) {
+            $level->verbs()->create(['term' => 'Example-term']);
+        }
+        $this->level->verbs()->create(['term' => 'Other-term']);
+
+        DB::enableQueryLog();
+        try {
+            DB::flushQueryLog();
+            $single = BloomClassifier::classifyClos([10 => 'Example-term']);
+            $queryCount = count(DB::getQueryLog());
+            DB::flushQueryLog();
+            $batch = BloomClassifier::classifyClos([10 => 'Example-term', 11 => 'Other-term', 12 => 'Example-term']);
+            $this->assertSame($queryCount, count(DB::getQueryLog()));
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+
+        $this->assertTrue($batch['reference_available']);
+        $this->assertSame([$earlier->id, $later->id], array_column($batch['classifications'][10], 'level_id'));
+        $this->assertSame($single['classifications'][10], $batch['classifications'][12]);
+        $this->assertSame([], $batch['classifications'][11]);
+    }
+
+    public function test_classifier_distinguishes_missing_reference_from_unmatched_clos(): void
+    {
+        $unavailable = ['reference_available' => false, 'classifications' => []];
+        $this->assertSame($unavailable, BloomClassifier::classifyClos([10 => 'Example-term']));
+        $domain = BloomDomain::create(['name' => 'Cognitive']);
+        $this->assertSame($unavailable, BloomClassifier::classifyClos([10 => 'Example-term']));
+        $level = $domain->levels()->create(['position' => 1, 'name' => 'Example']);
+        $this->assertSame($unavailable, BloomClassifier::classifyClos([10 => 'Example-term']));
+        $level->verbs()->create(['term' => 'Example-term']);
+        $this->assertSame([
+            'reference_available' => true,
+            'classifications' => [10 => []],
+        ], BloomClassifier::classifyClos([10 => 'Unrelated text']));
     }
 
     public function test_database_rejects_duplicate_domain_names(): void

@@ -2,8 +2,40 @@
 
 namespace App\Helpers;
 
+use App\Models\BloomDomain;
+
 class BloomClassifier
 {
+    /**
+     * Load the cognitive reference once for CLO text keyed by distinct CLO ID.
+     *
+     * @param array<int, string> $clos
+     * @return array{reference_available: bool, classifications: array<int, array>}
+     */
+    public static function classifyClos(array $clos): array
+    {
+        $domain = BloomDomain::whereRaw('lower(trim(name)) = ?', ['cognitive'])
+            ->with(['levels.verbs' => fn ($query) => $query->orderBy('id')])
+            ->first();
+
+        $levels = $domain?->levels->map(fn ($level) => [
+            'id' => $level->id,
+            'name' => $level->name,
+            'position' => $level->position,
+            'verbs' => $level->verbs->pluck('term')->all(),
+        ])->all() ?? [];
+        $available = collect($levels)->contains(fn ($level) => $level['verbs'] !== []);
+
+        $classifications = [];
+        if ($available) {
+            foreach ($clos as $id => $text) {
+                $classifications[$id] = self::classify($text, $levels);
+            }
+        }
+
+        return ['reference_available' => $available, 'classifications' => $classifications];
+    }
+
     /**
      * Match supplied reference terms, retaining every matching level.
      *
