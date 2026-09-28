@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\BloomClassifier;
 use App\Helpers\ProgramGapCoverage;
 use App\Models\AssessmentMethod;
 use App\Models\Campus;
@@ -428,23 +429,31 @@ class ProgramWizardController extends Controller
             ->orderBy('courses.course_id')
             ->get()
             ->unique('course_id')
-            ->values()
-            ->map(fn ($course) => [
-                'course_id' => (int) $course->course_id,
-                'course_code' => $course->course_code,
-                'course_num' => $course->course_num,
-                'course_title' => $course->course_title,
-                'course_required' => $course->pivot->course_required === null
-                    ? null : (bool) $course->pivot->course_required,
-                'clos' => $course->learningOutcomes->map(fn ($clo) => [
-                    'l_outcome_id' => (int) $clo->l_outcome_id,
-                    'l_outcome' => $clo->l_outcome,
-                    'clo_shortphrase' => $clo->clo_shortphrase,
-                ]),
-            ]);
+            ->values();
+
+        $classification = BloomClassifier::classifyClos($courses
+            ->flatMap(fn ($course) => $course->learningOutcomes)
+            ->mapWithKeys(fn ($clo) => [$clo->l_outcome_id => (string) $clo->l_outcome])
+            ->all());
+
+        $courses = $courses->map(fn ($course) => [
+            'course_id' => (int) $course->course_id,
+            'course_code' => $course->course_code,
+            'course_num' => $course->course_num,
+            'course_title' => $course->course_title,
+            'course_required' => $course->pivot->course_required === null
+                ? null : (bool) $course->pivot->course_required,
+            'clos' => $course->learningOutcomes->map(fn ($clo) => [
+                'l_outcome_id' => (int) $clo->l_outcome_id,
+                'l_outcome' => $clo->l_outcome,
+                'clo_shortphrase' => $clo->clo_shortphrase,
+                'bloom_levels' => $classification['classifications'][$clo->l_outcome_id] ?? null,
+            ]),
+        ]);
 
         return response()->json([
             'program_id' => (int) $program->program_id,
+            'bloom_reference_available' => $classification['reference_available'],
             'program_totals' => [
                 'course_count' => $courses->count(),
                 'clo_count' => $courses->sum(fn ($course) => $course['clos']->count()),

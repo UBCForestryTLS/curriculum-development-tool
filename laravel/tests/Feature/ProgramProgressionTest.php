@@ -38,6 +38,7 @@ class ProgramProgressionTest extends TestCase
             ->assertOk()
             ->assertExactJson([
                 'program_id' => $program->program_id,
+                'bloom_reference_available' => false,
                 'program_totals' => ['course_count' => 0, 'clo_count' => 0],
                 'courses' => [],
             ]);
@@ -102,8 +103,8 @@ class ProgramProgressionTest extends TestCase
             ->assertJsonPath('courses.0.course_title', 'Environmental Data')
             ->assertJsonPath('courses.0.course_required', true)
             ->assertJsonPath('courses.0.clos', [
-                ['l_outcome_id' => $firstClo->l_outcome_id, 'l_outcome' => $firstClo->l_outcome, 'clo_shortphrase' => 'Data analysis'],
-                ['l_outcome_id' => $secondClo->l_outcome_id, 'l_outcome' => $secondClo->l_outcome, 'clo_shortphrase' => null],
+                ['l_outcome_id' => $firstClo->l_outcome_id, 'l_outcome' => $firstClo->l_outcome, 'clo_shortphrase' => 'Data analysis', 'bloom_levels' => null],
+                ['l_outcome_id' => $secondClo->l_outcome_id, 'l_outcome' => $secondClo->l_outcome, 'clo_shortphrase' => null, 'bloom_levels' => null],
             ])
             ->assertJsonPath('courses.1.course_id', $optional->course_id)
             ->assertJsonPath('courses.1.course_required', false)
