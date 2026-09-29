@@ -1,6 +1,6 @@
 <div class="py-4">
     <h4 id="progression-heading" tabindex="-1">Progression Report</h4>
-    <p>Review the courses and course learning outcomes (CLOs) in this program. Classification using Bloom’s cognitive taxonomy is not available yet.</p>
+    <p>Review the courses and course learning outcomes (CLOs) in this program. Suggested Bloom’s cognitive levels are based on matching reference verbs in each CLO, rather than interpreting its meaning. A CLO can match more than one level.</p>
 
     <div id="progression-loading" class="py-4 text-center d-none" role="status">
         <div class="spinner-border text-primary" aria-hidden="true"></div>
@@ -25,6 +25,7 @@
         </dl>
         <p id="progression-no-courses" class="alert alert-info d-none">There are no courses in this program. Add courses to begin reviewing progression.</p>
         <p id="progression-no-clos" class="alert alert-info d-none">The courses in this program do not have any CLOs yet. Add course learning outcomes to begin reviewing progression.</p>
+        <p id="progression-no-reference" class="alert alert-info d-none">The Bloom’s cognitive reference is unavailable. You can still review the courses and CLOs below.</p>
     </div>
 
     <section id="progression-courses" class="d-none" aria-labelledby="progression-courses-heading">
@@ -67,7 +68,8 @@
                     $('#progression-clo-count').text(totals.clo_count);
                     $('#progression-no-courses').toggleClass('d-none', totals.course_count !== 0);
                     $('#progression-no-clos').toggleClass('d-none', totals.course_count === 0 || totals.clo_count !== 0);
-                    renderCourses(data.courses);
+                    $('#progression-no-reference').toggleClass('d-none', data.bloom_reference_available || totals.clo_count === 0);
+                    renderCourses(data.courses, data.bloom_reference_available);
                     $('#progression-results').removeClass('d-none');
                 },
                 error: function () {
@@ -80,7 +82,7 @@
             });
         }
 
-        function renderCourses(courses) {
+        function renderCourses(courses, referenceAvailable) {
             const list = document.getElementById('progression-course-list');
             list.replaceChildren();
             $('#progression-courses').toggleClass('d-none', courses.length === 0);
@@ -116,12 +118,31 @@
                     outcomes.className = 'mb-0';
                     course.clos.forEach(function (clo) {
                         const item = document.createElement('li');
+                        item.className = 'mb-2';
                         if (clo.clo_shortphrase) {
                             const label = document.createElement('strong');
                             label.textContent = `${clo.clo_shortphrase}: `;
                             item.appendChild(label);
                         }
                         item.appendChild(document.createTextNode(clo.l_outcome ?? ''));
+                        if (referenceAvailable) {
+                            const classification = document.createElement('div');
+                            classification.className = 'small mt-1';
+                            if (clo.bloom_levels.length === 0) {
+                                classification.classList.add('text-muted');
+                                classification.textContent = 'No matching cognitive verb found.';
+                            } else {
+                                const label = document.createElement('strong');
+                                label.textContent = 'Suggested cognitive levels:';
+                                classification.appendChild(label);
+                                clo.bloom_levels.forEach(function (level) {
+                                    const evidence = document.createElement('div');
+                                    evidence.textContent = `${level.name} — Matched verbs: ${level.matched_terms.join(', ')}`;
+                                    classification.appendChild(evidence);
+                                });
+                            }
+                            item.appendChild(classification);
+                        }
                         outcomes.appendChild(item);
                     });
                     section.appendChild(outcomes);
