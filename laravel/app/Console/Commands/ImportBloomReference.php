@@ -11,9 +11,10 @@ use Throwable;
 
 class ImportBloomReference extends Command
 {
-    protected $signature = 'blooms:import {path : Path to the Bloom reference .xlsx file}';
+    protected $signature = 'blooms:import {path : Path to the Bloom reference .xlsx file}
+                            {--replace : Replace a different existing Bloom reference}';
 
-    protected $description = 'Import the fixed-format Bloom reference spreadsheet into empty reference tables';
+    protected $description = 'Import the fixed-format Bloom reference spreadsheet';
 
     public function handle(): int
     {
@@ -47,11 +48,16 @@ class ImportBloomReference extends Command
                         }
                     }
                     // Array equality ignores source row order, but includes empty/extra levels and domains.
-                    if ($existing != $expected) {
-                        throw new RuntimeException('The existing Bloom reference differs from this file or is partially populated. No changes were made.');
+                    if ($existing == $expected) {
+                        return false;
+                    }
+                    if (! $this->option('replace')) {
+                        throw new RuntimeException('The existing Bloom reference differs from this file or is partially populated. Use --replace to replace it. No changes were made.');
                     }
 
-                    return false;
+                    DB::table('bloom_verbs')->delete();
+                    DB::table('bloom_levels')->delete();
+                    DB::table('bloom_domains')->delete();
                 }
 
                 $createdDomains = [];
