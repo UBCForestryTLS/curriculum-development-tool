@@ -119,6 +119,29 @@ php --ini
 php artisan migrate --seed
 ```
 
+### Bloom reference (Progression Report)
+
+After migrations, obtain `Blooms Taxonomy Verbs per Domain.xlsx` from a project maintainer and run from `laravel/`:
+
+```bash
+php artisan blooms:import "/path/to/Blooms Taxonomy Verbs per Domain.xlsx"
+```
+
+The vocabulary is not distributed with the repository. Keep the workbook and extracted data outside Git; `laravel/storage/app/imports/` is ignored and can be used for the file.
+
+Only the supplied `.xlsx` layout is supported: sheet `VERBS`, headers in row **4**, data from row **5**:
+
+| Column | Required header | Value |
+| --- | --- | --- |
+| B | `Domain` | Domain name |
+| C | `N` | Positive integer level position |
+| D | `Proto-verb` | Level name |
+| E | `Verb` | Reference term |
+
+Use values, not formulas, in B–E. Other columns/sheets are ignored. Blank rows are skipped, invalid rows are rejected, and duplicate assignments within a level are combined. All domains are imported; the report uses only Cognitive.
+
+Identical imports make no changes. To replace a different or partial reference, append `--replace` to the command. This replaces the entire Bloom reference with new record IDs; failed imports roll back, and curriculum data is untouched.
+
 ### Front-end Assets
 
 The project uses Vite for SCSS compilation and JavaScript bundling. Two workflows are available:
