@@ -70,6 +70,8 @@ class DashboardCoursePaginationTest extends TestCase
         $this->assertSame([$courses->last()->course_id], array_keys($second->viewData('progressBar')));
         $this->assertSame(1, substr_count($second->getContent(), '<div id="addCourseCollaboratorsModal'));
         $previousUrl = $second->viewData('coursesPaginator')->previousPageUrl();
+        $this->assertStringContainsString('programs_page=1', $previousUrl);
+        $this->assertStringContainsString('courses_page=1#dashboard-courses', $previousUrl);
         $second->assertSee('href="'.e($previousUrl).'"', false);
         $back = $this->get($previousUrl)->assertOk();
         $this->assertSame($expectedIds, $back->viewData('myCourses')->modelKeys());

@@ -31,28 +31,35 @@ class DashboardCourseProgressTest extends TestCase
             DB::flushQueryLog();
         }
 
+        // These names identify three batches: descriptions, CLO counts,
+        // and checks for topics, materials, assessments and activities together.
         $basicQueries = $queries->filter(fn ($sql) => str_contains($sql, '"course_description"')
             || str_contains($sql, '"learning_outcomes_count"') || str_contains($sql, '"course_topics"')
             || str_contains($sql, '"course_materials"'));
         $this->assertCount(3, $basicQueries);
         $visibleIds = $response->viewData('myCourses')->modelKeys();
         $this->assertCount(15, $visibleIds);
+        // Each batch must use only the 15 displayed courses, not all 16 accessible courses.
         foreach ($basicQueries as $sql) {
             $this->assertSame(1, preg_match('/ in \(([\d, ]+)\)/', $sql, $matches));
             $this->assertEqualsCanonicalizing($visibleIds, array_map('intval', explode(',', $matches[1])));
         }
+        // Three alignment queries: unaligned CLOs, aligned activities, and aligned assessments.
         $alignmentQueries = $queryLog->filter(fn ($entry) => str_contains($entry['query'], '"outcome_assessments"')
             || str_contains($entry['query'], '"outcome_activities"'));
         $this->assertCount(3, $alignmentQueries);
         foreach ($alignmentQueries as $entry) {
             $this->assertSame($visibleIds, $entry['bindings']);
         }
+        // Two mapping queries: one for PLO mappings and one for standards mappings.
         $mappingQueries = $queryLog->filter(fn ($entry) => str_contains($entry['query'], '"outcome_maps"')
             || str_contains($entry['query'], '"standards_outcome_maps"'));
         $this->assertCount(2, $mappingQueries);
         foreach ($mappingQueries as $entry) {
             $this->assertSame($visibleIds, $entry['bindings']);
         }
+
+
         $this->assertCount(1, $queries->filter(fn ($sql) => str_contains($sql, 'from "standards"')));
         $this->assertCount(1, $queries->filter(fn ($sql) => str_contains($sql, 'from "program_learning_outcomes"') && ! str_contains($sql, ' join ')));
         $this->assertCount(0, $queries->filter(fn ($sql) => str_starts_with($sql, 'select * from "courses" where "courses"."course_id" =')));
@@ -91,7 +98,12 @@ class DashboardCourseProgressTest extends TestCase
             'Assessment Methods - Course Alignment (Step 7)',
             'Learning Activities - Course Alignment (Step 7)', 'Program Outcome Mapping (Step 8)', 'Standards (Step 9)',
         ];
-        foreach ([[$empty, 0, $basicTasks], [$partial, 20, array_diff_key($basicTasks, [1 => true, 2 => true])], [$complete, 60, []]] as [$course, $percentage, $tasks]) {
+        $cases = [
+            [$empty, 0, $basicTasks],
+            [$partial, 20, array_diff_key($basicTasks, [1 => true, 2 => true])],
+            [$complete, 60, []],
+        ];
+        foreach ($cases as [$course, $percentage, $tasks]) {
             $this->assertSame($percentage, $response->viewData('progressBar')[$course->course_id]);
             $expected = '<b>Remaining Tasks</b> <ol>';
             foreach (array_merge($tasks, $remainingTasks) as $task) {

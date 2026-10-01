@@ -21,6 +21,7 @@ class DashboardMappingProgressTest extends TestCase
     public function test_mapping_and_standards_preserve_progress(): void
     {
         $this->withoutVite();
+        // Set up the viewer and reference IDs used by the scenarios below.
         $user = User::factory()->create();
         $nextCategoryId = StandardCategory::max('standard_category_id') + 1;
         $nextStandardId = Standard::max('standard_id') + 1;
@@ -28,6 +29,8 @@ class DashboardMappingProgressTest extends TestCase
         $standardScale = StandardScale::firstOrFail()->standard_scale_id;
         DB::table('standard_categories')->insertOrIgnore(['standard_category_id' => 0, 'sc_name' => 'Not applicable']);
         $nextPloId = ProgramLearningOutcome::max('pl_outcome_id') + 1;
+        // Each case gives PLO counts per program, mapped PLOs, standards state,
+        // expected progress, and whether mapping and standards are complete.
         $cases = [
             [[], 0, 'none', 10, false, false],
             [[0], 0, 'none', 10, false, false],
@@ -40,6 +43,7 @@ class DashboardMappingProgressTest extends TestCase
         ];
         $expected = [];
         foreach ($cases as [$ploCounts, $mapped, $standardState, $percentage, $mappingComplete, $standardsComplete]) {
+            // Create a course with one CLO and two available standards for this case.
             $categoryId = $nextCategoryId++;
             DB::table('standard_categories')->insert(['standard_category_id' => $categoryId, 'sc_name' => 'Progress test standards']);
             for ($i = 0; $i < 2; $i++) {
@@ -49,6 +53,7 @@ class DashboardMappingProgressTest extends TestCase
             $course = Course::factory()->create(['standard_category_id' => $standardState === 'na' ? 0 : $categoryId]);
             $user->courses()->attach($course->course_id, ['permission' => 3]);
             $clo = $course->learningOutcomes()->create(['l_outcome' => 'Explain the topic']);
+            // Add the programs and the requested number of CLO-to-PLO mappings.
             foreach ($ploCounts as $ploCount) {
                 $program = Program::create(['program' => 'Progress test program', 'level' => 'Undergraduate', 'status' => 0]);
                 $course->programs()->attach($program->program_id);
@@ -59,12 +64,14 @@ class DashboardMappingProgressTest extends TestCase
                     }
                 }
             }
+            // Add all, some, or no standards mappings; 'na' uses category 0 above.
             foreach ($standards->take(match ($standardState) { 'all' => $standards->count(), 'partial' => 1, default => 0 }) as $standard) {
                 DB::table('standards_outcome_maps')->insert(['course_id' => $course->course_id, 'standard_id' => $standard->standard_id, 'standard_scale_id' => $standardScale]);
             }
             $expected[$course->course_id] = [$percentage, $mappingComplete, $standardsComplete];
         }
 
+        // Check each course's progress and remaining tasks in the same dashboard response.
         $response = $this->actingAs($user)->get(route('home'))->assertOk();
         foreach ($expected as $courseId => [$percentage, $mappingComplete, $standardsComplete]) {
             $this->assertSame($percentage, $response->viewData('progressBar')[$courseId]);

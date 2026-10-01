@@ -14,6 +14,8 @@ class CourseCollaboratorModalTest extends TestCase
 {
     use DatabaseTransactions;
 
+    // $permission is direct access (1 owner, 2 editor, 3 viewer, null none); $roleName is an optional elevated role.
+    // $supplied checks reuse of courseUserPermission; otherwise the view calls effectivePermissionForCourse once.
     #[DataProvider('accessCases')]
     public function test_modal_reuses_permissions_and_preserves_controls(?int $permission, ?string $roleName, bool $supplied): void
     {

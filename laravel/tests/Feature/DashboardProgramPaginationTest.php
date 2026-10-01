@@ -55,9 +55,9 @@ class DashboardProgramPaginationTest extends TestCase
         $user->courses()->attach($courses->modelKeys(), ['permission' => 3]);
 
         $first = $this->actingAs($user)->get(route('home', ['courses_page' => 2]))->assertOk();
-        $expectedIds = $programs->take(15)->reverse()->pluck('program_id')->values()->all();
-        $this->assertSame($expectedIds, $first->viewData('myPrograms')->modelKeys());
-        $this->assertSame($expectedIds, array_keys($first->viewData('programUsers')));
+        $expectedProgramIds = $programs->take(15)->reverse()->pluck('program_id')->values()->all();
+        $this->assertSame($expectedProgramIds, $first->viewData('myPrograms')->modelKeys());
+        $this->assertSame($expectedProgramIds, array_keys($first->viewData('programUsers')));
         $this->assertSame(16, $first->viewData('programsPaginator')->total());
         $this->assertSame(1, $first->viewData('myPrograms')->find($programs[2]->program_id)->userPermission);
         $this->assertTrue($first->viewData('myPrograms')->every(fn ($program) => $program->relationLoaded('users')));
@@ -74,7 +74,7 @@ class DashboardProgramPaginationTest extends TestCase
         $this->assertSame($first->viewData('myCourses')->modelKeys(), $second->viewData('myCourses')->modelKeys());
         $this->assertSame(1, substr_count($second->getContent(), '<div id="addProgramCollaboratorsModal'));
         $back = $this->get($second->viewData('programsPaginator')->previousPageUrl())->assertOk();
-        $this->assertSame($expectedIds, $back->viewData('myPrograms')->modelKeys());
+        $this->assertSame($expectedProgramIds, $back->viewData('myPrograms')->modelKeys());
 
         $courseUrl = $second->viewData('coursesPaginator')->previousPageUrl();
         $this->assertStringContainsString('programs_page=2', $courseUrl);
