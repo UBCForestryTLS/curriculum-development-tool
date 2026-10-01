@@ -2,10 +2,14 @@
 
 @section('content')
 <style>
-    #dashboard-programs .pagination,
+	#dashboard-programs .pagination,
     #dashboard-courses .pagination {
         flex-wrap: wrap;
+		margin-bottom: 0;
     }
+	.pagination::before {
+		content: unset;
+	}
     #dashboard-programs .card-footer nav,
     #dashboard-courses .card-footer nav {
         max-width: 100%;
