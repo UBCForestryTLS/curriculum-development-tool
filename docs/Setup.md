@@ -140,6 +140,8 @@ Only the supplied `.xlsx` layout is supported: sheet `VERBS`, headers in row **4
 
 Use values, not formulas, in B–E. Other columns/sheets are ignored. Blank rows are skipped, invalid rows are rejected, and duplicate assignments within a level are combined. All domains are imported; the report uses only Cognitive.
 
+Matching terms are extracted from both the level (`Proto-verb`) and `Verb` columns.
+
 Identical imports make no changes. To replace a different or partial reference, append `--replace` to the command. This replaces the entire Bloom reference with new record IDs; failed imports roll back, and curriculum data is untouched.
 
 ### Front-end Assets
