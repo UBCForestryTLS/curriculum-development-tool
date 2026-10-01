@@ -83,6 +83,19 @@ class BloomSpreadsheetReader
                 throw new RuntimeException('The VERBS sheet contains no reference entries.');
             }
 
+            // Level labels also supply terms; keep source-row duplicate counts separate.
+            foreach ($entries as $entry) {
+                $levelKey = json_encode([mb_strtolower($entry['domain'], 'UTF-8'), $entry['position']]);
+                foreach (preg_split('/[&()]/u', $entry['level']) as $term) {
+                    $term = trim($term);
+                    if ($term === '') {
+                        continue;
+                    }
+                    $key = json_encode([$levelKey, mb_strtolower($term, 'UTF-8')]);
+                    $entries[$key] ??= array_replace($entry, ['term' => $term]);
+                }
+            }
+
             return ['entries' => array_values($entries), 'source_rows' => $sourceRows, 'duplicate_rows' => $duplicates];
         } finally {
             $workbook->disconnectWorksheets();

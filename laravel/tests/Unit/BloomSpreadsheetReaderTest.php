@@ -49,8 +49,32 @@ class BloomSpreadsheetReaderTest extends TestCase
         $result = $this->read();
         $this->assertSame(4, $result['source_rows']);
         $this->assertSame(1, $result['duplicate_rows']);
-        $this->assertCount(3, $result['entries']);
+        $this->assertCount(6, $result['entries']);
         $this->assertSame(['domain' => 'Example', 'position' => 1, 'level' => 'First', 'term' => 'Sample'], $result['entries'][0]);
+    }
+
+    public function test_includes_level_terms_without_changing_labels_or_duplicating_verbs(): void
+    {
+        $this->workbook->getActiveSheet()->fromArray([
+            ['Example', 1, 'First & Second', 'FIRST'],
+            ['Example', 1, 'First & Second', 'Sample'],
+            ['Example', 2, 'Third (alternate phrase)', 'Sample'],
+            ['Example', 3, 'First', 'Sample'],
+        ], null, 'B5');
+
+        $result = $this->read();
+        $this->assertSame(4, $result['source_rows']);
+        $this->assertSame(0, $result['duplicate_rows']);
+        $this->assertCount(8, $result['entries']);
+        $terms = [];
+        foreach ($result['entries'] as $entry) {
+            $terms[$entry['position']][] = [$entry['level'], $entry['term']];
+        }
+        $this->assertSame([
+            1 => [['First & Second', 'FIRST'], ['First & Second', 'Sample'], ['First & Second', 'Second']],
+            2 => [['Third (alternate phrase)', 'Sample'], ['Third (alternate phrase)', 'Third'], ['Third (alternate phrase)', 'alternate phrase']],
+            3 => [['First', 'Sample'], ['First', 'First']],
+        ], $terms);
     }
 
     #[DataProvider('invalidRows')]
