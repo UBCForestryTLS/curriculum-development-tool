@@ -419,9 +419,13 @@ class ProgramWizardController extends Controller
     /**
      * Returns current courses and CLOs for progression reporting.
      */
-    public function getProgression($program_id): JsonResponse
+    public function getProgression($program_id, Request $request): JsonResponse
     {
         $program = Program::findOrFail($program_id);
+        $input = $request->validate(['plo_id' => ['nullable', 'integer', 'min:1']]);
+        $selectedPlo = isset($input['plo_id'])
+            ? $program->programLearningOutcomes()->findOrFail($input['plo_id'])
+            : null;
         $courses = $program->courses()
             ->select('courses.course_id', 'course_code', 'course_num', 'course_title')
             ->with(['learningOutcomes' => fn ($query) => $query
@@ -431,6 +435,24 @@ class ProgramWizardController extends Controller
             ->get()
             ->unique('course_id')
             ->values();
+
+        $programTotals = [
+            'course_count' => $courses->count(),
+            'clo_count' => $courses->sum(fn ($course) => $course->learningOutcomes->count()),
+        ];
+        if ($selectedPlo !== null) {
+            // Use the same applicable scale levels as gap coverage, excluding N/A and removed levels.
+            $scaleIds = $program->mappingScaleLevels()->where('mapping_scales.map_scale_id', '<>', 0)
+                ->pluck('mapping_scales.map_scale_id');
+            $cloIds = DB::table('outcome_maps')->where('pl_outcome_id', $selectedPlo->pl_outcome_id)
+                ->whereIn('map_scale_id', $scaleIds)->distinct()->pluck('l_outcome_id');
+            $courses = $courses->filter(function ($course) use ($cloIds) {
+                $course->setRelation('learningOutcomes', $course->learningOutcomes
+                    ->whereIn('l_outcome_id', $cloIds)->values());
+
+                return $course->learningOutcomes->isNotEmpty();
+            })->values();
+        }
 
         $classification = BloomClassifier::classifyClos($courses
             ->flatMap(fn ($course) => $course->learningOutcomes)
@@ -454,12 +476,14 @@ class ProgramWizardController extends Controller
 
         return response()->json([
             'program_id' => (int) $program->program_id,
+            'selected_plo' => $selectedPlo?->only(['pl_outcome_id', 'plo_shortphrase', 'pl_outcome']),
             'bloom_reference_available' => $classification['reference_available'],
             'bloom_levels' => $classification['levels'],
             'course_groups' => ProgramProgression::distributions(
                 $courses, $classification['levels'], $classification['reference_available'],
             ),
-            'program_totals' => [
+            'program_totals' => $programTotals,
+            'scope_totals' => [
                 'course_count' => $courses->count(),
                 'clo_count' => $courses->sum(fn ($course) => $course['clos']->count()),
             ],

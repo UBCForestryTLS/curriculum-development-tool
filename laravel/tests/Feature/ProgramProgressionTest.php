@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BloomDomain;
 use App\Models\Course;
 use App\Models\LearningOutcome;
+use App\Models\MappingScale;
 use App\Models\Program;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -39,10 +40,12 @@ class ProgramProgressionTest extends TestCase
             ->assertOk()
             ->assertExactJson([
                 'program_id' => $program->program_id,
+                'selected_plo' => null,
                 'bloom_reference_available' => false,
                 'bloom_levels' => [],
                 'course_groups' => [],
                 'program_totals' => ['course_count' => 0, 'clo_count' => 0],
+                'scope_totals' => ['course_count' => 0, 'clo_count' => 0],
                 'courses' => [],
             ]);
     }
@@ -161,6 +164,44 @@ class ProgramProgressionTest extends TestCase
             ->assertJsonPath('course_groups.0.levels.1.percentage', 0)
             ->assertJsonPath('courses.0.clos.0.bloom_levels.0.level_id', $earlier->id)
             ->assertJsonPath('courses.0.clos.1.bloom_levels', []);
+    }
+
+    public function test_plo_scope_filters_clos_without_counting_multiple_mappings_twice(): void
+    {
+        $program = $this->createProgram();
+        $this->signInAsViewer($program);
+        $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Selected outcome']);
+        $course = Course::factory()->create(['course_num' => '201']);
+        $program->courses()->attach($course->course_id);
+        $mapped = $course->learningOutcomes()->create(['l_outcome' => 'Mapped outcome']);
+        $course->learningOutcomes()->create(['l_outcome' => 'Unmapped outcome']);
+        foreach (['First', 'Second'] as $index => $name) {
+            $scale = MappingScale::create([
+                'title' => $name, 'abbreviation' => $name, 'description' => $name, 'colour' => '#ffffff',
+            ]);
+            $program->mappingScaleLevels()->attach($scale->map_scale_id, ['position' => $index + 1]);
+            $mapped->programLearningOutcomes()->attach($plo->pl_outcome_id, ['map_scale_id' => $scale->map_scale_id]);
+        }
+
+        $this->getJson(route('programWizard.progression', [$program->program_id, 'plo_id' => $plo->pl_outcome_id]))
+            ->assertOk()
+            ->assertJsonPath('program_totals', ['course_count' => 1, 'clo_count' => 2])
+            ->assertJsonPath('scope_totals', ['course_count' => 1, 'clo_count' => 1])
+            ->assertJsonCount(1, 'courses.0.clos')
+            ->assertJsonPath('courses.0.clos.0.l_outcome_id', $mapped->l_outcome_id)
+            ->assertJsonPath('course_groups.0.clo_count', 1);
+    }
+
+    public function test_plo_scope_rejects_invalid_ids_and_another_programs_plo(): void
+    {
+        $program = $this->createProgram();
+        $this->signInAsViewer($program);
+        $otherPlo = $this->createProgram()->programLearningOutcomes()->create(['pl_outcome' => 'Other outcome']);
+
+        $this->getJson(route('programWizard.progression', [$program->program_id, 'plo_id' => 'invalid']))
+            ->assertUnprocessable()->assertJsonValidationErrors('plo_id');
+        $this->getJson(route('programWizard.progression', [$program->program_id, 'plo_id' => $otherPlo->pl_outcome_id]))
+            ->assertNotFound();
     }
 
     public function test_user_without_program_access_cannot_get_progression_data(): void
