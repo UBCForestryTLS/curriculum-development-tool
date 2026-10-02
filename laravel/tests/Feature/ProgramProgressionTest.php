@@ -41,6 +41,8 @@ class ProgramProgressionTest extends TestCase
             ->assertExactJson([
                 'program_id' => $program->program_id,
                 'selected_plo' => null,
+                'plos' => [],
+                'has_incomplete_mappings' => false,
                 'bloom_reference_available' => false,
                 'bloom_levels' => [],
                 'course_groups' => [],
@@ -187,6 +189,8 @@ class ProgramProgressionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('program_totals', ['course_count' => 1, 'clo_count' => 2])
             ->assertJsonPath('scope_totals', ['course_count' => 1, 'clo_count' => 1])
+            ->assertJsonPath('plos.0.pl_outcome_id', $plo->pl_outcome_id)
+            ->assertJsonPath('has_incomplete_mappings', true)
             ->assertJsonCount(1, 'courses.0.clos')
             ->assertJsonPath('courses.0.clos.0.l_outcome_id', $mapped->l_outcome_id)
             ->assertJsonPath('course_groups.0.clo_count', 1);

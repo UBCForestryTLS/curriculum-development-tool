@@ -423,9 +423,10 @@ class ProgramWizardController extends Controller
     {
         $program = Program::findOrFail($program_id);
         $input = $request->validate(['plo_id' => ['nullable', 'integer', 'min:1']]);
-        $selectedPlo = isset($input['plo_id'])
-            ? $program->programLearningOutcomes()->findOrFail($input['plo_id'])
-            : null;
+        $plos = $program->programLearningOutcomes()
+            ->select('pl_outcome_id', 'plo_shortphrase', 'pl_outcome')->orderBy('pl_outcome_id')->get();
+        $selectedPlo = isset($input['plo_id']) ? $plos->find($input['plo_id']) : null;
+        abort_if(isset($input['plo_id']) && $selectedPlo === null, 404);
         $courses = $program->courses()
             ->select('courses.course_id', 'course_code', 'course_num', 'course_title')
             ->with(['learningOutcomes' => fn ($query) => $query
@@ -477,6 +478,9 @@ class ProgramWizardController extends Controller
         return response()->json([
             'program_id' => (int) $program->program_id,
             'selected_plo' => $selectedPlo?->only(['pl_outcome_id', 'plo_shortphrase', 'pl_outcome']),
+            'plos' => $plos,
+            'has_incomplete_mappings' => $selectedPlo !== null
+                && ProgramGapCoverage::mappingCompleteness($program)['has_incomplete_mappings'],
             'bloom_reference_available' => $classification['reference_available'],
             'bloom_levels' => $classification['levels'],
             'course_groups' => ProgramProgression::distributions(
