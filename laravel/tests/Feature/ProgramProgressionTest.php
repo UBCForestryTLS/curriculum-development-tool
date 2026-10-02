@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BloomDomain;
 use App\Models\Course;
 use App\Models\LearningOutcome;
 use App\Models\Program;
@@ -39,6 +40,8 @@ class ProgramProgressionTest extends TestCase
             ->assertExactJson([
                 'program_id' => $program->program_id,
                 'bloom_reference_available' => false,
+                'bloom_levels' => [],
+                'course_groups' => [],
                 'program_totals' => ['course_count' => 0, 'clo_count' => 0],
                 'courses' => [],
             ]);
@@ -55,7 +58,7 @@ class ProgramProgressionTest extends TestCase
             'course_num' => '101',
             'course_title' => 'Environmental Data',
         ]);
-        $optional = Course::factory()->create();
+        $optional = Course::factory()->create(['course_num' => '201']);
         $unspecified = Course::factory()->create(['course_num' => null]);
         $outside = Course::factory()->create();
         $removed = Course::factory()->create();
@@ -96,6 +99,14 @@ class ProgramProgressionTest extends TestCase
         $this->getJson(route('programWizard.progression', $program->program_id))
             ->assertOk()
             ->assertJsonPath('program_totals', ['course_count' => 3, 'clo_count' => 3])
+            ->assertJsonPath('bloom_levels', [])
+            ->assertJsonCount(3, 'course_groups')
+            ->assertJsonPath('course_groups.0.course_level', 100)
+            ->assertJsonPath('course_groups.0.clo_count', 2)
+            ->assertJsonPath('course_groups.0.matched_clo_count', null)
+            ->assertJsonPath('course_groups.0.unmatched_clo_count', null)
+            ->assertJsonPath('course_groups.1.course_level', 200)
+            ->assertJsonPath('course_groups.2.course_level', 'other')
             ->assertJsonCount(3, 'courses')
             ->assertJsonPath('courses.0.course_id', $required->course_id)
             ->assertJsonPath('courses.0.course_code', 'ENVD')
@@ -113,6 +124,43 @@ class ProgramProgressionTest extends TestCase
             ->assertJsonPath('courses.2.course_num', null)
             ->assertJsonPath('courses.2.course_required', null)
             ->assertJsonPath('courses.2.clos', []);
+    }
+
+    public function test_endpoint_returns_distributions_with_the_full_ordered_reference(): void
+    {
+        $program = $this->createProgram();
+        $this->signInAsViewer($program);
+        $domain = BloomDomain::create(['name' => 'Cognitive']);
+        $later = $domain->levels()->create(['position' => 2, 'name' => 'Later']);
+        $earlier = $domain->levels()->create(['position' => 1, 'name' => 'Earlier']);
+        $earlier->verbs()->create(['term' => 'Example-term']);
+        $later->verbs()->create(['term' => 'Unused-term']);
+        $course = Course::factory()->create(['course_num' => '301']);
+        $program->courses()->attach($course->course_id);
+        $course->learningOutcomes()->create(['l_outcome' => 'Example-term']);
+        $course->learningOutcomes()->create(['l_outcome' => 'Unrelated text']);
+
+        $this->getJson(route('programWizard.progression', $program->program_id))
+            ->assertOk()
+            ->assertJsonPath('bloom_reference_available', true)
+            ->assertJsonPath('bloom_levels', [
+                ['id' => $earlier->id, 'name' => 'Earlier', 'position' => 1],
+                ['id' => $later->id, 'name' => 'Later', 'position' => 2],
+            ])
+            ->assertJsonCount(1, 'course_groups')
+            ->assertJsonPath('course_groups.0.course_level', 300)
+            ->assertJsonPath('course_groups.0.course_count', 1)
+            ->assertJsonPath('course_groups.0.clo_count', 2)
+            ->assertJsonPath('course_groups.0.matched_clo_count', 1)
+            ->assertJsonPath('course_groups.0.unmatched_clo_count', 1)
+            ->assertJsonPath('course_groups.0.levels.0.level_id', $earlier->id)
+            ->assertJsonPath('course_groups.0.levels.0.clo_count', 1)
+            ->assertJsonPath('course_groups.0.levels.0.percentage', 50)
+            ->assertJsonPath('course_groups.0.levels.1.level_id', $later->id)
+            ->assertJsonPath('course_groups.0.levels.1.clo_count', 0)
+            ->assertJsonPath('course_groups.0.levels.1.percentage', 0)
+            ->assertJsonPath('courses.0.clos.0.bloom_levels.0.level_id', $earlier->id)
+            ->assertJsonPath('courses.0.clos.1.bloom_levels', []);
     }
 
     public function test_user_without_program_access_cannot_get_progression_data(): void

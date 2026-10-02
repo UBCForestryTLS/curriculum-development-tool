@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\BloomClassifier;
 use App\Helpers\ProgramGapCoverage;
+use App\Helpers\ProgramProgression;
 use App\Models\AssessmentMethod;
 use App\Models\Campus;
 use App\Models\Course;
@@ -454,6 +455,10 @@ class ProgramWizardController extends Controller
         return response()->json([
             'program_id' => (int) $program->program_id,
             'bloom_reference_available' => $classification['reference_available'],
+            'bloom_levels' => $classification['levels'],
+            'course_groups' => ProgramProgression::distributions(
+                $courses, $classification['levels'], $classification['reference_available'],
+            ),
             'program_totals' => [
                 'course_count' => $courses->count(),
                 'clo_count' => $courses->sum(fn ($course) => $course['clos']->count()),

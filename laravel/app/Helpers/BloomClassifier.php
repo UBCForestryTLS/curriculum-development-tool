@@ -10,7 +10,7 @@ class BloomClassifier
      * Load the cognitive reference once for CLO text keyed by distinct CLO ID.
      *
      * @param array<int, string> $clos
-     * @return array{reference_available: bool, classifications: array<int, array>}
+     * @return array{reference_available: bool, levels: array, classifications: array<int, array>}
      */
     public static function classifyClos(array $clos): array
     {
@@ -33,7 +33,15 @@ class BloomClassifier
             }
         }
 
-        return ['reference_available' => $available, 'classifications' => $classifications];
+        return [
+            'reference_available' => $available,
+            'levels' => array_map(fn ($level) => [
+                'id' => $level['id'],
+                'name' => $level['name'],
+                'position' => $level['position'],
+            ], $levels),
+            'classifications' => $classifications,
+        ];
     }
 
     /**

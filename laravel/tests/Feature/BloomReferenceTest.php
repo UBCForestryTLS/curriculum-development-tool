@@ -77,15 +77,17 @@ class BloomReferenceTest extends TestCase
 
     public function test_classifier_distinguishes_missing_reference_from_unmatched_clos(): void
     {
-        $unavailable = ['reference_available' => false, 'classifications' => []];
+        $unavailable = ['reference_available' => false, 'levels' => [], 'classifications' => []];
         $this->assertSame($unavailable, BloomClassifier::classifyClos([10 => 'Example-term']));
         $domain = BloomDomain::create(['name' => 'Cognitive']);
         $this->assertSame($unavailable, BloomClassifier::classifyClos([10 => 'Example-term']));
         $level = $domain->levels()->create(['position' => 1, 'name' => 'Example']);
+        $unavailable['levels'] = [['id' => $level->id, 'name' => 'Example', 'position' => 1]];
         $this->assertSame($unavailable, BloomClassifier::classifyClos([10 => 'Example-term']));
         $level->verbs()->create(['term' => 'Example-term']);
         $this->assertSame([
             'reference_available' => true,
+            'levels' => $unavailable['levels'],
             'classifications' => [10 => []],
         ], BloomClassifier::classifyClos([10 => 'Unrelated text']));
     }
