@@ -1,9 +1,8 @@
 <!-- start of add/edit course collaborators modal -->
-<?php //$coursePermission = $user->courses->where('course_id', $course->course_id)->first(); ?><!---->
-<?php use App\Models\Role;
-
-$coursePermission = $user->allCourses()->where('course_id', $course->course_id)->first();
-?>
+@php
+    $courseUserPermission = $courseUserPermission ?? $user->effectivePermissionForCourse($course->course_id);
+    $isDirectCourseOwner = $course->users->firstWhere('id', $user->id)?->pivot->permission == 1;
+@endphp
 <div id="addCourseCollaboratorsModal{{$course->course_id}}" class="modal fade" data-bs-backdrop="static"
      data-bs-keyboard="false" tabindex="-1" role="dialog"
      aria-labelledby="addCourseCollaboratorsModalLabel{{$course->course_id}}" aria-hidden="true">
@@ -26,8 +25,7 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                     </li>
                 </div>
 
-                {{--                @if ($coursePermission->pivot->permission == 1)--}}
-                @if ($user->effectivePermissionForCourse($coursePermission->course_id) == 1)
+                @if ($courseUserPermission == 1)
                     <form class="addCourseCollabForm needs-validation" novalidate
                           data-course_id="{{$course->course_id}}">
                         @csrf
@@ -61,13 +59,11 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                     </div>
                 </div>
 
-                @if ($course->users->count() < 1)
-                    <div class="alert alert-warning wizard">
+                    <div class="collaborators-empty alert alert-warning wizard @if ($course->users->isNotEmpty()) d-none @endif">
                         <i class="bi bi-exclamation-circle-fill"></i>You have not added any collaborators to this course
                         yet.
                     </div>
-                @else
-                    <table id="addCourseCollabsTbl{{$course->course_id}}" class="table table-light borderless">
+                    <table id="addCourseCollabsTbl{{$course->course_id}}" class="table table-light borderless @if ($course->users->isEmpty()) d-none @endif">
                         <thead>
                         <tr class="table-primary">
                             <th>Collaborators</th>
@@ -92,7 +88,7 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                                     </td>
                                     <td colspan="2"></td>
                                 @else
-                                    @if ($coursePermission->pivot->permission == 1 or $user->effectivePermissionForCourse($coursePermission->course_id) == 1)
+                                    @if ($courseUserPermission == 1)
                                         <td class="align-middle">
                                             <select
                                                 id="course_collab_permission{{$course->course_id}}-{{$courseCollaborator->id}}"
@@ -174,7 +170,7 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                                             </div>
                                         </div>
                                     @else
-                                        @if ($coursePermission->pivot->permission == 1)
+                                        @if ($isDirectCourseOwner)
                                             <td class="text-center align-middle">
                                                 <button type="input" class="btn btn-danger btn"
                                                         onclick="deleteCourseCollab(this)">Remove
@@ -182,14 +178,12 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                                             </td>
 
 
-                                            @if ($coursePermission->pivot->permission == 1)
                                             <td class="text-center align-middle">
                                                 <button type="input" class="btn btn-primary btn-sm" data-bs-toggle="modal"
                                                         data-bs-target="#transferCourseConfirmation{{$course->course_id}}">
                                                     Transfer Ownership
                                                 </button>
                                             </td>
-                                                @endif
 
                                             <!-- Transfer Confirmation Modal -->
                                             <div class="modal fade"
@@ -242,7 +236,6 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                         @endforeach
                         </tbody>
                     </table>
-                @endif
             </div>
 
             <form method="POST" id="saveCourseCollabChanges{{$course->course_id}}"
@@ -269,7 +262,7 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
             var courseId = event.currentTarget.dataset.course_id;
             // prevent default form submission handling
             event.preventDefault();
-            event.stopPropagation();
+            event.stopImmediatePropagation();
             // check if input fields contain data
             var email = $('#course_collab_email' + courseId);
             if (isEmailValid(email.val())
@@ -329,12 +322,16 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
     }
 
     function deleteCourseCollab(submitter) {
-        $(submitter).parents('tr')[0].remove();
+        const table = $(submitter).closest('table');
+        $(submitter).closest('tr').remove();
+        const isEmpty = table.find('tbody tr').length === 0;
+        table.toggleClass('d-none', isEmpty);
+        table.siblings('.collaborators-empty').toggleClass('d-none', !isEmpty);
     }
 
     function addCourseCollab(courseId) {
-        // prepend assessment method to the table
-        $('#addCourseCollabsTbl' + courseId + ' tbody').prepend(`
+        const table = $('#addCourseCollabsTbl' + courseId);
+        table.find('tbody').prepend(`
             <tr>
                 <td>
                     <input type="text" class="form-control " name="course_new_collabs[]" value = "${$('#course_collab_email' + courseId).val()}" placeholder="E.g. john.doe@ubc.ca" form="saveCourseCollabChanges${courseId}" required>
@@ -352,5 +349,7 @@ $coursePermission = $user->allCourses()->where('course_id', $course->course_id)-
                 <td></td>
             </tr>
         `);
+        table.removeClass('d-none');
+        table.siblings('.collaborators-empty').addClass('d-none');
     }
 </script>

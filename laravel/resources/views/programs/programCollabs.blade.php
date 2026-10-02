@@ -1,8 +1,8 @@
 <!-- start of add/edit program collaborators modal -->
-<?php //$programPermission = $user->programs->where('program_id', $program->program_id)->first();
-use App\Models\Role;
-
-$programPermission = $user->allPrograms()->where('program_id', $program->program_id)->first(); ?><!---->
+@php
+    $programUserPermission = $programUserPermission ?? $user->effectivePermissionForProgram($program->program_id);
+    $isDirectProgramOwner = $program->users->firstWhere('id', $user->id)?->pivot->permission == 1;
+@endphp
 <div id="addProgramCollaboratorsModal{{$program->program_id}}" class="modal fade" data-bs-backdrop="static"
      data-bs-keyboard="false" tabindex="-1" role="dialog"
      aria-labelledby="addProgramCollaboratorsModalLabel{{$program->program_id}}" aria-hidden="true">
@@ -25,8 +25,7 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
                     </li>
                 </div>
 
-                {{--                @if ($programPermission->pivot->permission == 1)--}}
-                @if ($user->effectivePermissionForProgram($programPermission->program_id) == 1)
+                @if ($programUserPermission == 1)
                     <form class="addProgramCollabForm needs-validation" novalidate
                           data-program_id="{{$program->program_id}}">
                         @csrf
@@ -60,13 +59,11 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
                     </div>
                 </div>
 
-                @if ($program->users->count() < 1)
-                    <div class="alert alert-warning wizard">
+                    <div class="collaborators-empty alert alert-warning wizard @if ($program->users->isNotEmpty()) d-none @endif">
                         <i class="bi bi-exclamation-circle-fill"></i>You have not added any collaborators to this
                         program yet.
                     </div>
-                @else
-                    <table id="addProgramCollabsTbl{{$program->program_id}}" class="table table-light borderless">
+                    <table id="addProgramCollabsTbl{{$program->program_id}}" class="table table-light borderless @if ($program->users->isEmpty()) d-none @endif">
                         <thead>
                         <tr class="table-primary">
                             <th>Collaborators</th>
@@ -91,7 +88,7 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
                                     </td>
                                     <td colspan="2"></td>
                                 @else
-                                    @if ($programPermission->pivot->permission == 1 or $user->effectivePermissionForProgram($programPermission->program_id) == 1)
+                                    @if ($programUserPermission == 1)
                                         <td class="align-middle">
                                             <select
                                                 id="program_collab_permission{{$program->program_id}}-{{$programCollaborator->id}}"
@@ -174,14 +171,14 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
                                             </div>
                                         </div>
                                     @else
-                                        @if ($programPermission->pivot->permission == 1 or $user->effectivePermissionForProgram($programPermission->program_id) == 1)
+                                        @if ($programUserPermission == 1)
                                             <td class="text-center align-middle">
                                                 <button type="input" class="btn btn-danger btn"
                                                         onclick="deleteProgramCollab(this)">Remove
                                                 </button>
                                             </td>
 
-                                                @if ($programPermission->pivot->permission == 1)
+                                                @if ($isDirectProgramOwner)
                                                     <td class="text-center align-middle">
                                                         <button type="input" class="btn btn-primary btn-sm" data-bs-toggle="modal"
                                                                 data-bs-target="#transferProgramConfirmation{{$program->program_id}}">
@@ -241,7 +238,6 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
                         @endforeach
                         </tbody>
                     </table>
-                @endif
             </div>
 
             <form method="POST" id="saveProgramCollabChanges{{$program->program_id}}"
@@ -269,7 +265,7 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
             var programId = event.currentTarget.dataset.program_id;
             // prevent default form submission handling
             event.preventDefault();
-            event.stopPropagation();
+            event.stopImmediatePropagation();
             // check if input fields contain data
             var email = $('#program_collab_email' + programId);
             if (isEmailValid(email.val())
@@ -328,12 +324,16 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
     }
 
     function deleteProgramCollab(submitter) {
-        $(submitter).parents('tr')[0].remove();
+        const table = $(submitter).closest('table');
+        $(submitter).closest('tr').remove();
+        const isEmpty = table.find('tbody tr').length === 0;
+        table.toggleClass('d-none', isEmpty);
+        table.siblings('.collaborators-empty').toggleClass('d-none', !isEmpty);
     }
 
     function addProgramCollab(programId) {
-        // prepend assessment method to the table
-        $('#addProgramCollabsTbl' + programId + ' tbody').prepend(`
+        const table = $('#addProgramCollabsTbl' + programId);
+        table.find('tbody').prepend(`
             <tr>
                 <td>
                     <input type="text" class="form-control " name="program_new_collabs[]" value = "${$('#program_collab_email' + programId).val()}" placeholder="E.g. john.doe@ubc.ca" form="saveProgramCollabChanges${programId}" required>
@@ -351,5 +351,7 @@ $programPermission = $user->allPrograms()->where('program_id', $program->program
                 <td></td>
             </tr>
         `);
+        table.removeClass('d-none');
+        table.siblings('.collaborators-empty').addClass('d-none');
     }
 </script>

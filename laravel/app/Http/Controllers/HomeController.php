@@ -5,18 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\AssessmentMethod;
 use App\Models\Campus;
 use App\Models\Course;
-use App\Models\CourseDescription;
 use App\Models\Department;
 use App\Models\Faculty;
 use App\Models\LearningActivity;
 use App\Models\LearningOutcome;
-use App\Models\OutcomeActivity;
-use App\Models\OutcomeAssessment;
 use App\Models\Program;
 use App\Models\ProgramLearningOutcome;
 use App\Models\ProgramUser;
 use App\Models\Standard;
-use App\Models\StandardCategory;
 use App\Models\StandardsOutcomeMap;
 use App\Models\User;
 use Illuminate\Contracts\Support\Renderable;
@@ -26,8 +22,6 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
-use App\Models\CourseTopic;
-use App\Models\CourseMaterial;
 
 class HomeController extends Controller
 {
@@ -44,7 +38,7 @@ class HomeController extends Controller
     /**
      * Show the application dashboard.
      */
-    public function index(Request $request): Renderable
+    public function index(Request $request): Renderable|RedirectResponse
     {
         //Artisan::call('route:clear', []);
 
@@ -53,35 +47,47 @@ class HomeController extends Controller
         $departments = Department::orderBy('department')->get();
         // get the current authenticated user
         $user = User::find(Auth::id());
-        // get my programs
-//        $myPrograms = $user->programs->map(function ($program) {
-//            $program['timeSince'] = $this->timeSince(time() - strtotime($program->updated_at));
-//            $program['userPermission'] = $program->pivot->permission;
-//
-//            return $program;
-//        })->sortByDesc('updated_at')->values(); // Values is used to reset the index for sort statement
+        $programsPaginator = $user->dashboardProgramsQuery()
+            ->with('users')
+            ->orderByDesc('programs.updated_at')
+            ->orderByDesc('programs.program_id')
+            ->paginate(15, ['*'], 'programs_page')
+            ->withQueryString()
+            ->fragment('dashboard-programs');
 
-        $myPrograms = $user->allPrograms()->map(function ($program) use ($user){
+        $coursesPaginator = $user->dashboardCoursesQuery()
+            ->with(['users', 'programs'])
+            ->orderByDesc('courses.updated_at')
+            ->orderByDesc('courses.course_id')
+            ->paginate(15, ['*'], 'courses_page')
+            ->withQueryString()
+            ->fragment('dashboard-courses');
+        $pageCorrections = [];
+        $fragment = null;
+        foreach (['programs' => $programsPaginator, 'courses' => $coursesPaginator] as $section => $paginator) {
+            if ($paginator->currentPage() > $paginator->lastPage()) {
+                $pageCorrections[$paginator->getPageName()] = $paginator->lastPage();
+                $fragment ??= 'dashboard-'.$section;
+            }
+        }
+        if ($pageCorrections) {
+            return redirect()->to($request->fullUrlWithQuery($pageCorrections).'#'.$fragment);
+        }
+
+        $myPrograms = $programsPaginator->getCollection()->map(function ($program) {
             $program['timeSince'] = $this->timeSince(time() - strtotime($program->updated_at));
-            $program['userPermission'] = $user->effectivePermissionForProgram($program->program_id);
 
             return $program;
-        })->sortByDesc('updated_at')->values(); // Values is used to reset the index for sort statement
-
-        // get my courses
-        $myCourses = $user->allCourses()->map(function ($course) use ($user) {
+        });
+        $myCourses = $coursesPaginator->getCollection()
+            ->load('courseDescription')
+            ->loadCount('learningOutcomes')
+            ->loadExists(['courseTopics', 'courseMaterials', 'assessmentMethods', 'learningActivities']);
+        $myCourses = $myCourses->map(function ($course) {
             $course['timeSince'] = $this->timeSince(time() - strtotime($course->updated_at));
-            $course['userPermission'] = $user->effectivePermissionForCourse($course->course_id);
 
             return $course;
-        })->sortByDesc('updated_at')->values(); // Values is used to reset the index for sort statement
-//        // get my courses
-//        $myCourses = $user->courses->map(function ($course) {
-//            $course['timeSince'] = $this->timeSince(time() - strtotime($course->updated_at));
-//            $course['userPermission'] = $course->pivot->permission;
-//
-//            return $course;
-//        })->sortByDesc('updated_at')->values(); // Values is used to reset the index for sort statement
+        });
         // get my syllabi
         $mySyllabi = $user->syllabi->map(function ($syllabus) {
             $syllabus['timeSince'] = $this->timeSince(time() - strtotime($syllabus->updated_at));
@@ -99,15 +105,12 @@ class HomeController extends Controller
         // returns a collection of programs associated with users (Collaborators Icon)
         $programUsers = [];
         foreach ($myPrograms as $program) {
-            $programsUsers = $program->users()->get();
-            $programUsers[$program->program_id] = $programsUsers;
+            $programUsers[$program->program_id] = $program->users;
         }
         // returns a collection of courses associated with users
         $courseUsers = [];
         foreach ($myCourses as $course) {
-            $coursesUsers = $course->users()->get();
-            #$coursesUsers = $course->collaborators();
-            $courseUsers[$course->course_id] = $coursesUsers;
+            $courseUsers[$course->course_id] = $course->users;
         }
         // get the associated users for every one of this users syllabi
         $syllabiUsers = [];
@@ -118,13 +121,47 @@ class HomeController extends Controller
         // returns a collection of standard_categories, used in the create course modal
         $standard_categories = DB::table('standard_categories')->get();
 
+        // Gather alignment facts for the displayed courses before calculating progress.
+        $courseIds = $myCourses->modelKeys();
+        $coursesWithUnalignedClos = LearningOutcome::whereIn('course_id', $courseIds)
+            ->where(function ($query) {
+                $query->whereNotExists(function ($query) {
+                    $query->selectRaw('1')->from('outcome_assessments')
+                        ->whereColumn('outcome_assessments.l_outcome_id', 'learning_outcomes.l_outcome_id');
+                })->orWhereNotExists(function ($query) {
+                    $query->selectRaw('1')->from('outcome_activities')
+                        ->whereColumn('outcome_activities.l_outcome_id', 'learning_outcomes.l_outcome_id');
+                });
+            })->distinct()->pluck('course_id');
+        $coursesWithAlignedActivities = LearningActivity::join('outcome_activities', 'learning_activities.l_activity_id', '=', 'outcome_activities.l_activity_id')
+            ->join('learning_outcomes', 'outcome_activities.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')
+            ->whereIn('learning_activities.course_id', $courseIds)
+            ->distinct()->pluck('learning_activities.course_id');
+        $coursesWithAlignedAssessments = AssessmentMethod::join('outcome_assessments', 'assessment_methods.a_method_id', '=', 'outcome_assessments.a_method_id')
+            ->join('learning_outcomes', 'outcome_assessments.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')
+            ->whereIn('assessment_methods.course_id', $courseIds)
+            ->distinct()->pluck('assessment_methods.course_id');
+
+        $programIds = $myCourses->flatMap(fn ($course) => $course->programs->modelKeys())->unique()->values()->all();
+        $ploCounts = ProgramLearningOutcome::whereIn('program_id', $programIds)
+            ->selectRaw('program_id, COUNT(*) as total')->groupBy('program_id')->pluck('total', 'program_id');
+        $mappingCounts = ProgramLearningOutcome::join('outcome_maps', 'program_learning_outcomes.pl_outcome_id', '=', 'outcome_maps.pl_outcome_id')
+            ->join('learning_outcomes', 'outcome_maps.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')
+            ->whereIn('learning_outcomes.course_id', $courseIds)
+            ->selectRaw('learning_outcomes.course_id, COUNT(*) as total')
+            ->groupBy('learning_outcomes.course_id')->pluck('total', 'course_id');
+        $standardCounts = Standard::whereIn('standard_category_id', $myCourses->pluck('standard_category_id')->unique())
+            ->selectRaw('standard_category_id, COUNT(*) as total')->groupBy('standard_category_id')->pluck('total', 'standard_category_id');
+        $standardMappingCounts = StandardsOutcomeMap::whereIn('course_id', $courseIds)
+            ->selectRaw('course_id, COUNT(*) as total')->groupBy('course_id')->pluck('total', 'course_id');
+
         //for progress bar
         $progressBar = [];
         $progressBarMsg = [];
         $count = 0;
         foreach ($myCourses as $course) {
 
-            $numClos = LearningOutcome::where('course_id', $course->course_id)->count();
+            $numClos = $course->learning_outcomes_count;
             // get the total number of program outcome maps possible for a course
             $coursePrograms = $course->programs;
             if (count($coursePrograms) <= 1) {
@@ -135,16 +172,7 @@ class HomeController extends Controller
             // This loop will not run if the course does not have any programs
             foreach ($coursePrograms as $program) {
                 // multiple number of CLOs by num of PLOs
-                $expectedProgramOutcomeMapCount += $program->programLearningOutcomes->count() * $numClos;
-            }
-            // checks if all learning outcomes have been aligned to a student assessment method AND a Teaching and Learning Outcome. Breaks and returns true if a clo is not aligned.
-            $l_outcomes = LearningOutcome::where('course_id', $course->course_id)->get();
-            $hasNonAlignedCLO = false;
-            foreach ($l_outcomes as $clo) {
-                if ((! OutcomeAssessment::where('l_outcome_id', $clo->l_outcome_id)->exists()) || (! OutcomeActivity::where('l_outcome_id', $clo->l_outcome_id)->exists())) {
-                    $hasNonAlignedCLO = true;
-                    break;
-                }
+                $expectedProgramOutcomeMapCount += ($ploCounts[$program->program_id] ?? 0) * $numClos;
             }
             // Used for getting the status (progress) for each course displayed on the dashboard
             // get course id for each course
@@ -152,64 +180,55 @@ class HomeController extends Controller
             $progressBarMsg[$courseId]['statusMsg'] = '<b>Remaining Tasks</b> <ol>';
             $hasNoStandards = false;
             // gets the count for each step used to check if progress has been made
-            if(strlen(CourseDescription::where('course_id', $courseId)->first()?->description)){
+            if (strlen($course->courseDescription?->description ?? '') > 0) {
                 $count++;
             } else{
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Course Description (Step 1)</li>';
             }
-            if (CourseTopic::where('course_id', $courseId)->count() > 0) {
+            if ($course->course_topics_exists) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Course Topics (Step 2)</li>';
             }
 
-            if (CourseMaterial::where('course_id', $courseId)->count() > 0) {
+            if ($course->course_materials_exists) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Course Materials (Step 3)</li>';
             }
 
-            if (LearningOutcome::where('course_id', $courseId)->count() > 0) {
+            if ($numClos > 0) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Course Learning Outcomes (Step 4)</li>';
             }
-            if (AssessmentMethod::where('course_id', $courseId)->count() > 0) {
+            if ($course->assessment_methods_exists) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Student Assessment Methods (Step 5)</li>';
             }
-            if (LearningActivity::where('course_id', $courseId)->count() > 0) {
+            if ($course->learning_activities_exists) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Teaching and Learning Activities (Step 6)</li>';
             }
-            if ((! LearningActivity::join('outcome_activities', 'learning_activities.l_activity_id', '=', 'outcome_activities.l_activity_id')->join('learning_outcomes', 'outcome_activities.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')->select('outcome_activities.l_activity_id', 'learning_activities.l_activity', 'outcome_activities.l_outcome_id', 'learning_outcomes.l_outcome')->where('learning_activities.course_id', '=', $courseId)->count() > 0) && (! AssessmentMethod::join('outcome_assessments', 'assessment_methods.a_method_id', '=', 'outcome_assessments.a_method_id')->join('learning_outcomes', 'outcome_assessments.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')->select('assessment_methods.a_method_id', 'assessment_methods.a_method', 'outcome_assessments.l_outcome_id', 'learning_outcomes.l_outcome')->where('assessment_methods.course_id', '=', $courseId)->count() > 0)) {
-                if (LearningActivity::join('outcome_activities', 'learning_activities.l_activity_id', '=', 'outcome_activities.l_activity_id')->join('learning_outcomes', 'outcome_activities.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')->select('outcome_activities.l_activity_id', 'learning_activities.l_activity', 'outcome_activities.l_outcome_id', 'learning_outcomes.l_outcome')->where('learning_activities.course_id', '=', $courseId)->count() > 0) {
-                    $count++;
-                } else {
-                    $progressBarMsg[$courseId]['statusMsg'] .= '<li>Assessment Methods - Course Alignment (Step 7)</li>';
-                }
-                if (AssessmentMethod::join('outcome_assessments', 'assessment_methods.a_method_id', '=', 'outcome_assessments.a_method_id')->join('learning_outcomes', 'outcome_assessments.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')->select('assessment_methods.a_method_id', 'assessment_methods.a_method', 'outcome_assessments.l_outcome_id', 'learning_outcomes.l_outcome')->where('assessment_methods.course_id', '=', $courseId)->count() > 0) {
-                    $count++;
-                } else {
-                    $progressBarMsg[$courseId]['statusMsg'] .= '<li>Learning Activities - Course Alignment (Step 7)</li>';
-                }
-            } elseif ($hasNonAlignedCLO) {
+            if (! $coursesWithAlignedActivities->contains($courseId) && ! $coursesWithAlignedAssessments->contains($courseId)) {
+                $progressBarMsg[$courseId]['statusMsg'] .= '<li>Assessment Methods - Course Alignment (Step 7)</li>';
+                $progressBarMsg[$courseId]['statusMsg'] .= '<li>Learning Activities - Course Alignment (Step 7)</li>';
+            } elseif ($coursesWithUnalignedClos->contains($courseId)) {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Course Alignment (Step 7)</li>';
                 $count++;
             } else {
                 $count = $count + 2;
             }
-            if (ProgramLearningOutcome::join('outcome_maps', 'program_learning_outcomes.pl_outcome_id', '=', 'outcome_maps.pl_outcome_id')->join('learning_outcomes', 'outcome_maps.l_outcome_id', '=', 'learning_outcomes.l_outcome_id')->select('outcome_maps.map_scale_value', 'outcome_maps.pl_outcome_id', 'program_learning_outcomes.pl_outcome', 'outcome_maps.l_outcome_id', 'learning_outcomes.l_outcome')->where('learning_outcomes.course_id', '=', $courseId)->count() >= ($expectedProgramOutcomeMapCount == 1 ? $expectedProgramOutcomeMapCount : $expectedProgramOutcomeMapCount - 1)) {
+            if (($mappingCounts[$courseId] ?? 0) >= ($expectedProgramOutcomeMapCount == 1 ? $expectedProgramOutcomeMapCount : $expectedProgramOutcomeMapCount - 1)) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Program Outcome Mapping (Step 8)</li>';
             }
-            $course = Course::find($courseId);
             if ($course->standard_category_id == 0) {
                 $hasNoStandards = true;
-            } elseif (StandardsOutcomeMap::where('course_id', $courseId)->count() == StandardCategory::find($course->standard_category_id)->standards->count()) {
+            } elseif (($standardMappingCounts[$courseId] ?? 0) == ($standardCounts[$course->standard_category_id] ?? 0)) {
                 $count++;
             } else {
                 $progressBarMsg[$courseId]['statusMsg'] .= '<li>Standards (Step 9)</li>';
@@ -229,7 +248,7 @@ class HomeController extends Controller
         // return dashboard view
         return view('pages.home')->with('myCourses', $myCourses)->with('myPrograms', $myPrograms)->with('user', $user)->with('coursesPrograms', $coursesPrograms)->with('standard_categories', $standard_categories)->with('programUsers', $programUsers)
             ->with('courseUsers', $courseUsers)->with('mySyllabi', $mySyllabi)->with('syllabiUsers', $syllabiUsers)->with('progressBar', $progressBar)->with('progressBarMsg', $progressBarMsg)->with('campuses', $campuses)->with('faculties', $faculties)
-            ->with('departments', $departments);
+            ->with('departments', $departments)->with('coursesPaginator', $coursesPaginator)->with('programsPaginator', $programsPaginator);
     }
 
     public function getProgramUsers($program_id): View
