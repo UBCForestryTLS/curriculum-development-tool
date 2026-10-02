@@ -47,6 +47,22 @@
         <p id="progression-no-reference" class="alert alert-info d-none">The Bloom’s cognitive reference is unavailable. You can still review the courses and CLOs below.</p>
     </div>
 
+    <section id="progression-chart-section" class="mb-4 d-none" aria-labelledby="progression-chart-heading">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <h5 id="progression-chart-heading" class="mb-0">Cognitive levels by course group</h5>
+            <div class="d-flex align-items-center gap-2">
+                <label for="progression-units" class="mb-0">Show</label>
+                <select id="progression-units" class="form-select w-auto">
+                    <option value="percentages">Percentages</option>
+                    <option value="counts">Counts</option>
+                </select>
+            </div>
+        </div>
+        <p id="progression-chart-description" class="small text-muted">Percentages use all CLOs in each course group and selected scope, including those with no Bloom match. A CLO can count at several levels, so percentages may total above 100%. Course numbers indicate course stage, not a student's actual sequence.</p>
+        <p id="progression-chart-unavailable" class="alert alert-info d-none">The chart could not be loaded. You can still review the summary and CLOs.</p>
+        <div id="progression-chart" aria-labelledby="progression-chart-heading" aria-describedby="progression-chart-description"></div>
+    </section>
+
     <section id="progression-courses" class="d-none" aria-labelledby="progression-courses-heading">
         <h5 id="progression-courses-heading">Courses and learning outcomes</h5>
         <div id="progression-course-list" class="text-break"></div>
@@ -61,8 +77,13 @@
     $(document).ready(function () {
         let progressionData = null;
         let progressionLoading = false;
+        let progressionChart = null;
 
-        $('#nav-progression-tab').on('shown.bs.tab', loadProgression);
+        $('#nav-progression-tab').on('shown.bs.tab', function () {
+            loadProgression();
+            progressionChart?.reflow();
+        });
+        $('#progression-units').on('change', renderChart);
         $('#progression-retry').on('click', loadProgression);
         $('#progression-scope').on('change', function () {
             progressionData = null;
@@ -76,7 +97,7 @@
             progressionLoading = true;
             const scope = $('#progression-scope').val();
             $('#progression-scope').prop('disabled', true);
-            $('#progression-results, #progression-courses').addClass('d-none');
+            $('#progression-results, #progression-courses, #progression-chart-section').addClass('d-none');
             if (document.activeElement === document.getElementById('progression-retry')) {
                 document.getElementById('progression-heading').focus();
             }
@@ -114,6 +135,7 @@
                     $('#progression-no-reference').toggleClass('d-none', data.bloom_reference_available || totals.clo_count === 0);
                     renderCourses(data.courses, data.bloom_reference_available);
                     $('#progression-results').removeClass('d-none');
+                    renderChart();
                 },
                 error: function () {
                     $('#progression-error').removeClass('d-none');
@@ -124,6 +146,73 @@
                     $('#progression-loading').addClass('d-none');
                 }
             });
+        }
+
+        function renderChart() {
+            progressionChart?.destroy();
+            progressionChart = null;
+            const data = progressionData;
+            const available = data?.bloom_reference_available && data.scope_totals.clo_count > 0;
+            $('#progression-chart-section').toggleClass('d-none', !available);
+            if (!available) return;
+
+            $('#progression-chart-unavailable').toggleClass('d-none', Boolean(window.Highcharts));
+            $('#progression-chart').toggleClass('d-none', !window.Highcharts);
+            $('#progression-units').prop('disabled', !window.Highcharts);
+            if (!window.Highcharts) return;
+
+            const counts = $('#progression-units').val() === 'counts';
+            const groups = data.course_groups;
+            const label = group => group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`;
+            progressionChart = Highcharts.chart('progression-chart', {
+                chart: {
+                    type: 'column',
+                    animation: false,
+                    scrollablePlotArea: { minWidth: Math.max(360, groups.length * Math.max(100, data.bloom_levels.length * 24)) },
+                },
+                title: { text: null },
+                xAxis: {
+                    categories: groups.map(group => label(group) + (group.clo_count === 0 ? ' (no CLOs)' : '')),
+                    title: { text: 'Course group' },
+                },
+                yAxis: {
+                    min: 0,
+                    max: counts ? undefined : 100,
+                    allowDecimals: !counts,
+                    title: { text: counts ? 'Number of CLOs' : 'CLOs (%)' },
+                },
+                plotOptions: { series: { animation: false } },
+                exporting: { enabled: false },
+                credits: { enabled: false },
+                accessibility: { enabled: false },
+                tooltip: {
+                    outside: true,
+                    animation: false,
+                    formatter: function () {
+                        const point = this.point || this;
+                        const { group, level } = point.options.custom;
+                        return `<b>${label(group)}</b><br>${escapeChartText(level.name)}<br>`
+                            + `${level.clo_count} of ${group.clo_count} CLOs (${level.percentage}%)<br>`
+                            + `${group.unmatched_clo_count} CLOs with no Bloom match in this group`;
+                    },
+                },
+                series: data.bloom_levels.map(level => ({
+                    name: escapeChartText(level.name),
+                    data: groups.map(group => {
+                        const result = group.levels.find(item => item.level_id === level.id);
+                        return {
+                            y: result.percentage === null ? null : counts ? result.clo_count : result.percentage,
+                            custom: { group, level: result },
+                        };
+                    }),
+                })),
+            });
+        }
+
+        function escapeChartText(value) {
+            const text = document.createElement('span');
+            text.textContent = value;
+            return text.innerHTML;
         }
 
         function renderCourses(courses, referenceAvailable) {
