@@ -95,9 +95,15 @@
             </div>
             <div class="modal-body">
                 <p id="progression-details-scope" class="text-break"></p>
-                <p id="progression-details-counts" class="text-muted"></p>
+                <div class="mb-3">
+                    <label for="progression-details-filter" class="form-label">Show CLOs</label>
+                    <select id="progression-details-filter" class="form-select" aria-describedby="progression-details-filter-help"></select>
+                    <p id="progression-details-filter-help" class="small text-muted mt-1">No Bloom match means the CLO wording did not match any cognitive level.</p>
+                </div>
+                <p id="progression-details-counts" class="text-muted" role="status"></p>
                 <p id="progression-details-incomplete" class="alert alert-warning d-none">Program mappings are incomplete. Results for the selected PLO may change as mappings are completed.</p>
                 <p id="progression-details-no-reference" class="alert alert-info d-none">The Bloom’s cognitive reference is unavailable. Suggested levels cannot be shown.</p>
+                <p id="progression-details-empty" class="alert alert-info d-none">No CLOs match this filter in the selected course group and report scope.</p>
                 <div id="progression-course-list" class="text-break"></div>
             </div>
             <div class="modal-footer">
@@ -308,15 +314,36 @@
                     $('#progression-details-title').text(`${label} — Courses and CLOs`);
                     $('#progression-details-scope').text(data.selected_plo
                         ? `PLO scope: ${data.selected_plo.pl_outcome}` : 'Scope: Entire program');
-                    $('#progression-details-counts').text(`${group.course_count} courses · ${group.clo_count} CLOs`);
                     $('#progression-details-incomplete').toggleClass('d-none', !data.has_incomplete_mappings);
                     $('#progression-details-no-reference').toggleClass('d-none', data.bloom_reference_available);
-                    renderCourses(courses, data.bloom_reference_available);
+                    const filter = document.getElementById('progression-details-filter');
+                    filter.replaceChildren(new Option('All CLOs', 'all'));
+                    if (data.bloom_reference_available) {
+                        data.bloom_levels.forEach(level => filter.add(new Option(level.name, String(level.id))));
+                        filter.add(new Option('No Bloom match', 'unmatched'));
+                    }
+                    filter.disabled = !data.bloom_reference_available;
+                    $(filter).off('change').on('change', () => renderFilteredCourses(courses, data.bloom_reference_available)).trigger('change');
                     const modal = document.getElementById('progression-details-modal');
                     modal.addEventListener('hidden.bs.modal', () => this.focus({ preventScroll: true }), { once: true });
                     bootstrap.Modal.getOrCreateInstance(modal).show(this);
                 }).appendTo(buttons);
             });
+        }
+
+        function renderFilteredCourses(courses, referenceAvailable) {
+            const filter = $('#progression-details-filter').val();
+            const filtered = filter === 'all' ? courses : courses.map(course => ({
+                ...course,
+                clos: course.clos.filter(clo => filter === 'unmatched'
+                    ? clo.bloom_levels.length === 0
+                    : clo.bloom_levels.some(level => String(level.level_id) === filter)),
+            })).filter(course => course.clos.length > 0);
+            const total = courses.reduce((sum, course) => sum + course.clos.length, 0);
+            const shown = filtered.reduce((sum, course) => sum + course.clos.length, 0);
+            $('#progression-details-counts').text(`Showing ${shown} of ${total} CLOs · ${filtered.length} of ${courses.length} courses`);
+            $('#progression-details-empty').toggleClass('d-none', filter === 'all' || shown > 0);
+            renderCourses(filtered, referenceAvailable);
         }
 
         function renderCourses(courses, referenceAvailable) {
