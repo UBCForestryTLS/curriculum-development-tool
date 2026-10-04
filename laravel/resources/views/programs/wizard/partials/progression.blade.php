@@ -41,6 +41,8 @@
             </div>
         </dl>
         <p class="small text-muted">No Bloom match means no matching cognitive level was found in the CLO wording; it does not mean the CLO is unmapped to a PLO.</p>
+        <p class="mb-1"><strong>Review suggested:</strong> <span id="progression-review-count"></span> CLOs in scope.</p>
+        <p class="small text-muted">CLOs matching three or more cognitive levels are suggested for review. Broad matches may be valid; check whether the wording reflects the intended learning. All matches remain included.</p>
         <p id="progression-no-mappings" class="alert alert-info d-none">No CLOs in this program have applicable mappings to the selected PLO.</p>
         <p id="progression-no-courses" class="alert alert-info d-none">There are no courses in this program. Add courses to begin reviewing progression.</p>
         <p id="progression-no-clos" class="alert alert-info d-none">The courses in this program do not have any CLOs yet. Add course learning outcomes to begin reviewing progression.</p>
@@ -173,6 +175,9 @@
                     $('#progression-clo-count').text(totals.clo_count);
                     $('#progression-matched-count').text(data.bloom_reference_available ? matched : '—');
                     $('#progression-unmatched-count').text(data.bloom_reference_available ? unmatched : '—');
+                    const reviewCount = new Set(data.courses.flatMap(course => course.clos)
+                        .filter(needsReview).map(clo => clo.l_outcome_id)).size;
+                    $('#progression-review-count').text(data.bloom_reference_available ? reviewCount : '—');
                     $('#progression-no-mappings').toggleClass('d-none', !selected || totals.clo_count !== 0);
                     $('#progression-no-courses').toggleClass('d-none', selected || totals.course_count !== 0);
                     $('#progression-no-clos').toggleClass('d-none', selected || totals.course_count === 0 || totals.clo_count !== 0);
@@ -321,6 +326,7 @@
                     if (data.bloom_reference_available) {
                         data.bloom_levels.forEach(level => filter.add(new Option(level.name, String(level.id))));
                         filter.add(new Option('No Bloom match', 'unmatched'));
+                        filter.add(new Option('Review suggested', 'review'));
                     }
                     filter.disabled = !data.bloom_reference_available;
                     $(filter).off('change').on('change', () => renderFilteredCourses(courses, data.bloom_reference_available)).trigger('change');
@@ -331,12 +337,17 @@
             });
         }
 
+        function needsReview(clo) {
+            return new Set((clo.bloom_levels ?? []).map(level => level.level_id)).size >= 3;
+        }
+
         function renderFilteredCourses(courses, referenceAvailable) {
             const filter = $('#progression-details-filter').val();
             const filtered = filter === 'all' ? courses : courses.map(course => ({
                 ...course,
                 clos: course.clos.filter(clo => filter === 'unmatched'
                     ? clo.bloom_levels.length === 0
+                    : filter === 'review' ? needsReview(clo)
                     : clo.bloom_levels.some(level => String(level.level_id) === filter)),
             })).filter(course => course.clos.length > 0);
             const total = courses.reduce((sum, course) => sum + course.clos.length, 0);
@@ -389,6 +400,12 @@
                         }
                         item.appendChild(document.createTextNode(clo.l_outcome ?? ''));
                         if (referenceAvailable) {
+                            if (needsReview(clo)) {
+                                const review = document.createElement('p');
+                                review.className = 'small text-muted mt-1 mb-0';
+                                review.textContent = 'Review suggested — matches three or more cognitive levels. This may be valid; check the intended learning against the wording.';
+                                item.appendChild(review);
+                            }
                             const classification = document.createElement('div');
                             classification.className = 'small mt-1';
                             if (clo.bloom_levels.length === 0) {
