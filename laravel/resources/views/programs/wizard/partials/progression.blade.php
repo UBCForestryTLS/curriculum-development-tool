@@ -50,7 +50,12 @@
     <section id="progression-chart-section" class="mb-4 d-none" aria-labelledby="progression-chart-heading">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
             <h5 id="progression-chart-heading" class="mb-0">Cognitive levels by course group</h5>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <label for="progression-view" class="mb-0">View</label>
+                <select id="progression-view" class="form-select w-auto">
+                    <option value="comparison">Comparison</option>
+                    <option value="progression">Progression</option>
+                </select>
                 <label for="progression-units" class="mb-0">Show</label>
                 <select id="progression-units" class="form-select w-auto">
                     <option value="percentages">Percentages</option>
@@ -59,6 +64,7 @@
             </div>
         </div>
         <p id="progression-chart-description" class="small text-muted">Percentages use all CLOs in each course group and selected scope, including those with no Bloom match. A CLO can count at several levels, so percentages may total above 100%. Course numbers indicate course stage, not a student's actual sequence.</p>
+        <p id="progression-trend-description" class="small text-muted d-none">Each line shows a Bloom level across course groups. Gaps indicate groups with no CLOs. Other/unknown courses appear as separate points because their course stage is unknown.</p>
         <p id="progression-chart-unavailable" class="alert alert-info d-none">The chart could not be loaded. You can still review the summary and CLOs.</p>
         <div id="progression-chart" aria-labelledby="progression-chart-heading" aria-describedby="progression-chart-description"></div>
     </section>
@@ -83,7 +89,7 @@
             loadProgression();
             progressionChart?.reflow();
         });
-        $('#progression-units').on('change', renderChart);
+        $('#progression-units, #progression-view').on('change', renderChart);
         $('#progression-retry').on('click', loadProgression);
         $('#progression-scope').on('change', function () {
             progressionData = null;
@@ -158,21 +164,26 @@
 
             $('#progression-chart-unavailable').toggleClass('d-none', Boolean(window.Highcharts));
             $('#progression-chart').toggleClass('d-none', !window.Highcharts);
-            $('#progression-units').prop('disabled', !window.Highcharts);
+            $('#progression-units, #progression-view').prop('disabled', !window.Highcharts);
             if (!window.Highcharts) return;
 
             const counts = $('#progression-units').val() === 'counts';
-            const groups = data.course_groups;
-            const label = group => group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`;
+            const trend = $('#progression-view').val() === 'progression';
+            const groups = [...data.course_groups];
+            // Leave a break before unknown course numbers so they are not part of the trend.
+            const otherIndex = groups.findIndex(group => group.course_level === 'other');
+            if (trend && otherIndex > 0) groups.splice(otherIndex, 0, null);
+            $('#progression-trend-description').toggleClass('d-none', !trend);
+            const label = group => !group ? '' : group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`;
             progressionChart = Highcharts.chart('progression-chart', {
                 chart: {
-                    type: 'column',
+                    type: trend ? 'line' : 'column',
                     animation: false,
                     scrollablePlotArea: { minWidth: Math.max(360, groups.length * Math.max(100, data.bloom_levels.length * 24)) },
                 },
                 title: { text: null },
                 xAxis: {
-                    categories: groups.map(group => label(group) + (group.clo_count === 0 ? ' (no CLOs)' : '')),
+                    categories: groups.map(group => label(group) + (group?.clo_count === 0 ? ' (no CLOs)' : '')),
                     title: { text: 'Course group' },
                 },
                 yAxis: {
@@ -181,7 +192,10 @@
                     allowDecimals: !counts,
                     title: { text: counts ? 'Number of CLOs' : 'CLOs (%)' },
                 },
-                plotOptions: { series: { animation: false } },
+                plotOptions: {
+                    series: { animation: false },
+                    line: { connectNulls: false, marker: { enabled: true } },
+                },
                 exporting: { enabled: false },
                 credits: { enabled: false },
                 accessibility: { enabled: false },
@@ -199,6 +213,7 @@
                 series: data.bloom_levels.map(level => ({
                     name: escapeChartText(level.name),
                     data: groups.map(group => {
+                        if (!group) return null;
                         const result = group.levels.find(item => item.level_id === level.id);
                         return {
                             y: result.percentage === null ? null : counts ? result.clo_count : result.percentage,
