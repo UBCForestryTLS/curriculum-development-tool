@@ -65,9 +65,20 @@
         </div>
         <p id="progression-chart-description" class="small text-muted">Percentages use all CLOs in each course group and selected scope, including those with no Bloom match. A CLO can count at several levels, so percentages may total above 100%. Course numbers indicate course stage, not a student's actual sequence.</p>
         <p id="progression-trend-description" class="small text-muted d-none">Each line shows a Bloom level across course groups. Gaps indicate groups with no CLOs. Other/unknown courses appear as separate points because their course stage is unknown.</p>
-        <p id="progression-chart-unavailable" class="alert alert-info d-none">The chart could not be loaded. You can still review the summary and CLOs.</p>
+        <p id="progression-chart-unavailable" class="alert alert-info d-none">The chart could not be loaded. You can still review the exact values below.</p>
         <div id="progression-chart" aria-labelledby="progression-chart-heading" aria-describedby="progression-chart-description"></div>
     </section>
+
+    <details id="progression-table-section" class="mb-4 d-none">
+        <summary class="fw-bold mb-2">Exact values by course group</summary>
+        <div class="table-responsive" tabindex="0" role="region" aria-label="Course group values">
+            <table id="progression-table" class="table table-bordered table-sm align-middle">
+                <caption>Cells show CLO count (percentage of all CLOs in the group and selected scope). CLOs may match several levels. N/A means there are no CLOs to calculate a percentage, or the Bloom reference is unavailable.</caption>
+                <thead><tr></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </details>
 
     <section id="progression-courses" class="d-none" aria-labelledby="progression-courses-heading">
         <h5 id="progression-courses-heading">Courses and learning outcomes</h5>
@@ -103,7 +114,7 @@
             progressionLoading = true;
             const scope = $('#progression-scope').val();
             $('#progression-scope').prop('disabled', true);
-            $('#progression-results, #progression-courses, #progression-chart-section').addClass('d-none');
+            $('#progression-results, #progression-courses, #progression-chart-section, #progression-table-section').addClass('d-none');
             if (document.activeElement === document.getElementById('progression-retry')) {
                 document.getElementById('progression-heading').focus();
             }
@@ -141,6 +152,7 @@
                     $('#progression-no-reference').toggleClass('d-none', data.bloom_reference_available || totals.clo_count === 0);
                     renderCourses(data.courses, data.bloom_reference_available);
                     $('#progression-results').removeClass('d-none');
+                    renderTable(data);
                     renderChart();
                 },
                 error: function () {
@@ -151,6 +163,31 @@
                     $('#progression-scope').prop('disabled', false);
                     $('#progression-loading').addClass('d-none');
                 }
+            });
+        }
+
+        function renderTable(data) {
+            const section = $('#progression-table-section');
+            const header = $('#progression-table thead tr').empty();
+            const body = $('#progression-table tbody').empty();
+            section.toggleClass('d-none', data.course_groups.length === 0);
+            if (!window.Highcharts) section.prop('open', true);
+
+            ['Course group', 'Courses', 'Total CLOs', ...data.bloom_levels.map(level => level.name), 'No Bloom match']
+                .forEach(title => $('<th>', { scope: 'col' }).text(title).appendTo(header));
+
+            const value = (count, percentage) => count === null ? 'N/A' : `${count} (${percentage === null ? 'N/A' : percentage + '%'})`;
+            data.course_groups.forEach(group => {
+                const row = $('<tr>').appendTo(body);
+                $('<th>', { scope: 'row' }).text(group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`).appendTo(row);
+                [group.course_count, group.clo_count].forEach(count => $('<td>').text(count).appendTo(row));
+                data.bloom_levels.forEach(level => {
+                    const result = group.levels.find(item => item.level_id === level.id);
+                    $('<td>').text(value(result.clo_count, result.percentage)).appendTo(row);
+                });
+                const unmatchedPercentage = data.bloom_reference_available && group.clo_count > 0
+                    ? Math.round(group.unmatched_clo_count / group.clo_count * 10000) / 100 : null;
+                $('<td>').text(value(group.unmatched_clo_count, unmatchedPercentage)).appendTo(row);
             });
         }
 
