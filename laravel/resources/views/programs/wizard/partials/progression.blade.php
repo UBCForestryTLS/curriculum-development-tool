@@ -80,10 +80,31 @@
         </div>
     </details>
 
-    <section id="progression-courses" class="d-none" aria-labelledby="progression-courses-heading">
-        <h5 id="progression-courses-heading">Courses and learning outcomes</h5>
-        <div id="progression-course-list" class="text-break"></div>
+    <section id="progression-groups" class="d-none" aria-labelledby="progression-groups-heading">
+        <h5 id="progression-groups-heading">Explore courses and CLOs</h5>
+        <div id="progression-group-buttons" class="d-flex flex-wrap gap-2"></div>
     </section>
+</div>
+
+<div class="modal fade" id="progression-details-modal" tabindex="-1" aria-labelledby="progression-details-title" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="progression-details-title">Course group details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="progression-details-scope" class="text-break"></p>
+                <p id="progression-details-counts" class="text-muted"></p>
+                <p id="progression-details-incomplete" class="alert alert-warning d-none">Program mappings are incomplete. Results for the selected PLO may change as mappings are completed.</p>
+                <p id="progression-details-no-reference" class="alert alert-info d-none">The Bloom’s cognitive reference is unavailable. Suggested levels cannot be shown.</p>
+                <div id="progression-course-list" class="text-break"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -114,7 +135,7 @@
             progressionLoading = true;
             const scope = $('#progression-scope').val();
             $('#progression-scope').prop('disabled', true);
-            $('#progression-results, #progression-courses, #progression-chart-section, #progression-table-section').addClass('d-none');
+            $('#progression-results, #progression-groups, #progression-chart-section, #progression-table-section').addClass('d-none');
             if (document.activeElement === document.getElementById('progression-retry')) {
                 document.getElementById('progression-heading').focus();
             }
@@ -150,7 +171,7 @@
                     $('#progression-no-courses').toggleClass('d-none', selected || totals.course_count !== 0);
                     $('#progression-no-clos').toggleClass('d-none', selected || totals.course_count === 0 || totals.clo_count !== 0);
                     $('#progression-no-reference').toggleClass('d-none', data.bloom_reference_available || totals.clo_count === 0);
-                    renderCourses(data.courses, data.bloom_reference_available);
+                    renderGroups(data);
                     $('#progression-results').removeClass('d-none');
                     renderTable(data);
                     renderChart();
@@ -267,10 +288,40 @@
             return text.innerHTML;
         }
 
+        function renderGroups(data) {
+            const buttons = $('#progression-group-buttons').empty();
+            $('#progression-groups').toggleClass('d-none', data.course_groups.length === 0);
+            document.getElementById('progression-course-list').replaceChildren();
+            data.course_groups.forEach(group => {
+                const label = group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`;
+                $('<button>', {
+                    type: 'button',
+                    class: 'btn btn-outline-primary',
+                    'aria-controls': 'progression-details-modal',
+                    'aria-haspopup': 'dialog',
+                }).text(`${label} details`).on('click', function () {
+                    const courses = data.courses.filter(course => {
+                        const number = String(course.course_num ?? '').trim();
+                        const level = /^[1-9][0-9]{2}[a-z]*$/i.test(number) ? Number(number[0]) * 100 : 'other';
+                        return String(level) === String(group.course_level);
+                    });
+                    $('#progression-details-title').text(`${label} — Courses and CLOs`);
+                    $('#progression-details-scope').text(data.selected_plo
+                        ? `PLO scope: ${data.selected_plo.pl_outcome}` : 'Scope: Entire program');
+                    $('#progression-details-counts').text(`${group.course_count} courses · ${group.clo_count} CLOs`);
+                    $('#progression-details-incomplete').toggleClass('d-none', !data.has_incomplete_mappings);
+                    $('#progression-details-no-reference').toggleClass('d-none', data.bloom_reference_available);
+                    renderCourses(courses, data.bloom_reference_available);
+                    const modal = document.getElementById('progression-details-modal');
+                    modal.addEventListener('hidden.bs.modal', () => this.focus({ preventScroll: true }), { once: true });
+                    bootstrap.Modal.getOrCreateInstance(modal).show(this);
+                }).appendTo(buttons);
+            });
+        }
+
         function renderCourses(courses, referenceAvailable) {
             const list = document.getElementById('progression-course-list');
             list.replaceChildren();
-            $('#progression-courses').toggleClass('d-none', courses.length === 0);
 
             courses.forEach(function (course) {
                 const section = document.createElement('section');
