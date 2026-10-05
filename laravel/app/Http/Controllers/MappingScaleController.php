@@ -67,6 +67,7 @@ class MappingScaleController extends Controller
         $msp = new MappingScaleProgram;
         $msp->map_scale_id = $ms->map_scale_id;
         $msp->program_id = $request->input('program_id');
+        $msp->position = MappingScaleProgram::nextPositionForProgram((int) $request->input('program_id'));
 
         CourseProgram::where('program_id', $request->input('program_id'))->update(['map_status' => 0]);
 
@@ -228,12 +229,16 @@ class MappingScaleController extends Controller
             }
         }
 
-        $mappingScales = MappingScale::where('mapping_scale_categories_id', $mapping_scale_categories_id)->get();
+        $mappingScales = MappingScale::where('mapping_scale_categories_id', $mapping_scale_categories_id)
+            ->orderBy('map_scale_id')
+            ->get();
+        $nextPosition = MappingScaleProgram::nextPositionForProgram((int) $request->input('program_id'));
         // add mapping scales to mapping scale programs
-        foreach ($mappingScales as $mappingScale) {
+        foreach ($mappingScales as $index => $mappingScale) {
             $msp = new MappingScaleProgram;
             $msp->map_scale_id = $mappingScale->map_scale_id;
             $msp->program_id = $request->input('program_id');
+            $msp->position = $nextPosition + $index;
 
             if ($msp->save()) {
                 // update courses 'updated_at' field

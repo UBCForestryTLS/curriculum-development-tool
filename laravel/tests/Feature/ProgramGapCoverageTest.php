@@ -1,0 +1,369 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Helpers\ProgramGapCoverage;
+use App\Models\Course;
+use App\Models\CourseProgram;
+use App\Models\LearningOutcome;
+use App\Models\MappingScale;
+use App\Models\MappingScaleProgram;
+use App\Models\Program;
+use App\Models\ProgramLearningOutcome;
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
+
+class ProgramGapCoverageTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    public function test_authorized_user_can_get_gap_coverage_report(): void
+    {
+        $program = Program::create([
+            'program' => 'Gap Coverage Endpoint Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+        ]);
+        $programLearningOutcome = ProgramLearningOutcome::create([
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'Interpret program coverage evidence.',
+            'plo_shortphrase' => 'Coverage Evidence',
+        ]);
+        $user = User::factory()->create();
+
+        DB::table('program_users')->insert([
+            'program_id' => $program->program_id,
+            'user_id' => $user->id,
+            'permission' => 3,
+        ]);
+
+        $response = $this->actingAs($user)->getJson(route('programWizard.gapCoverage', $program->program_id));
+
+        $response->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('program_totals.course_count', 0)
+            ->assertJsonPath('program_totals.clo_count', 0)
+            ->assertJsonPath('mapping_completeness.is_complete', true)
+            ->assertJsonPath('coverage.0.pl_outcome_id', $programLearningOutcome->pl_outcome_id)
+            ->assertJsonPath('coverage.0.mapped_clo_count', 0)
+            ->assertJsonMissingPath('coverage.0.coverage_level')
+            ->assertJsonMissingPath('coverage.0.coverage_label')
+            ->assertJsonMissingPath('coverage.0.coverage_explanation');
+    }
+
+    public function test_user_without_program_access_cannot_get_gap_coverage_report(): void
+    {
+        $program = Program::create([
+            'program' => 'Restricted Gap Coverage Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+        ]);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('programWizard.gapCoverage', $program->program_id));
+
+        $response->assertRedirect(route('home'));
+    }
+
+    public function test_program_totals_include_unmapped_clos_and_courses_without_clos(): void
+    {
+        $program = Program::create([
+            'program' => 'Program Totals Test',
+            'level' => 'Bachelors',
+            'status' => 1,
+        ]);
+        $this->assertSame(['course_count' => 0, 'clo_count' => 0], ProgramGapCoverage::programTotals($program));
+
+        $course = Course::factory()->create();
+        CourseProgram::create([
+            'program_id' => $program->program_id,
+            'course_id' => $course->course_id,
+            'course_required' => null,
+        ]);
+        $this->assertSame(['course_count' => 1, 'clo_count' => 0], ProgramGapCoverage::programTotals($program));
+
+        foreach (['First unmapped CLO.', 'Second unmapped CLO.'] as $outcome) {
+            LearningOutcome::create([
+                'course_id' => $course->course_id,
+                'l_outcome' => $outcome,
+            ]);
+        }
+        $emptyCourse = Course::factory()->create();
+        CourseProgram::create([
+            'program_id' => $program->program_id,
+            'course_id' => $emptyCourse->course_id,
+            'course_required' => 0,
+        ]);
+        $outsideCourse = Course::factory()->create();
+        LearningOutcome::create([
+            'course_id' => $outsideCourse->course_id,
+            'l_outcome' => 'An outcome outside the program.',
+        ]);
+
+        // Program totals do not depend on PLOs, mappings or required status.
+        $this->assertSame(['course_count' => 2, 'clo_count' => 2], ProgramGapCoverage::programTotals($program));
+    }
+
+    public function test_it_identifies_incomplete_course_mappings(): void
+    {
+        $program = Program::create([
+            'program' => 'Mapping Completeness Test Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+        ]);
+        $course = Course::factory()->create([
+            'course_code' => 'MCMP',
+            'course_num' => '101',
+            'course_title' => 'Mapping Completeness Course',
+        ]);
+        CourseProgram::create([
+            'program_id' => $program->program_id,
+            'course_id' => $course->course_id,
+            'course_required' => 1,
+        ]);
+
+        $firstPlo = ProgramLearningOutcome::create([
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'First completeness outcome.',
+        ]);
+        $secondPlo = ProgramLearningOutcome::create([
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'Second completeness outcome.',
+        ]);
+        $clo = LearningOutcome::create([
+            'course_id' => $course->course_id,
+            'l_outcome' => 'Demonstrate completeness.',
+        ]);
+        $mappingScale = MappingScale::create([
+            'title' => 'Mapping Completeness Scale',
+            'abbreviation' => 'MCS',
+            'description' => 'Used for the mapping completeness test.',
+            'colour' => '#80bdff',
+        ]);
+        $secondMappingScale = MappingScale::create([
+            'title' => 'Second Mapping Completeness Scale',
+            'abbreviation' => 'SMC',
+            'description' => 'Used to verify distinct mapping decisions.',
+            'colour' => '#1aa7ff',
+        ]);
+
+        DB::table('outcome_maps')->insert([
+            'l_outcome_id' => $clo->l_outcome_id,
+            'pl_outcome_id' => $firstPlo->pl_outcome_id,
+            'map_scale_id' => $mappingScale->map_scale_id,
+        ]);
+        DB::table('outcome_maps')->insert([
+            'l_outcome_id' => $clo->l_outcome_id,
+            'pl_outcome_id' => $firstPlo->pl_outcome_id,
+            'map_scale_id' => $secondMappingScale->map_scale_id,
+        ]);
+
+        $incompleteResult = ProgramGapCoverage::mappingCompleteness($program);
+
+        $this->assertTrue($incompleteResult['has_incomplete_mappings']);
+        $this->assertSame(2, $incompleteResult['expected_counts'][$course->course_id]);
+        $this->assertSame(1, $incompleteResult['actual_counts'][$course->course_id]);
+        $this->assertSame(1, $incompleteResult['incomplete_courses'][0]['missing_mapping_count']);
+
+        DB::table('outcome_maps')->insert([
+            'l_outcome_id' => $clo->l_outcome_id,
+            'pl_outcome_id' => $secondPlo->pl_outcome_id,
+            'map_scale_id' => $mappingScale->map_scale_id,
+        ]);
+
+        $completeResult = ProgramGapCoverage::mappingCompleteness($program);
+
+        $this->assertTrue($completeResult['is_complete']);
+        $this->assertEmpty($completeResult['incomplete_courses']);
+    }
+
+    public function test_it_summarizes_raw_coverage_for_each_program_learning_outcome(): void
+    {
+        $program = Program::create([
+            'program' => 'Gap Coverage Test Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+        ]);
+
+        $requiredCourse = Course::factory()->create([
+            'course_code' => 'GCOV',
+            'course_num' => '101',
+            'course_title' => 'Required Coverage Course',
+        ]);
+        $nonRequiredCourse = Course::factory()->create([
+            'course_code' => 'GCOV',
+            'course_num' => '201',
+            'course_title' => 'Non-Required Coverage Course',
+        ]);
+        $unspecifiedCourse = Course::factory()->create([
+            'course_code' => 'GCOV',
+            'course_num' => '301',
+            'course_title' => 'Unspecified Required Status Course',
+        ]);
+
+        CourseProgram::create([
+            'program_id' => $program->program_id,
+            'course_id' => $requiredCourse->course_id,
+            'course_required' => 1,
+        ]);
+        CourseProgram::create([
+            'program_id' => $program->program_id,
+            'course_id' => $nonRequiredCourse->course_id,
+            'course_required' => 0,
+        ]);
+        CourseProgram::create([
+            'program_id' => $program->program_id,
+            'course_id' => $unspecifiedCourse->course_id,
+            'course_required' => null,
+        ]);
+
+        $coveredPlo = ProgramLearningOutcome::create([
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'Apply evidence to solve curriculum problems.',
+            'plo_shortphrase' => 'Evidence',
+        ]);
+        $uncoveredPlo = ProgramLearningOutcome::create([
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'Communicate with professional audiences.',
+            'plo_shortphrase' => 'Communication',
+        ]);
+
+        $requiredClo = LearningOutcome::create([
+            'course_id' => $requiredCourse->course_id,
+            'l_outcome' => 'Identify relevant forms of evidence.',
+            'clo_shortphrase' => 'Identify Evidence',
+        ]);
+        $nonRequiredClo = LearningOutcome::create([
+            'course_id' => $nonRequiredCourse->course_id,
+            'l_outcome' => 'Analyze evidence from multiple sources.',
+            'clo_shortphrase' => 'Analyze Evidence',
+        ]);
+        $notApplicableClo = LearningOutcome::create([
+            'course_id' => $nonRequiredCourse->course_id,
+            'l_outcome' => 'Describe the course schedule.',
+            'clo_shortphrase' => 'Course Schedule',
+        ]);
+        $unspecifiedClo = LearningOutcome::create([
+            'course_id' => $unspecifiedCourse->course_id,
+            'l_outcome' => 'Evaluate coverage evidence.',
+        ]);
+
+        $introduced = MappingScale::create([
+            'title' => 'Gap Coverage Introduced',
+            'abbreviation' => 'GCI',
+            'description' => 'Introduced for the gap coverage test.',
+            'colour' => '#80bdff',
+        ]);
+        $developing = MappingScale::create([
+            'title' => 'Gap Coverage Developing',
+            'abbreviation' => 'GCD',
+            'description' => 'Developing for the gap coverage test.',
+            'colour' => '#1aa7ff',
+        ]);
+        $advanced = MappingScale::create([
+            'title' => 'Gap Coverage Advanced',
+            'abbreviation' => 'GCA',
+            'description' => 'Advanced for the gap coverage test.',
+            'colour' => '#0065bd',
+        ]);
+        MappingScaleProgram::create([
+            'program_id' => $program->program_id,
+            'map_scale_id' => $developing->map_scale_id,
+            'position' => 1,
+        ]);
+        MappingScaleProgram::create([
+            'program_id' => $program->program_id,
+            'map_scale_id' => $introduced->map_scale_id,
+            'position' => 2,
+        ]);
+        MappingScaleProgram::create([
+            'program_id' => $program->program_id,
+            'map_scale_id' => $advanced->map_scale_id,
+            'position' => 3,
+        ]);
+        $notApplicable = MappingScale::firstOrCreate([
+            'map_scale_id' => 0,
+        ], [
+            'title' => 'Not Applicable',
+            'abbreviation' => 'N/A',
+            'description' => 'Not Applicable',
+            'colour' => '#ffffff',
+        ]);
+
+        DB::table('outcome_maps')->insert([
+            [
+                'l_outcome_id' => $unspecifiedClo->l_outcome_id,
+                'pl_outcome_id' => $coveredPlo->pl_outcome_id,
+                'map_scale_id' => $introduced->map_scale_id,
+            ],
+            [
+                'l_outcome_id' => $requiredClo->l_outcome_id,
+                'pl_outcome_id' => $coveredPlo->pl_outcome_id,
+                'map_scale_id' => $introduced->map_scale_id,
+            ],
+            [
+                'l_outcome_id' => $nonRequiredClo->l_outcome_id,
+                'pl_outcome_id' => $coveredPlo->pl_outcome_id,
+                'map_scale_id' => $developing->map_scale_id,
+            ],
+            [
+                'l_outcome_id' => $notApplicableClo->l_outcome_id,
+                'pl_outcome_id' => $coveredPlo->pl_outcome_id,
+                'map_scale_id' => $notApplicable->map_scale_id,
+            ],
+            [
+                'l_outcome_id' => $requiredClo->l_outcome_id,
+                'pl_outcome_id' => $coveredPlo->pl_outcome_id,
+                'map_scale_id' => $developing->map_scale_id,
+            ],
+        ]);
+
+        $coverage = ProgramGapCoverage::analyze($program);
+        $coveredResult = $coverage->firstWhere('pl_outcome_id', $coveredPlo->pl_outcome_id);
+        $uncoveredResult = $coverage->firstWhere('pl_outcome_id', $uncoveredPlo->pl_outcome_id);
+
+        $this->assertCount(2, $coverage);
+        // Totals include the N/A CLO once and do not repeat multi-level CLOs.
+        $this->assertSame(['course_count' => 3, 'clo_count' => 4], ProgramGapCoverage::programTotals($program));
+        $this->assertSame(3, $coveredResult['mapped_clo_count']);
+        $this->assertSame(3, $coveredResult['covering_course_count']);
+        $this->assertSame(1, $coveredResult['required_course_count']);
+        $this->assertSame(1, $coveredResult['non_required_course_count']);
+        $this->assertSame(1, $coveredResult['n_a_clo_count']);
+        $this->assertSame(1, $coveredResult['multi_level_mapping_count']);
+        $this->assertSame(['GCD', 'GCI'], collect($coveredResult['mapping_scale_distribution'])->pluck('abbreviation')->all());
+        $histogram = collect($coveredResult['mapping_scale_histogram']);
+        $this->assertSame(['GCD', 'GCI', 'GCA'], $histogram->pluck('abbreviation')->all());
+        $this->assertSame([1, 2, 3], $histogram->pluck('position')->all());
+        $this->assertSame([2, 2, 0], $histogram->pluck('mapped_clo_count')->all());
+        $this->assertSame([2, 2, 0], $histogram->pluck('covering_course_count')->all());
+        $this->assertSame([1, 1, 0], $histogram->pluck('required_course_count')->all());
+        $this->assertSame([1, 0, 0], $histogram->pluck('non_required_course_count')->all());
+        $this->assertSame([true, false, null], collect($coveredResult['courses'])->pluck('course_required')->all());
+        $this->assertSame(['GCOV 101', 'GCOV 201', 'GCOV 301'], collect($coveredResult['courses'])->map(function ($course) {
+            return $course['course_code'].' '.$course['course_num'];
+        })->all());
+        $this->assertSame(0, $uncoveredResult['mapped_clo_count']);
+        $this->assertSame(0, $uncoveredResult['covering_course_count']);
+        $this->assertSame(0, $uncoveredResult['multi_level_mapping_count']);
+        $this->assertEmpty($uncoveredResult['mapping_scale_distribution']);
+        $this->assertSame([0, 0, 0], collect($uncoveredResult['mapping_scale_histogram'])->pluck('mapped_clo_count')->all());
+        $this->assertEmpty($uncoveredResult['courses']);
+
+        CourseProgram::where('program_id', $program->program_id)
+            ->where('course_id', $requiredCourse->course_id)
+            ->delete();
+
+        // Remaining mapping rows from a removed course must not contribute.
+        $this->assertSame(['course_count' => 2, 'clo_count' => 3], ProgramGapCoverage::programTotals($program));
+        $remainingCoverage = ProgramGapCoverage::analyze($program)->firstWhere('pl_outcome_id', $coveredPlo->pl_outcome_id);
+        $this->assertSame(2, $remainingCoverage['mapped_clo_count']);
+        $this->assertSame(2, $remainingCoverage['covering_course_count']);
+        $this->assertSame(0, $remainingCoverage['required_course_count']);
+        $this->assertSame(1, $remainingCoverage['non_required_course_count']);
+        $this->assertSame([1, 1, 0], collect($remainingCoverage['mapping_scale_histogram'])->pluck('mapped_clo_count')->all());
+        $this->assertSame([$nonRequiredCourse->course_id, $unspecifiedCourse->course_id], collect($remainingCoverage['courses'])->pluck('course_id')->all());
+    }
+}

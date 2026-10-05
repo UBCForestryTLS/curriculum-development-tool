@@ -67,10 +67,11 @@ function addPloToProgram(Program $program, string $text, string $shortphrase = '
 
 function attachMappingScalesToProgram(Program $program, array $mapScaleIds = [1, 2, 3]): void
 {
-    foreach ($mapScaleIds as $id) {
+    foreach ($mapScaleIds as $position => $id) {
         DB::table('mapping_scale_programs')->insert([
             'map_scale_id' => $id,
             'program_id' => $program->program_id,
+            'position' => $position + 1,
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now(),
         ]);
@@ -178,4 +179,3 @@ function createManuallyButton(int $courseId, int $programId): string
 {
     return "button[onclick=\"showManualMapDiv({$courseId}, {$programId})\"]";
 }
-
