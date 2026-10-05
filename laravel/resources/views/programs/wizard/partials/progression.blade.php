@@ -41,7 +41,7 @@
             </div>
         </dl>
         <p class="small text-muted">No Bloom match means no matching cognitive level was found in the CLO wording; it does not mean the CLO is unmapped to a PLO.</p>
-        <p class="mb-1"><strong>Review suggested:</strong> <span id="progression-review-count"></span> CLOs in scope.</p>
+        <p class="mb-1"><button id="progression-review-details" type="button" class="btn btn-link p-0 text-start" aria-controls="progression-details-modal" aria-haspopup="dialog" disabled><strong>Review suggested:</strong> <span id="progression-review-count"></span> CLOs in scope</button></p>
         <p class="small text-muted">CLOs matching three or more cognitive levels are suggested for review. Broad matches may be valid; check whether the wording reflects the intended learning. All matches remain included.</p>
         <p id="progression-no-mappings" class="alert alert-info d-none">No CLOs in this program have applicable mappings to the selected PLO.</p>
         <p id="progression-no-courses" class="alert alert-info d-none">There are no courses in this program. Add courses to begin reviewing progression.</p>
@@ -97,7 +97,7 @@
             </div>
             <div class="modal-body">
                 <p id="progression-details-scope" class="text-break"></p>
-                <div class="mb-3">
+                <div id="progression-details-filter-section" class="mb-3">
                     <label for="progression-details-filter" class="form-label">Show CLOs</label>
                     <select id="progression-details-filter" class="form-select" aria-describedby="progression-details-filter-help"></select>
                     <p id="progression-details-filter-help" class="small text-muted mt-1">No Bloom match means the CLO wording did not match any cognitive level.</p>
@@ -131,6 +131,9 @@
         });
         $('#progression-units, #progression-view').on('change', renderChart);
         $('#progression-retry').on('click', loadProgression);
+        $('#progression-review-details').on('click', function () {
+            openDetails(progressionData.courses, 'CLOs suggested for review', this, true);
+        });
         $('#progression-scope').on('change', function () {
             progressionData = null;
             loadProgression();
@@ -178,6 +181,7 @@
                     const reviewCount = new Set(data.courses.flatMap(course => course.clos)
                         .filter(needsReview).map(clo => clo.l_outcome_id)).size;
                     $('#progression-review-count').text(data.bloom_reference_available ? reviewCount : '—');
+                    $('#progression-review-details').prop('disabled', !data.bloom_reference_available || reviewCount === 0);
                     $('#progression-no-mappings').toggleClass('d-none', !selected || totals.clo_count !== 0);
                     $('#progression-no-courses').toggleClass('d-none', selected || totals.course_count !== 0);
                     $('#progression-no-clos').toggleClass('d-none', selected || totals.course_count === 0 || totals.clo_count !== 0);
@@ -316,25 +320,32 @@
                         const level = /^[1-9][0-9]{2}[a-z]*$/i.test(number) ? Number(number[0]) * 100 : 'other';
                         return String(level) === String(group.course_level);
                     });
-                    $('#progression-details-title').text(`${label} — Courses and CLOs`);
-                    $('#progression-details-scope').text(data.selected_plo
-                        ? `PLO scope: ${data.selected_plo.pl_outcome}` : 'Scope: Entire program');
-                    $('#progression-details-incomplete').toggleClass('d-none', !data.has_incomplete_mappings);
-                    $('#progression-details-no-reference').toggleClass('d-none', data.bloom_reference_available);
-                    const filter = document.getElementById('progression-details-filter');
-                    filter.replaceChildren(new Option('All CLOs', 'all'));
-                    if (data.bloom_reference_available) {
-                        data.bloom_levels.forEach(level => filter.add(new Option(level.name, String(level.id))));
-                        filter.add(new Option('No Bloom match', 'unmatched'));
-                        filter.add(new Option('Review suggested', 'review'));
-                    }
-                    filter.disabled = !data.bloom_reference_available;
-                    $(filter).off('change').on('change', () => renderFilteredCourses(courses, data.bloom_reference_available)).trigger('change');
-                    const modal = document.getElementById('progression-details-modal');
-                    modal.addEventListener('hidden.bs.modal', () => this.focus({ preventScroll: true }), { once: true });
-                    bootstrap.Modal.getOrCreateInstance(modal).show(this);
+                    openDetails(courses, `${label} — Courses and CLOs`, this);
                 }).appendTo(buttons);
             });
+        }
+
+        function openDetails(courses, title, trigger, reviewOnly = false) {
+            const data = progressionData;
+            $('#progression-details-title').text(title);
+            $('#progression-details-filter-section').toggleClass('d-none', reviewOnly);
+            $('#progression-details-scope').text(data.selected_plo
+                ? `PLO scope: ${data.selected_plo.pl_outcome}` : 'Scope: Entire program');
+            $('#progression-details-incomplete').toggleClass('d-none', !data.has_incomplete_mappings);
+            $('#progression-details-no-reference').toggleClass('d-none', data.bloom_reference_available);
+            const filter = document.getElementById('progression-details-filter');
+            filter.replaceChildren(new Option('All CLOs', 'all'));
+            if (data.bloom_reference_available) {
+                data.bloom_levels.forEach(level => filter.add(new Option(level.name, String(level.id))));
+                filter.add(new Option('No Bloom match', 'unmatched'));
+                filter.add(new Option('Review suggested', 'review'));
+            }
+            filter.value = reviewOnly ? 'review' : 'all';
+            filter.disabled = !data.bloom_reference_available;
+            $(filter).off('change').on('change', () => renderFilteredCourses(courses, data.bloom_reference_available)).trigger('change');
+            const modal = document.getElementById('progression-details-modal');
+            modal.addEventListener('hidden.bs.modal', () => trigger.focus({ preventScroll: true }), { once: true });
+            bootstrap.Modal.getOrCreateInstance(modal).show(trigger);
         }
 
         function needsReview(clo) {
