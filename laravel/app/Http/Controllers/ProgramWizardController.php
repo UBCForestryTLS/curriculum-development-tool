@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Helpers\BloomClassifier;
 use App\Helpers\ProgramGapCoverage;
 use App\Helpers\ProgramProgression;
 use App\Models\AssessmentMethod;
@@ -423,76 +422,10 @@ class ProgramWizardController extends Controller
     {
         $program = Program::findOrFail($program_id);
         $input = $request->validate(['plo_id' => ['nullable', 'integer', 'min:1']]);
-        $plos = $program->programLearningOutcomes()
-            ->select('pl_outcome_id', 'plo_shortphrase', 'pl_outcome')->orderBy('pl_outcome_id')->get();
-        $selectedPlo = isset($input['plo_id']) ? $plos->find($input['plo_id']) : null;
-        abort_if(isset($input['plo_id']) && $selectedPlo === null, 404);
-        $courses = $program->courses()
-            ->select('courses.course_id', 'course_code', 'course_num', 'course_title')
-            ->with(['learningOutcomes' => fn ($query) => $query
-                ->select('l_outcome_id', 'course_id', 'l_outcome', 'clo_shortphrase')
-                ->orderBy('l_outcome_id')])
-            ->orderBy('courses.course_id')
-            ->get()
-            ->unique('course_id')
-            ->values();
 
-        $programTotals = [
-            'course_count' => $courses->count(),
-            'clo_count' => $courses->sum(fn ($course) => $course->learningOutcomes->count()),
-        ];
-        if ($selectedPlo !== null) {
-            // Use the same applicable scale levels as gap coverage, excluding N/A and removed levels.
-            $scaleIds = $program->mappingScaleLevels()->where('mapping_scales.map_scale_id', '<>', 0)
-                ->pluck('mapping_scales.map_scale_id');
-            $cloIds = DB::table('outcome_maps')->where('pl_outcome_id', $selectedPlo->pl_outcome_id)
-                ->whereIn('map_scale_id', $scaleIds)->distinct()->pluck('l_outcome_id');
-            $courses = $courses->filter(function ($course) use ($cloIds) {
-                $course->setRelation('learningOutcomes', $course->learningOutcomes
-                    ->whereIn('l_outcome_id', $cloIds)->values());
-
-                return $course->learningOutcomes->isNotEmpty();
-            })->values();
-        }
-
-        $classification = BloomClassifier::classifyClos($courses
-            ->flatMap(fn ($course) => $course->learningOutcomes)
-            ->mapWithKeys(fn ($clo) => [$clo->l_outcome_id => (string) $clo->l_outcome])
-            ->all());
-
-        $courses = $courses->map(fn ($course) => [
-            'course_id' => (int) $course->course_id,
-            'course_code' => $course->course_code,
-            'course_num' => $course->course_num,
-            'course_title' => $course->course_title,
-            'course_required' => $course->pivot->course_required === null
-                ? null : (bool) $course->pivot->course_required,
-            'clos' => $course->learningOutcomes->map(fn ($clo) => [
-                'l_outcome_id' => (int) $clo->l_outcome_id,
-                'l_outcome' => $clo->l_outcome,
-                'clo_shortphrase' => $clo->clo_shortphrase,
-                'bloom_levels' => $classification['classifications'][$clo->l_outcome_id] ?? null,
-            ]),
-        ]);
-
-        return response()->json([
-            'program_id' => (int) $program->program_id,
-            'selected_plo' => $selectedPlo?->only(['pl_outcome_id', 'plo_shortphrase', 'pl_outcome']),
-            'plos' => $plos,
-            'has_incomplete_mappings' => $selectedPlo !== null
-                && ProgramGapCoverage::mappingCompleteness($program)['has_incomplete_mappings'],
-            'bloom_reference_available' => $classification['reference_available'],
-            'bloom_levels' => $classification['levels'],
-            'course_groups' => ProgramProgression::distributions(
-                $courses, $classification['levels'], $classification['reference_available'],
-            ),
-            'program_totals' => $programTotals,
-            'scope_totals' => [
-                'course_count' => $courses->count(),
-                'clo_count' => $courses->sum(fn ($course) => $course['clos']->count()),
-            ],
-            'courses' => $courses,
-        ]);
+        return response()->json(ProgramProgression::report(
+            $program, isset($input['plo_id']) ? (int) $input['plo_id'] : null,
+        ));
     }
 
     public function resetKeys($array)
