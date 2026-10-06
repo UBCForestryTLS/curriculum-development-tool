@@ -8,7 +8,7 @@ use Tests\TestCase;
 
 class ProgressionSpreadsheetTest extends TestCase
 {
-    public function test_workbook_preserves_overlapping_matches_unmatched_and_unavailable_reference(): void
+    public function test_exports_preserve_overlapping_matches_unmatched_and_unavailable_reference(): void
     {
         $levels = array_map(fn ($id) => ['id' => $id, 'name' => "Level {$id}", 'position' => $id], [1, 2, 3]);
         $matches = array_map(fn ($level) => ['level_id' => $level['id'], 'name' => $level['name'], 'matched_terms' => ['term']], $levels);
@@ -18,12 +18,26 @@ class ProgressionSpreadsheetTest extends TestCase
                     ['l_outcome_id' => 1, 'clo_shortphrase' => 'Multiple', 'l_outcome' => '=1+1', 'bloom_levels' => $available ? $matches : null],
                     ['l_outcome_id' => 2, 'clo_shortphrase' => 'Unmatched', 'l_outcome' => 'Other text', 'bloom_levels' => $available ? [] : null],
                 ]]]);
-            $book = (new ProgressionSpreadsheet)->build(['program_name' => 'Test', 'generated_at' => '2026-10-06', 'report' => [
+            $export = ['program_name' => 'Test', 'generated_at' => '2026-10-06', 'report' => [
                 'program_id' => 1, 'selected_plo' => null, 'bloom_reference_available' => $available,
                 'has_incomplete_mappings' => false, 'program_totals' => ['course_count' => 1, 'clo_count' => 2],
                 'scope_totals' => ['course_count' => 1, 'clo_count' => 2], 'courses' => $courses,
                 'course_groups' => ProgramProgression::distributions($courses, $levels, $available),
-            ]]);
+            ]];
+            $pdf = \PDF::loadView('programs.exports.progression', $export)->setPaper('a4')->output();
+            $text = (new \Smalot\PdfParser\Parser)->parseContent($pdf)->getText();
+            $this->assertStringContainsString('Scope: Entire program', $text);
+            $this->assertStringContainsString('100-level', $text);
+            if ($available) {
+                foreach (['50%', 'Review suggested: 1', 'TEST 101', 'Multiple', 'Level 3', 'term'] as $expected) {
+                    $this->assertStringContainsString($expected, $text);
+                }
+                $this->assertStringNotContainsString('Other text', $text);
+            } else {
+                $this->assertStringContainsString('Review suggestions are unavailable', $text);
+                $this->assertStringContainsString('Matched CLOs: N/A', $text);
+            }
+            $book = (new ProgressionSpreadsheet)->build($export);
             try {
                 $this->assertEquals($available ? 1 : null, $book->getSheet(0)->getCell('B15')->getValue());
                 $distribution = $book->getSheet(1);

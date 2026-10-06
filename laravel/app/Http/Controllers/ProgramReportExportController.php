@@ -8,7 +8,6 @@ use App\Helpers\GapCoverageReport;
 use App\Helpers\ProgramProgression;
 use App\Http\Requests\ProgramReportExportRequest;
 use App\Models\Program;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -36,7 +35,7 @@ class ProgramReportExportController extends Controller
             ->setPaper('a4')->download($export['filename']);
     }
 
-    public function progression(ProgramReportExportRequest $request, Program $program): JsonResponse|StreamedResponse
+    public function progression(ProgramReportExportRequest $request, Program $program): Response
     {
         $options = $request->validated();
         $options['units'] = $options['units'] ?? 'percentages';
@@ -49,7 +48,8 @@ class ProgramReportExportController extends Controller
             return $this->downloadSpreadsheet((new ProgressionSpreadsheet)->build($export), $export['filename']);
         }
 
-        return response()->json($export);
+        return PDF::loadView('programs.exports.progression', $export)
+            ->setPaper('a4')->download($export['filename']);
     }
 
     private function downloadSpreadsheet(Spreadsheet $spreadsheet, string $filename): StreamedResponse

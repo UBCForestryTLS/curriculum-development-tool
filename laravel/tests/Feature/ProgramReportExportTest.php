@@ -31,12 +31,7 @@ class ProgramReportExportTest extends TestCase
             foreach ([1, 2, 3] as $permission) {
                 $program->users()->sync([$user->id => ['permission' => $permission]]);
                 $response = $this->postJson($url, ['format' => 'pdf'])->assertOk();
-                if ($action === 'exportGapCoverage') {
-                    $response->assertHeader('content-type', 'application/pdf');
-                } else {
-                    $response->assertJsonPath('program_name', 'Export Test')
-                        ->assertJsonPath('report.program_id', $program->program_id);
-                }
+                $response->assertHeader('content-type', 'application/pdf');
             }
             $program->users()->detach($user->id);
         }
@@ -111,9 +106,14 @@ class ProgramReportExportTest extends TestCase
         $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'In scope']);
         $otherPlo = $this->program()->programLearningOutcomes()->create(['pl_outcome' => 'Outside scope']);
         $url = route('programReports.exportProgression', $program);
-        $this->postJson($url, ['format' => 'pdf', 'plo_id' => $plo->pl_outcome_id, 'view' => 'progression', 'units' => 'counts'])
-            ->assertOk()->assertJsonPath('report.selected_plo.pl_outcome_id', $plo->pl_outcome_id)
-            ->assertJsonPath('options.view', 'progression')->assertJsonPath('options.units', 'counts');
+        $pdf = $this->postJson($url, ['format' => 'pdf', 'plo_id' => $plo->pl_outcome_id, 'view' => 'progression', 'units' => 'counts'])
+            ->assertOk()->assertHeader('content-type', 'application/pdf')
+            ->assertDownload('export-test-'.$program->program_id.'-progression-'.now()->format('Y-m-d').'.pdf');
+        $text = (new \Smalot\PdfParser\Parser)->parseContent($pdf->getContent())->getText();
+        $this->assertStringContainsString('Scope: Selected PLO', $text);
+        $this->assertStringContainsString('In scope', $text);
+        $this->assertStringNotContainsString('Outside scope', $text);
+        $this->assertStringContainsString('No courses are included in this scope.', $text);
         $download = $this->postJson($url, ['format' => 'xlsx', 'plo_id' => $plo->pl_outcome_id])->assertOk()
             ->assertDownload('export-test-'.$program->program_id.'-progression-'.now()->format('Y-m-d').'.xlsx');
         $path = tempnam(sys_get_temp_dir(), 'progression-export-');
