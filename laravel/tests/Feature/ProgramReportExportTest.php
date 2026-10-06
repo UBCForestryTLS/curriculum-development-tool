@@ -45,10 +45,23 @@ class ProgramReportExportTest extends TestCase
         $program->users()->attach($user->id, ['permission' => 3]);
         $this->actingAs($user);
         $url = route('programReports.exportGapCoverage', $program);
-        $this->postJson($url, ['format' => 'xlsx'])->assertOk()
+        $this->postJson($url, ['format' => 'pdf'])->assertOk()
             ->assertJsonPath('report.expectations', null)
             ->assertJsonPath('options.metric', 'mapped_clo_count')
-            ->assertJsonPath('filename', 'export-test-'.$program->program_id.'-gap-and-redundancy-'.now()->format('Y-m-d').'.xlsx');
+            ->assertJsonPath('filename', 'export-test-'.$program->program_id.'-gap-and-redundancy-'.now()->format('Y-m-d').'.pdf');
+        $download = $this->postJson($url, ['format' => 'xlsx'])->assertOk()
+            ->assertDownload('export-test-'.$program->program_id.'-gap-and-redundancy-'.now()->format('Y-m-d').'.xlsx');
+        $path = tempnam(sys_get_temp_dir(), 'gap-export-');
+        try {
+            file_put_contents($path, $download->streamedContent());
+            $workbook = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+            $this->assertSame(['Summary and expectations', 'Coverage comparisons', 'Supporting mappings'], $workbook->getSheetNames());
+            $this->assertSame('Export Test', $workbook->getSheet(0)->getCell('B2')->getValue());
+            $this->assertSame('No', $workbook->getSheet(0)->getCell('B8')->getValue());
+            $workbook->disconnectWorksheets();
+        } finally {
+            unlink($path);
+        }
         foreach ([['format' => 'csv'], ['format' => 'pdf', 'units' => 'invalid'],
             ['format' => 'pdf', 'metric' => 'invalid'], ['format' => 'pdf', 'expectations' => 'invalid'],
             ['format' => 'pdf', 'expectations' => ['concerns' => ['gaps' => true, 'redundancies' => true],
