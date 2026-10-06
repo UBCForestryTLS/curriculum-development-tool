@@ -83,6 +83,19 @@ class ProgramReportExportTest extends TestCase
         $this->postJson($url, ['format' => 'pdf', 'plo_id' => $plo->pl_outcome_id, 'view' => 'progression', 'units' => 'counts'])
             ->assertOk()->assertJsonPath('report.selected_plo.pl_outcome_id', $plo->pl_outcome_id)
             ->assertJsonPath('options.view', 'progression')->assertJsonPath('options.units', 'counts');
+        $download = $this->postJson($url, ['format' => 'xlsx', 'plo_id' => $plo->pl_outcome_id])->assertOk()
+            ->assertDownload('export-test-'.$program->program_id.'-progression-'.now()->format('Y-m-d').'.xlsx');
+        $path = tempnam(sys_get_temp_dir(), 'progression-export-');
+        try {
+            file_put_contents($path, $download->streamedContent());
+            $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+            $this->assertSame(['Summary', 'Course-group distributions', 'CLO classifications'], $book->getSheetNames());
+            $this->assertSame($plo->pl_outcome_id, $book->getSheet(0)->getCell('B6')->getValue());
+            $this->assertSame(0, $book->getSheet(0)->getCell('B12')->getValue());
+            $book->disconnectWorksheets();
+        } finally {
+            unlink($path);
+        }
         $this->postJson($url, ['format' => 'pdf', 'plo_id' => $otherPlo->pl_outcome_id])->assertNotFound();
         $this->postJson($url, ['format' => 'pdf', 'plo_id' => 'invalid', 'view' => 'invalid'])
             ->assertUnprocessable()->assertJsonValidationErrors(['plo_id', 'view']);

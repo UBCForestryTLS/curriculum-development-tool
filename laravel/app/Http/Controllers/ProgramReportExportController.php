@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Exports\GapCoverageSpreadsheet;
+use App\Exports\ProgressionSpreadsheet;
 use App\Helpers\GapCoverageReport;
 use App\Helpers\ProgramProgression;
 use App\Http\Requests\ProgramReportExportRequest;
 use App\Models\Program;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -25,21 +27,13 @@ class ProgramReportExportController extends Controller
 
         $export = $this->prepare($program, 'gap-and-redundancy', $options, $report);
         if ($options['format'] === 'xlsx') {
-            $spreadsheet = (new GapCoverageSpreadsheet)->build($export);
-
-            return response()->streamDownload(function () use ($spreadsheet) {
-                try {
-                    (new Xlsx($spreadsheet))->save('php://output');
-                } finally {
-                    $spreadsheet->disconnectWorksheets();
-                }
-            }, $export['filename'], ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+            return $this->downloadSpreadsheet((new GapCoverageSpreadsheet)->build($export), $export['filename']);
         }
 
         return response()->json($export);
     }
 
-    public function progression(ProgramReportExportRequest $request, Program $program): JsonResponse
+    public function progression(ProgramReportExportRequest $request, Program $program): JsonResponse|StreamedResponse
     {
         $options = $request->validated();
         $options['units'] = $options['units'] ?? 'percentages';
@@ -47,7 +41,23 @@ class ProgramReportExportController extends Controller
         $options['plo_id'] = isset($options['plo_id']) ? (int) $options['plo_id'] : null;
         $report = ProgramProgression::report($program, $options['plo_id']);
 
-        return response()->json($this->prepare($program, 'progression', $options, $report));
+        $export = $this->prepare($program, 'progression', $options, $report);
+        if ($options['format'] === 'xlsx') {
+            return $this->downloadSpreadsheet((new ProgressionSpreadsheet)->build($export), $export['filename']);
+        }
+
+        return response()->json($export);
+    }
+
+    private function downloadSpreadsheet(Spreadsheet $spreadsheet, string $filename): StreamedResponse
+    {
+        return response()->streamDownload(function () use ($spreadsheet) {
+            try {
+                (new Xlsx($spreadsheet))->save('php://output');
+            } finally {
+                $spreadsheet->disconnectWorksheets();
+            }
+        }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     /** Share report metadata across export formats. */
