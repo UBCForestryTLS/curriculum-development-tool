@@ -13,10 +13,12 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
+use PDF;
 
 class ProgramReportExportController extends Controller
 {
-    public function gapCoverage(ProgramReportExportRequest $request, Program $program): JsonResponse|StreamedResponse
+    public function gapCoverage(ProgramReportExportRequest $request, Program $program): Response
     {
         $options = $request->validated();
         $options['units'] = $options['units'] ?? 'percentages';
@@ -30,7 +32,8 @@ class ProgramReportExportController extends Controller
             return $this->downloadSpreadsheet((new GapCoverageSpreadsheet)->build($export), $export['filename']);
         }
 
-        return response()->json($export);
+        return PDF::loadView('programs.exports.gap-coverage', $export)
+            ->setPaper('a4')->download($export['filename']);
     }
 
     public function progression(ProgramReportExportRequest $request, Program $program): JsonResponse|StreamedResponse
