@@ -68,4 +68,39 @@ class GapCoverageReportTest extends TestCase
         $data['coverage'] = [];
         $this->assertSame([], GapCoverageReport::evaluate($data)['plos']);
     }
+    public function test_spreadsheet_preserves_comparisons_mappings_and_literal_text(): void
+    {
+        $settings = $this->settings(0, 0);
+        $data = ['program_id' => 1, 'expectations' => $settings,
+            'program_totals' => ['course_count' => 2, 'clo_count' => 1],
+            'mapping_completeness' => ['has_incomplete_mappings' => true],
+            'coverage' => [['pl_outcome_id' => 1, 'plo_shortphrase' => '=1+1', 'pl_outcome' => 'Analyze data',
+                'mapping_scale_histogram' => [['map_scale_id' => 90, 'title' => 'Introduced',
+                    'mapped_clo_count' => 1, 'covering_course_count' => 1, 'required_course_count' => 0, 'non_required_course_count' => 0]],
+                'courses' => [['course_id' => 1, 'course_code' => 'TEST', 'course_num' => '001',
+                    'course_title' => 'Course', 'course_required' => null,
+                    'learning_outcomes' => [['l_outcome_id' => 1, 'clo_shortphrase' => 'Analyze',
+                        'l_outcome' => '=HYPERLINK("https://example.test")', 'map_scale_title' => 'Introduced']]]]]]];
+        $data['results'] = GapCoverageReport::evaluate($data, $settings);
+        $book = (new \App\Exports\GapCoverageSpreadsheet)->build([
+            'program_name' => 'Test', 'generated_at' => '2026-10-06', 'report' => $data,
+        ]);
+        try {
+            $coverage = $book->getSheetByName('Coverage comparisons');
+            $this->assertSame(5, $coverage->getHighestRow());
+            $this->assertEquals(50, $coverage->getCell('H3')->getValue());
+            $this->assertSame(0, $coverage->getCell('I3')->getValue());
+            $this->assertSame('Potential redundancy', $coverage->getCell('K3')->getValue());
+            $this->assertNull($coverage->getCell('I2')->getValue());
+            $this->assertSame('s', $coverage->getCell('B2')->getDataType());
+            $mappings = $book->getSheetByName('Supporting mappings');
+            $this->assertSame('001', $mappings->getCell('E2')->getValue());
+            $this->assertSame('Unspecified', $mappings->getCell('G2')->getValue());
+            $this->assertSame('s', $mappings->getCell('J2')->getDataType());
+            $this->assertStringContainsString('provisional', $book->getSheet(0)->getCell('B10')->getValue());
+        } finally {
+            $book->disconnectWorksheets();
+        }
+    }
+
 }
