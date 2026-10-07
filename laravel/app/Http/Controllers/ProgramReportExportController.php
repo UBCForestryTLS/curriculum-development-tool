@@ -6,6 +6,7 @@ use App\Exports\GapCoverageSpreadsheet;
 use App\Exports\ProgressionSpreadsheet;
 use App\Helpers\GapCoverageReport;
 use App\Helpers\ProgramProgression;
+use App\Helpers\ProgramReportChart;
 use App\Http\Requests\ProgramReportExportRequest;
 use App\Models\Program;
 use Illuminate\Support\Str;
@@ -31,6 +32,8 @@ class ProgramReportExportController extends Controller
             return $this->downloadSpreadsheet((new GapCoverageSpreadsheet)->build($export), $export['filename']);
         }
 
+        $export['chartImage'] = ProgramReportChart::image(ProgramReportChart::gapCoverage($report, $options));
+
         return PDF::loadView('programs.exports.gap-coverage', $export)
             ->setPaper('a4')->download($export['filename']);
     }
@@ -47,6 +50,8 @@ class ProgramReportExportController extends Controller
         if ($options['format'] === 'xlsx') {
             return $this->downloadSpreadsheet((new ProgressionSpreadsheet)->build($export), $export['filename']);
         }
+
+        $export['chartImage'] = ProgramReportChart::image(ProgramReportChart::progression($report, $options));
 
         return PDF::loadView('programs.exports.progression', $export)
             ->setPaper('a4')->download($export['filename']);

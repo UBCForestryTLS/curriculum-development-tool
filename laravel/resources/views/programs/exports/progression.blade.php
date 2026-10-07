@@ -39,6 +39,7 @@
     Unmatched means no Bloom level matched the text, not that the CLO is unmapped to a PLO.</p>
 <p>Percentages use all CLOs in each course group, including unmatched CLOs. A CLO can match multiple levels,
     so percentages can total above 100%. N/A means there are no CLOs in the group or the reference is unavailable.</p>
+@include('programs.exports.chart')
 <h2>Course-group distributions</h2>
 @forelse ($report['course_groups'] as $group)
     <h3>{{ $group['course_level'] === 'other' ? 'Other/unknown' : $group['course_level'].'-level' }}</h3>

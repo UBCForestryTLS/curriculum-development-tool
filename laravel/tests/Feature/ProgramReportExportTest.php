@@ -11,6 +11,13 @@ class ProgramReportExportTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Export service outages must not prevent downloading the report tables.
+        \Illuminate\Support\Facades\Http::fake(['export.highcharts.com/*' => \Illuminate\Support\Facades\Http::response('', 503)]);
+    }
+
     private function program(): Program
     {
         return Program::create(['program' => 'Export Test', 'level' => 'Bachelors', 'status' => 1]);
@@ -92,7 +99,7 @@ class ProgramReportExportTest extends TestCase
         ])->assertOk()->assertHeader('content-type', 'application/pdf');
         $text = (new \Smalot\PdfParser\Parser)->parseContent($pdf->getContent())->getText();
         foreach (['Mapped outcome', 'Unmapped outcome', 'Introduced', '25%', '75%', '100%',
-            'Potential gap', 'Potential redundancy', 'provisional', '2 PLOs evaluated against ranges'] as $expected) {
+            'Potential gap', 'Potential redundancy', 'provisional', '2 PLOs evaluated against ranges', 'The chart is unavailable'] as $expected) {
             $this->assertStringContainsString($expected, $text);
         }
     }
