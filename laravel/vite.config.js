@@ -15,7 +15,8 @@ export default defineConfig({
                 'resources/sass/app.scss',
                 'resources/js/bootstrap.js',
                 'resources/js/programs/coverage-expectations.js',
-                'resources/js/programs/coverage-report.js'
+                'resources/js/programs/coverage-report.js',
+                'resources/js/programs/report-download.js'
             ],
             refresh: true,
         }),

@@ -217,6 +217,7 @@
 </style>
 
 <script type="module">
+    import { downloadReport } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/report-download.js'));
     import { normalizeExpectations } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/coverage-expectations.js'));
     import { evaluateCoverage } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/coverage-report.js'));
 
@@ -483,10 +484,10 @@
             if (exportInProgress || gapCoverageData === null) return;
             const format = button.dataset.gapExport;
             // Capture applied settings at the click, not any unsubmitted expectation edits.
-            const body = JSON.stringify({
+            const payload = {
                 format, expectations: appliedExpectations,
                 metric: reportMetric.value, units: reportUnits.value,
-            });
+            };
             bootstrap.Dropdown.getOrCreateInstance(downloadButton).hide();
             exportInProgress = true;
             downloadButton.disabled = true;
@@ -494,33 +495,7 @@
             exportError.classList.add('d-none');
             exportStatus.textContent = `Preparing ${format === 'pdf' ? 'PDF' : 'Excel'} download…`;
             try {
-                const response = await fetch(@json(route('programReports.exportGapCoverage', $program->program_id)), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json', 'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    },
-                    body,
-                });
-                if (!response.ok) {
-                    if ([401, 419].includes(response.status)) throw new Error('Your session has expired. Refresh the page and sign in again.');
-                    if (response.status === 403) throw new Error('You no longer have permission to export this program.');
-                    if (response.status === 422) throw new Error('These report settings are no longer valid. Refresh the page and apply your expectations again.');
-                    throw new Error('The report could not be downloaded. Please try again.');
-                }
-                const expectedType = format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-                if (!response.headers.get('Content-Type')?.includes(expectedType)) {
-                    throw new Error('The report could not be downloaded. Refresh the page and try again.');
-                }
-                const url = URL.createObjectURL(await response.blob());
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/i)?.[1]
-                    ?? `gap-and-redundancy.${format}`;
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 60000);
+                await downloadReport(@json(route('programReports.exportGapCoverage', $program->program_id)), payload, 'gap-and-redundancy');
                 exportStatus.textContent = 'Download started.';
             } catch (error) {
                 exportStatus.textContent = '';

@@ -1,5 +1,14 @@
 <div class="py-4">
-    <h4 id="progression-heading" tabindex="-1">Progression Report</h4>
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <h4 id="progression-heading" class="mb-0" tabindex="-1">Progression Report</h4>
+        <div class="dropdown">
+            <button id="progression-download" type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" disabled>Download report</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><button type="button" class="dropdown-item" data-progression-export="pdf">Download PDF</button></li>
+                <li><button type="button" class="dropdown-item" data-progression-export="xlsx">Download Excel</button></li>
+            </ul>
+        </div>
+    </div>
     <p>Review the courses and course learning outcomes (CLOs) in this program. Suggested Bloom’s cognitive levels are based on matching reference verbs in each CLO, rather than interpreting its meaning. A CLO can match more than one level.</p>
 
     <div class="mb-3">
@@ -8,6 +17,10 @@
             <option value="">Entire program</option>
         </select>
     </div>
+
+    <p class="small text-muted">Downloads include the full selected scope using current program data. The PDF chart uses the selected view and units; details filters do not narrow the download.</p>
+    <p id="progression-export-status" class="small" role="status" aria-live="polite"></p>
+    <div id="progression-export-error" class="alert alert-danger d-none" role="alert"></div>
 
     <div id="progression-loading" class="py-4 text-center d-none" role="status">
         <div class="spinner-border text-primary" aria-hidden="true"></div>
@@ -120,6 +133,7 @@
 </style>
 
 <script type="module">
+    import { downloadReport } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/report-download.js'));
     $(document).ready(function () {
         let progressionData = null;
         let progressionLoading = false;
@@ -138,12 +152,44 @@
             progressionData = null;
             loadProgression();
         });
+        const downloadButton = document.getElementById('progression-download');
+        const exportButtons = [...document.querySelectorAll('[data-progression-export]')];
+        const exportStatus = document.getElementById('progression-export-status');
+        const exportError = document.getElementById('progression-export-error');
+        let exportInProgress = false;
+        exportButtons.forEach(button => button.addEventListener('click', async function () {
+            if (exportInProgress || progressionLoading || progressionData === null) return;
+            const payload = {
+                format: button.dataset.progressionExport,
+                plo_id: progressionData.selected_plo?.pl_outcome_id ?? null,
+                view: $('#progression-view').val(), units: $('#progression-units').val(),
+            };
+            bootstrap.Dropdown.getOrCreateInstance(downloadButton).hide();
+            exportInProgress = true;
+            downloadButton.disabled = true;
+            exportButtons.forEach(control => control.disabled = true);
+            exportError.classList.add('d-none');
+            exportStatus.textContent = `Preparing ${payload.format === 'pdf' ? 'PDF' : 'Excel'} download…`;
+            try {
+                await downloadReport(@json(route('programReports.exportProgression', $program->program_id)), payload, 'progression');
+                exportStatus.textContent = 'Download started.';
+            } catch (error) {
+                exportStatus.textContent = '';
+                exportError.textContent = error.message || 'The report could not be downloaded. Please try again.';
+                exportError.classList.remove('d-none');
+            } finally {
+                exportInProgress = false;
+                downloadButton.disabled = progressionLoading || progressionData === null;
+                exportButtons.forEach(control => control.disabled = false);
+            }
+        }));
         if ($('#nav-progression-tab').hasClass('active')) loadProgression();
 
         function loadProgression() {
             if (progressionData !== null || progressionLoading) return;
 
             progressionLoading = true;
+            downloadButton.disabled = true;
             const scope = $('#progression-scope').val();
             $('#progression-scope').prop('disabled', true);
             $('#progression-results, #progression-groups, #progression-chart-section, #progression-table-section').addClass('d-none');
@@ -196,6 +242,7 @@
                 },
                 complete: function () {
                     progressionLoading = false;
+                    downloadButton.disabled = exportInProgress || progressionData === null;
                     $('#progression-scope').prop('disabled', false);
                     $('#progression-loading').addClass('d-none');
                 }
