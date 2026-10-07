@@ -92,8 +92,20 @@
     <section id="gap-coverage-report" class="d-none" aria-labelledby="gap-coverage-report-heading">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
             <h5 id="gap-coverage-report-heading" class="mb-0" tabindex="-1">View report</h5>
-            <button id="gap-coverage-back" type="button" class="btn btn-outline-primary">Back to expectations</button>
+            <div class="d-flex flex-wrap gap-2">
+                <div class="dropdown">
+                    <button id="gap-coverage-download" type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Download report</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><button type="button" class="dropdown-item" data-gap-export="pdf">Download PDF</button></li>
+                        <li><button type="button" class="dropdown-item" data-gap-export="xlsx">Download Excel</button></li>
+                    </ul>
+                </div>
+                <button id="gap-coverage-back" type="button" class="btn btn-outline-primary">Back to expectations</button>
+            </div>
         </div>
+        <p class="small text-muted">Downloads include all PLOs and metrics using your applied expectations and current program data. The PDF chart uses the selected metric and display values.</p>
+        <p id="gap-coverage-export-status" class="small" role="status" aria-live="polite"></p>
+        <div id="gap-coverage-export-error" class="alert alert-danger d-none" role="alert"></div>
         <div id="gap-coverage-expectations-summary" class="mb-3">
             <p>Showing statistics only. No coverage expectations have been applied.</p>
         </div>
@@ -461,6 +473,65 @@
                 if (gapCoverageData !== null) renderGapCoverage(gapCoverageData);
             });
         });
+
+        const downloadButton = document.getElementById('gap-coverage-download');
+        const exportButtons = [...document.querySelectorAll('[data-gap-export]')];
+        const exportStatus = document.getElementById('gap-coverage-export-status');
+        const exportError = document.getElementById('gap-coverage-export-error');
+        let exportInProgress = false;
+        exportButtons.forEach(button => button.addEventListener('click', async function () {
+            if (exportInProgress || gapCoverageData === null) return;
+            const format = button.dataset.gapExport;
+            // Capture applied settings at the click, not any unsubmitted expectation edits.
+            const body = JSON.stringify({
+                format, expectations: appliedExpectations,
+                metric: reportMetric.value, units: reportUnits.value,
+            });
+            bootstrap.Dropdown.getOrCreateInstance(downloadButton).hide();
+            exportInProgress = true;
+            downloadButton.disabled = true;
+            exportButtons.forEach(control => control.disabled = true);
+            exportError.classList.add('d-none');
+            exportStatus.textContent = `Preparing ${format === 'pdf' ? 'PDF' : 'Excel'} download…`;
+            try {
+                const response = await fetch(@json(route('programReports.exportGapCoverage', $program->program_id)), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json', 'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body,
+                });
+                if (!response.ok) {
+                    if ([401, 419].includes(response.status)) throw new Error('Your session has expired. Refresh the page and sign in again.');
+                    if (response.status === 403) throw new Error('You no longer have permission to export this program.');
+                    if (response.status === 422) throw new Error('These report settings are no longer valid. Refresh the page and apply your expectations again.');
+                    throw new Error('The report could not be downloaded. Please try again.');
+                }
+                const expectedType = format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                if (!response.headers.get('Content-Type')?.includes(expectedType)) {
+                    throw new Error('The report could not be downloaded. Refresh the page and try again.');
+                }
+                const url = URL.createObjectURL(await response.blob());
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/i)?.[1]
+                    ?? `gap-and-redundancy.${format}`;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+                exportStatus.textContent = 'Download started.';
+            } catch (error) {
+                exportStatus.textContent = '';
+                exportError.textContent = error.message || 'The report could not be downloaded. Please try again.';
+                exportError.classList.remove('d-none');
+            } finally {
+                exportInProgress = false;
+                downloadButton.disabled = false;
+                exportButtons.forEach(control => control.disabled = false);
+            }
+        }));
 
         $('#nav-gap-coverage-tab').on('shown.bs.tab', function () {
             loadGapCoverage();
