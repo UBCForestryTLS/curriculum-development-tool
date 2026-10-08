@@ -852,7 +852,6 @@
 
         // TODO
         $('#courseScheduleTemplateBtn').on('click', function (event){
-            console.log('use a course schedule table template ')
             $('#courseScheduleTableTemplate').removeClass('visually-hidden');
         });
 
@@ -1013,7 +1012,6 @@
                 var side = event.currentTarget.dataset.side;
                 // get the number of cols in the tbl
                 var numCols = courseScheduleTbl.rows[0].cells.length;
-                console.log(numCols);
                 // if num rows in the tbl is less than the max, add row
                 if (courseScheduleTbl.rows.length < $('#courseScheduleTblRowsCount').attr('max')) {
                     // create <textarea>
