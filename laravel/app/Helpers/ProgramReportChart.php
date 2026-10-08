@@ -89,7 +89,10 @@ class ProgramReportChart
             return null;
         }
         try {
-            $response = Http::asForm()->connectTimeout(2)->timeout(5)->post('https://export.highcharts.com/', [
+            $response = Http::asForm()->withHeaders([
+                'Referer' => config('app.url'),
+                'User-Agent' => 'CurriculumDevelopmentTool/1.0 (report-export)',
+            ])->connectTimeout(2)->timeout(5)->post('https://export.highcharts.com/', [
                 'type' => 'image/png', 'width' => 1000, 'options' => json_encode($config, JSON_THROW_ON_ERROR),
             ]);
             $image = $response->body();
