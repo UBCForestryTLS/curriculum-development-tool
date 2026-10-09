@@ -588,12 +588,12 @@
                         </button>
                         <ul class="dropdown-menu" aria-labelledby="dropdownMenu2">
                             <li>
-                                <button type="submit" name="download" value="pdf" form="sylabusGenerator" class="dropdown-item" type="button">
+                                <button type="submit" name="download" value="pdf" form="sylabusGenerator" class="dropdown-item">
                                     <i class="bi-file-pdf-fill text-danger"></i> PDF
                                 </button>
                             </li>
                             <li>
-                                <button type="submit" name="download" value="word" form="sylabusGenerator" class="dropdown-item" type="button">
+                                <button type="submit" name="download" value="word" form="sylabusGenerator" class="dropdown-item">
                                     <i class="bi-file-earmark-word-fill text-primary"></i> Word
                                 </button>
                             </li>
@@ -852,7 +852,6 @@
 
         // TODO
         $('#courseScheduleTemplateBtn').on('click', function (event){
-            console.log('use a course schedule table template ')
             $('#courseScheduleTableTemplate').removeClass('visually-hidden');
         });
 
@@ -1013,7 +1012,6 @@
                 var side = event.currentTarget.dataset.side;
                 // get the number of cols in the tbl
                 var numCols = courseScheduleTbl.rows[0].cells.length;
-                console.log(numCols);
                 // if num rows in the tbl is less than the max, add row
                 if (courseScheduleTbl.rows.length < $('#courseScheduleTblRowsCount').attr('max')) {
                     // create <textarea>

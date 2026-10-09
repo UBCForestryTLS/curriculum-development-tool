@@ -670,7 +670,7 @@
                 <li>
                     <form method="POST" action="{{ action([\App\Http\Controllers\SyllabusController::class, 'download'], [$syllabus->id, 'pdf']) }}">
                     @csrf        
-                        <button type="submit" name="download" value="pdf" class="dropdown-item" type="button">
+                        <button type="submit" name="download" value="pdf" class="dropdown-item">
                             <i class="bi-file-pdf-fill text-danger"></i> PDF
                         </button>
                     </form>
@@ -678,7 +678,7 @@
                 <li>
                     <form method="POST" action="{{ action([\App\Http\Controllers\SyllabusController::class, 'download'], [$syllabus->id, 'word']) }}">
                     @csrf        
-                        <button type="submit" name="download" value="word" class="dropdown-item" type="button">
+                        <button type="submit" name="download" value="word" class="dropdown-item">
                             <i class="bi-file-earmark-word-fill text-primary"></i> Word
                         </button>
                     </form>
