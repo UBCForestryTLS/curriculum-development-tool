@@ -214,7 +214,7 @@
                                                         <label for="a_method_weight{{$a_method->a_method_id}}" style="font-size: medium; margin-top:5px;margin-left:5px"><strong>%</strong></label>
                                                     </td>
                                                     <td class="text-center">
-                                                        <i class="bi bi-x-circle-fill text-danger fs-4 btn" onclick="deleteAssessmentMethod(this)"></i>
+                                                        <button type="button" class="btn text-danger fs-4" onclick="deleteAssessmentMethod(this)" aria-label="Remove assessment method"><i class="bi bi-x-circle-fill" aria-hidden="true"></i></button>
                                                     </td>
 
                                                 </tr>
@@ -297,7 +297,7 @@
                             <label for="a_method_weight{{$a_method->a_method_id}}" style="font-size: medium; margin-top:5px;margin-left:5px"><strong>%</strong></label>
                         </td>
                         <td class="text-center">
-                            <i class="bi bi-x-circle-fill text-danger fs-4 btn" onclick="deleteAssessmentMethod(this)"></i>
+                            <button type="button" class="btn text-danger fs-4" onclick="deleteAssessmentMethod(this)" aria-label="Remove assessment method"><i class="bi bi-x-circle-fill" aria-hidden="true"></i></button>
                         </td>
                     </tr>
                 @endforeach
@@ -321,7 +321,7 @@
                     <label style="font-size: medium; margin-top:5px;margin-left:5px"><strong>%</strong></label>
                 </td>
                 <td class="text-center">
-                    <i class="bi bi-x-circle-fill text-danger fs-4 btn" onclick="deleteAssessmentMethod(this)"></i>
+                    <button type="button" class="btn text-danger fs-4" onclick="deleteAssessmentMethod(this)" aria-label="Remove assessment method"><i class="bi bi-x-circle-fill" aria-hidden="true"></i></button>
                 </td>
             </tr>
         `);

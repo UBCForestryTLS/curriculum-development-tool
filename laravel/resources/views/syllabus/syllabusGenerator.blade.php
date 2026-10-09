@@ -588,12 +588,12 @@
                         </button>
                         <ul class="dropdown-menu" aria-labelledby="dropdownMenu2">
                             <li>
-                                <button type="submit" name="download" value="pdf" form="sylabusGenerator" class="dropdown-item" type="button">
+                                <button type="submit" name="download" value="pdf" form="sylabusGenerator" class="dropdown-item">
                                     <i class="bi-file-pdf-fill text-danger"></i> PDF
                                 </button>
                             </li>
                             <li>
-                                <button type="submit" name="download" value="word" form="sylabusGenerator" class="dropdown-item" type="button">
+                                <button type="submit" name="download" value="word" form="sylabusGenerator" class="dropdown-item">
                                     <i class="bi-file-earmark-word-fill text-primary"></i> Word
                                 </button>
                             </li>
