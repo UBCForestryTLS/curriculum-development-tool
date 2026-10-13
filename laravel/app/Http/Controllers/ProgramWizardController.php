@@ -213,27 +213,12 @@ class ProgramWizardController extends Controller
         $faculties = Faculty::all();
         $departments = Department::all();
         $levels = ['Undergraduate', 'Graduate', 'Other'];
-        $user = User::where('id', Auth::id())->first();
-        // get my programs
-        $myPrograms = $user->programs;
-        // returns a collection of programs associated with users Collaborators
-        $programUsers = [];
-        foreach ($myPrograms as $program) {
-            $programsUsers = $program->users()->get();
-            $programUsers[$program->program_id] = $programsUsers;
-        }
-
-        // get the current user
-        $user = User::where('id', Auth::id())->first();
+        $user = $request->user();
         // get the program
+        // The sharing popup uses this program's users; other programs' collaborator lists were removed as they dont seem to be needed here.
         $program = Program::where('program_id', $program_id)->first();
         // get all the courses that belong to this program
         $programCourses = $program->courses()->orderBy('course_code', 'asc')->orderBy('course_num', 'asc')->get();
-
-        $programCoursesUsers = [];
-        foreach ($programCourses as $programCourse) {
-            $programCoursesUsers[$programCourse->course_id] = $programCourse->users()->get();
-        }
 
         // progress bar
         $ploCount = ProgramLearningOutcome::where('program_id', $program_id)->count();
@@ -276,8 +261,8 @@ class ProgramWizardController extends Controller
             $actualTotalOutcomes[$courseId] = $count;
         }
 
-        return view('programs.wizard.step3')->with('program', $program)->with('programCoursesUsers', $programCoursesUsers)
-            ->with('faculties', $faculties)->with('departments', $departments)->with('campuses', $campuses)->with('levels', $levels)->with('user', $user)->with('programUsers', $programUsers)
+        return view('programs.wizard.step3')->with('program', $program)
+            ->with('faculties', $faculties)->with('departments', $departments)->with('campuses', $campuses)->with('levels', $levels)->with('user', $user)
             ->with('ploCount', $ploCount)->with('msCount', $msCount)->with('programCourses', $programCourses)->with('standard_categories', $standard_categories)
             ->with('actualTotalOutcomes', $actualTotalOutcomes)->with('expectedTotalOutcomes', $expectedTotalOutcomes)->with('isEditor', $isEditor)->with('isViewer', $isViewer);
     }
