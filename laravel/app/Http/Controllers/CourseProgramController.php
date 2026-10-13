@@ -31,36 +31,33 @@ class CourseProgramController extends Controller
     public function __construct()
     {
         $this->roleAssignmentHelper = new RoleAssignmentHelpers();
+        $this->middleware(['auth', 'verified'])->only('addCoursesToProgram');
     }
 
     /**
      * Add courses to a program
      */
-    public function addCoursesToProgram(Request $request): RedirectResponse
+    public function addCoursesToProgram(Request $request, $program_id): RedirectResponse
     {
-        $this->validate($request, [
-            'program_id' => 'required',
-        ]);
+        $program = Program::findOrFail($program_id);
+        $programId = $program->program_id;
+        // Only users with owner or editor access can add courses to this program.
+        abort_unless(in_array($request->user()->effectivePermissionForProgram($programId), [1, 2], true), 403);
 
-        $programId = $request->input('program_id');
-        // if courseIds is null, use an empty array
-        if (!$courseIds = $request->input('selectedCourses')) {
-            $courseIds = [];
-        }
+        // Match the program in the URL and require a list of unique course IDs.
+        $validated = $request->validate([
+            'program_id' => ['required', 'integer', 'in:'.$programId],
+            'selectedCourses' => ['nullable', 'array'],
+            'selectedCourses.*' => ['required', 'integer', 'distinct'],
+        ]);
+        $courseIds = $validated['selectedCourses'] ?? [];
+
+        // Reject the whole selection if any course is missing or inaccessible to the user.
+        $accessibleCount = $request->user()->dashboardCoursesQuery()
+            ->whereIn('courses.course_id', $courseIds)->count();
+        abort_unless($accessibleCount === count($courseIds), 403);
 
         $numCoursesAddedSuccessfully = 0;
-
-        // // get all courses that currently belong to this program
-        // $currentProgramCourseIds = Program::find($programId)->courses()->pluck('course_programs.course_id');
-        // foreach ($currentProgramCourseIds as $currentProgramCourseId) {
-        //     if (!in_array(strval($currentProgramCourseId), $courseIds)) {
-        //         // delete course program record for the courses that were removed from this program
-        //         CourseProgram::where([
-        //             ['course_id', $currentProgramCourseId],
-        //             ['program_id', $programId],
-        //         ])->delete();
-        //     }
-        // }
 
         // update or create a programCourse for each course
         foreach ($courseIds as $index => $courseId) {
@@ -76,7 +73,6 @@ class CourseProgramController extends Controller
 
         if ($numCoursesAddedSuccessfully == count($courseIds)) {
             // update courses 'updated_at' field
-            $program = Program::find($request->input('program_id'));
             $program->touch();
 
             // get users name for last_modified_user
@@ -91,7 +87,7 @@ class CourseProgramController extends Controller
             $request->session()->flash('error', 'There was an error adding ' . strval(count($courseIds) - $numCoursesAddedSuccessfully));
         }
 
-        return redirect()->route('programWizard.step3', $request->input('program_id'));
+        return redirect()->route('programWizard.step3', $programId);
     }
 
     /**
