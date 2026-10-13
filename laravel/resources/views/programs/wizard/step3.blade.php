@@ -649,6 +649,15 @@
         $('#addCourseModal').on('show.bs.modal', loadAvailableCourses);
         $('#retryAvailableCourses').on('click', loadAvailableCourses);
 
+        $('#addExistCourse').on('submit', function (event) {
+            const button = $('#addSelectedCourses');
+            if (button.prop('disabled')) {
+                event.preventDefault();
+                return;
+            }
+            button.prop('disabled', true).text('Adding…');
+        });
+
         // Enables functionality of tool tips
         $('[data-bs-toggle="tooltip"]').tooltip({html:true});
 
