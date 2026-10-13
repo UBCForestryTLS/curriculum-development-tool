@@ -556,6 +556,7 @@
                                 </div>
                                 <div class="modal-body">
                                     <p id="availableCoursesStatus" role="status">Loading courses…</p>
+                                    <button id="retryAvailableCourses" type="button" class="btn btn-outline-primary mb-3" hidden>Retry</button>
                                     <form method="POST" id="addExistCourse" action="{{route('courseProgram.addCoursesToProgram', $program->program_id)}}">
                                         @csrf
                                         <input type="hidden" name="program_id" value="{{$program->program_id}}">
@@ -600,12 +601,18 @@
 
         let coursesLoaded = false;
         let coursesLoading = false;
-        $('#addCourseModal').on('show.bs.modal', function () {
+        function loadAvailableCourses() {
             if (coursesLoaded || coursesLoading) return;
             coursesLoading = true;
+            $('#retryAvailableCourses').prop('hidden', true);
+            $('#addSelectedCourses').prop('disabled', true);
             $('#availableCoursesStatus').text('Loading courses…');
 
-            $.getJSON(@json(route('programWizard.availableCourses', $program->program_id)))
+            $.ajax({
+                url: @json(route('programWizard.availableCourses', $program->program_id)),
+                dataType: 'json',
+                timeout: 30000
+            })
                 .done(function (data) {
                     const rows = document.createDocumentFragment();
                     data.courses.forEach(function (course) {
@@ -632,12 +639,15 @@
                     coursesLoaded = true;
                 })
                 .fail(function () {
-                    $('#availableCoursesStatus').text('Unable to load courses. Close and reopen this window to try again.');
+                    $('#availableCoursesStatus').text('Unable to load courses. Please try again.');
+                    $('#retryAvailableCourses').prop('hidden', false);
                 })
                 .always(function () {
                     coursesLoading = false;
                 });
-        });
+        }
+        $('#addCourseModal').on('show.bs.modal', loadAvailableCourses);
+        $('#retryAvailableCourses').on('click', loadAvailableCourses);
 
         // Enables functionality of tool tips
         $('[data-bs-toggle="tooltip"]').tooltip({html:true});
