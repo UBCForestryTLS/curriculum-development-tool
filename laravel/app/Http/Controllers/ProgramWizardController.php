@@ -35,7 +35,7 @@ class ProgramWizardController extends Controller
     public function __construct()
     {
         $this->middleware(['auth', 'verified']);
-        $this->middleware('hasAccess');
+        $this->middleware('hasAccess')->except('availableCourses');
     }
 
     public function step1($program_id, Request $request)
@@ -182,6 +182,20 @@ class ProgramWizardController extends Controller
             ->with('faculties', $faculties)->with('departments', $departments)->with('campuses', $campuses)->with('levels', $levels)->with('user', $user)->with('programUsers', $programUsers)
             ->with('ploCount', $ploCount)->with('msCount', $msCount)->with('courseCount', $courseCount)->with('msCategories', $msCategories)->with('mscScale', $mscScale)
             ->with('hasCustomMS', $hasCustomMS)->with('hasImportedMS', $hasImportedMS)->with('isEditor', $isEditor)->with('isViewer', $isViewer);
+    }
+
+    public function availableCourses($program_id, Request $request): JsonResponse
+    {
+        Program::findOrFail($program_id);
+        abort_unless(in_array($request->user()->effectivePermissionForProgram($program_id), [1, 2], true), 403);
+
+        $courses = $request->user()->dashboardCoursesQuery()
+            ->select(['courses.course_id', 'course_title', 'course_code', 'course_num', 'year', 'semester'])
+            ->whereNotIn('courses.course_id', CourseProgram::where('program_id', $program_id)->select('course_id'))
+            ->orderBy('course_code')->orderBy('course_num')->orderBy('courses.course_id')
+            ->get();
+
+        return response()->json(['courses' => $courses]);
     }
 
     public function step3($program_id, Request $request)
