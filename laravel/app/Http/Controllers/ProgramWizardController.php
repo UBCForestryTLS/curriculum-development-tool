@@ -230,16 +230,6 @@ class ProgramWizardController extends Controller
         // get all the courses that belong to this program
         $programCourses = $program->courses()->orderBy('course_code', 'asc')->orderBy('course_num', 'asc')->get();
 
-        // get ids of all the courses that belong to this program
-        $programCourseIds = $programCourses->map(function ($programCourse) {
-            return $programCourse->course_id;
-        });
-
-        // get all courses that belong to this user that don't yet belong to this program
-        $userCoursesNotInProgram = $user->allCourses()->filter(function ($item) use($programCourseIds){
-            return !in_array($item->course_id, $programCourseIds->all());
-        })->sortBy('course_code')->sortBy('course_num');
-
         $programCoursesUsers = [];
         foreach ($programCourses as $programCourse) {
             $programCoursesUsers[$programCourse->course_id] = $programCourse->users()->get();
@@ -288,7 +278,7 @@ class ProgramWizardController extends Controller
 
         return view('programs.wizard.step3')->with('program', $program)->with('programCoursesUsers', $programCoursesUsers)
             ->with('faculties', $faculties)->with('departments', $departments)->with('campuses', $campuses)->with('levels', $levels)->with('user', $user)->with('programUsers', $programUsers)
-            ->with('ploCount', $ploCount)->with('msCount', $msCount)->with('programCourses', $programCourses)->with('userCoursesNotInProgram', $userCoursesNotInProgram)->with('standard_categories', $standard_categories)
+            ->with('ploCount', $ploCount)->with('msCount', $msCount)->with('programCourses', $programCourses)->with('standard_categories', $standard_categories)
             ->with('actualTotalOutcomes', $actualTotalOutcomes)->with('expectedTotalOutcomes', $expectedTotalOutcomes)->with('isEditor', $isEditor)->with('isViewer', $isViewer);
     }
 
