@@ -158,12 +158,12 @@ class ProgramProgressionTest extends TestCase
             ->assertJsonPath('course_groups.0.clo_count', 2)
             ->assertJsonPath('course_groups.0.matched_clo_count', 1)
             ->assertJsonPath('course_groups.0.unmatched_clo_count', 1)
-            ->assertJsonPath('course_groups.0.levels.0.level_id', $earlier->id)
-            ->assertJsonPath('course_groups.0.levels.0.clo_count', 1)
-            ->assertJsonPath('course_groups.0.levels.0.percentage', 50)
-            ->assertJsonPath('course_groups.0.levels.1.level_id', $later->id)
-            ->assertJsonPath('course_groups.0.levels.1.clo_count', 0)
-            ->assertJsonPath('course_groups.0.levels.1.percentage', 0)
+            ->assertJsonPath('course_groups.0.blooms_levels.0.level_id', $earlier->id)
+            ->assertJsonPath('course_groups.0.blooms_levels.0.clo_count', 1)
+            ->assertJsonPath('course_groups.0.blooms_levels.0.percentage', 50)
+            ->assertJsonPath('course_groups.0.blooms_levels.1.level_id', $later->id)
+            ->assertJsonPath('course_groups.0.blooms_levels.1.clo_count', 0)
+            ->assertJsonPath('course_groups.0.blooms_levels.1.percentage', 0)
             ->assertJsonPath('courses.0.clos.0.bloom_levels.0.level_id', $earlier->id)
             ->assertJsonPath('courses.0.clos.1.bloom_levels', []);
     }

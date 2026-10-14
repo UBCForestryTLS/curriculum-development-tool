@@ -218,7 +218,7 @@
                 $('<th>', { scope: 'row' }).text(group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`).appendTo(row);
                 [group.course_count, group.clo_count].forEach(count => $('<td>').text(count).appendTo(row));
                 data.bloom_levels.forEach(level => {
-                    const result = group.levels.find(item => item.level_id === level.id);
+                    const result = group.blooms_levels.find(item => item.level_id === level.id);
                     $('<td>').text(value(result.clo_count, result.percentage)).appendTo(row);
                 });
                 const unmatchedPercentage = data.bloom_reference_available && group.clo_count > 0
@@ -287,7 +287,7 @@
                     name: escapeChartText(level.name),
                     data: groups.map(group => {
                         if (!group) return null;
-                        const result = group.levels.find(item => item.level_id === level.id);
+                        const result = group.blooms_levels.find(item => item.level_id === level.id);
                         return {
                             y: result.percentage === null ? null : counts ? result.clo_count : result.percentage,
                             custom: { group, level: result },

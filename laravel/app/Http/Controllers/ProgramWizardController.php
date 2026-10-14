@@ -483,7 +483,7 @@ class ProgramWizardController extends Controller
                 && ProgramGapCoverage::mappingCompleteness($program)['has_incomplete_mappings'],
             'bloom_reference_available' => $classification['reference_available'],
             'bloom_levels' => $classification['levels'],
-            'course_groups' => ProgramProgression::distributions(
+            'course_groups' => ProgramProgression::distributionsByCourseLevel(
                 $courses, $classification['levels'], $classification['reference_available'],
             ),
             'program_totals' => $programTotals,
