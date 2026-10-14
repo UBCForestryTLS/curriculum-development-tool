@@ -475,8 +475,9 @@ class ProgramWizardController extends Controller
             ]),
         ]);
 
-        return response()->json([
+        $response = [
             'program_id' => (int) $program->program_id,
+            'scope' => $selectedPlo !== null ? 'plo' : 'program',
             'selected_plo' => $selectedPlo?->only(['pl_outcome_id', 'plo_shortphrase', 'pl_outcome']),
             'plos' => $plos,
             'has_incomplete_mappings' => $selectedPlo !== null
@@ -487,12 +488,17 @@ class ProgramWizardController extends Controller
                 $courses, $classification['levels'], $classification['reference_available'],
             ),
             'program_totals' => $programTotals,
-            'scope_totals' => [
+            'courses' => $courses,
+        ];
+
+        if ($selectedPlo !== null) {
+            $response['scope_totals'] = [
                 'course_count' => $courses->count(),
                 'clo_count' => $courses->sum(fn ($course) => $course['clos']->count()),
-            ],
-            'courses' => $courses,
-        ]);
+            ];
+        }
+
+        return response()->json($response);
     }
 
     public function resetKeys($array)

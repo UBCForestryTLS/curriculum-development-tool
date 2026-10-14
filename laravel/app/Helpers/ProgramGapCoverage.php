@@ -78,6 +78,7 @@ class ProgramGapCoverage
         $courseMappingCounts = $programCourses->map(function ($course) use ($actualMappingCounts, $programLearningOutcomeCount) {
             $cloCount = (int) $course->clo_count;
             // A course without CLOs still needs attention when the program has PLOs.
+            // Expect CLO count × PLO count: every pair needs a decision, including N/A (map_scale_id = 0).
             $expectedMappingCount = $cloCount === 0
                 ? $programLearningOutcomeCount
                 : $cloCount * $programLearningOutcomeCount;

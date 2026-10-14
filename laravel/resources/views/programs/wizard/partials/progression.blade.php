@@ -167,8 +167,8 @@
                         selector.add(new Option(label, String(plo.pl_outcome_id)));
                     });
                     selector.value = scope;
-                    const totals = data.scope_totals;
-                    const selected = data.selected_plo !== null;
+                    const selected = data.scope === 'plo';
+                    const totals = selected ? data.scope_totals : data.program_totals;
                     const matched = data.course_groups.reduce((sum, group) => sum + group.matched_clo_count, 0);
                     const unmatched = data.course_groups.reduce((sum, group) => sum + group.unmatched_clo_count, 0);
                     $('#progression-plo-description').text(data.selected_plo?.pl_outcome ?? '').toggleClass('d-none', !selected);
@@ -231,7 +231,8 @@
             progressionChart?.destroy();
             progressionChart = null;
             const data = progressionData;
-            const available = data?.bloom_reference_available && data.scope_totals.clo_count > 0;
+            const totals = data?.scope === 'plo' ? data.scope_totals : data?.program_totals;
+            const available = data?.bloom_reference_available && totals.clo_count > 0;
             $('#progression-chart-section').toggleClass('d-none', !available);
             if (!available) return;
 
