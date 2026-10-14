@@ -117,7 +117,7 @@ class ProgramGapCoverage
         $mappingScaleLevels = $program->mappingScaleLevels()
             ->where('mapping_scales.map_scale_id', '<>', 0)
             ->get();
-        $configuredScaleIds = $mappingScaleLevels->pluck('map_scale_id')->map(fn ($id) => (int) $id);
+        $configuredScaleIds = $mappingScaleLevels->pluck('map_scale_id');
 
         $rows = ProgramLearningOutcome::query()
             ->where('program_learning_outcomes.program_id', $program->program_id)

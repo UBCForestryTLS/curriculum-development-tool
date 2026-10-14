@@ -47,6 +47,7 @@ class BloomClassifier
     /**
      * Match supplied reference terms, retaining every matching level.
      *
+     * @param string $text CLO text to classify.
      * @param array<int, array{id: int, name: string, position: int, verbs: array<int, string>}> $levels
      * @return array<int, array{level_id: int, name: string, position: int, matched_terms: array<int, string>}>
      */
