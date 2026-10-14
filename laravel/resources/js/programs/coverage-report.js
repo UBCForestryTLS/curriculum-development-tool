@@ -7,12 +7,23 @@ const metricDenominators = {
 
 /**
  * Evaluate endpoint data against normalized applied expectations, without mutation.
+ * Data comes from GET /programWizard/{program}/gap-coverage (programWizard.gapCoverage).
+ * Uses program_totals (clo_count, course_count) and coverage entries containing
+ * pl_outcome_id and mapping_scale_histogram (map_scale_id and counts for each metric in metricDenominators).
  * Histogram entries are the program's configured levels, already ordered/deduplicated
  * by the backend. Keep raw evidence separate; identify results by PLO, metric and level.
  * Incomplete-mapping presentation is the caller's responsibility.
  */
 export function evaluateCoverage(data, expectations = null) {
+    let evaluatedPloCount = 0;
+    let concernPloCount = 0;
+    let gapPloCount = 0;
+    let redundancyPloCount = 0;
+
     const plos = data.coverage.map(plo => {
+        let hasGap = false;
+        let hasRedundancy = false;
+        let evaluated = false;
         const comparisons = plo.mapping_scale_histogram
             .filter(level => Number(level.map_scale_id) !== 0)
             .flatMap(level => Object.entries(metricDenominators).map(([metric, denominatorKey]) => {
@@ -28,31 +39,39 @@ export function evaluateCoverage(data, expectations = null) {
                     status = 'not_applicable';
                 } else if (min !== null && 100 * count < min * denominator) {
                     status = 'gap';
+                    hasGap = true;
                 } else if (max !== null && 100 * count > max * denominator) {
                     status = 'redundancy';
+                    hasRedundancy = true;
                 } else if (min !== null || max !== null) {
                     status = 'within_expectations';
                 }
 
+                if (['gap', 'redundancy', 'within_expectations'].includes(status)) evaluated = true;
+
                 return { metric, map_scale_id: level.map_scale_id, count, denominator, percentage, min, max, status };
             }));
+
+        if (evaluated) evaluatedPloCount++;
+        if (hasGap || hasRedundancy) concernPloCount++;
+        if (hasGap) gapPloCount++;
+        if (hasRedundancy) redundancyPloCount++;
 
         return {
             pl_outcome_id: plo.pl_outcome_id,
             comparisons,
-            has_gap: comparisons.some(comparison => comparison.status === 'gap'),
-            has_redundancy: comparisons.some(comparison => comparison.status === 'redundancy'),
+            has_gap: hasGap,
+            has_redundancy: hasRedundancy,
         };
     });
 
     return {
         plos,
         summary: {
-            evaluated_plo_count: plos.filter(plo => plo.comparisons.some(comparison =>
-                ['gap', 'redundancy', 'within_expectations'].includes(comparison.status))).length,
-            concern_plo_count: plos.filter(plo => plo.has_gap || plo.has_redundancy).length,
-            gap_plo_count: plos.filter(plo => plo.has_gap).length,
-            redundancy_plo_count: plos.filter(plo => plo.has_redundancy).length,
+            evaluated_plo_count: evaluatedPloCount,
+            concern_plo_count: concernPloCount,
+            gap_plo_count: gapPloCount,
+            redundancy_plo_count: redundancyPloCount,
         },
     };
 }
