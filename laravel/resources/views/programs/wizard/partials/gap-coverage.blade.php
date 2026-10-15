@@ -222,6 +222,7 @@
     .coverage-range[data-overlap] [data-slider="max"]::-webkit-slider-thumb { transform: translateY(.5rem); }
     .coverage-range[data-overlap] [data-slider="min"]::-moz-range-thumb { transform: translateY(-.5rem); }
     .coverage-range[data-overlap] [data-slider="max"]::-moz-range-thumb { transform: translateY(.5rem); }
+	ul::before { content: unset; }
 </style>
 
 <script type="module">
