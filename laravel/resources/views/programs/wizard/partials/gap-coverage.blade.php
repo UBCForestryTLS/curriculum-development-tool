@@ -170,7 +170,7 @@
             @foreach (['min' => 'Minimum', 'max' => 'Maximum'] as $bound => $label)
                 <div class="col-6">
                     <label class="form-label small">{{ $label }} (%)</label>
-                    <input type="text" inputmode="numeric" class="form-control" placeholder="Not set" data-bound="{{ $bound }}" disabled>
+                    <input type="text" inputmode="numeric" class="form-control" placeholder="Not set" data-bound="{{ $bound }}" data-concern-label="{{ $bound === 'min' ? 'Gaps' : 'Redundancies' }}" disabled>
                     <div class="invalid-feedback"></div>
                     <div class="form-text" data-bound-status></div>
                 </div>
@@ -180,6 +180,17 @@
 </template>
 
 <style>
+    .coverage-concern-chip {
+        display: inline-flex;
+        align-items: center;
+        margin: 0.2rem 0.25rem;
+        padding: 0.25rem 0.55rem;
+        color: #002145;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 999px;
+        font-size: 0.86rem;
+    }
     #gap-coverage-columns th:not(:last-child) { min-width: 12rem; }
     #gap-coverage-details-comparisons { min-width: 620px; }
     #gap-coverage-details-findings::before { content: none; }
@@ -285,7 +296,7 @@
             fields.querySelectorAll('[data-bound]').forEach(function (input) {
                 const slider = fields.querySelector(`[data-slider="${input.dataset.bound}"]`);
                 const value = input.value.trim();
-                input.parentElement.querySelector('[data-bound-status]').textContent = input.disabled ? 'Not selected' : '';
+                input.parentElement.querySelector('[data-bound-status]').textContent = input.disabled ? `${input.dataset.concernLabel} disabled` : '';
                 if (value === '') {
                     slider.value = input.dataset.bound === 'min' ? '0' : '100';
                     slider.setAttribute('aria-valuetext', 'Not set');
@@ -423,7 +434,7 @@
             const selectedConcerns = [];
             if (appliedExpectations.concerns.gaps) selectedConcerns.push('Potential gaps');
             if (appliedExpectations.concerns.redundancies) selectedConcerns.push('Potential redundancies');
-            concern.textContent = `Selected concerns: ${selectedConcerns.join(' and ')}.`;
+            concern.innerHTML = `Selected concerns: ${selectedConcerns.map(label => `<span class="coverage-concern-chip">${label}</span>`).join('')}`;
             const scope = document.createElement('p');
             scope.textContent = 'These bounds apply separately to every PLO. Only applied bounds are listed.';
             const metrics = document.createElement('dl');
