@@ -212,18 +212,18 @@
             ['Course group', 'Courses', 'Total CLOs', ...data.bloom_levels.map(level => level.name), 'No Bloom match']
                 .forEach(title => $('<th>', { scope: 'col' }).text(title).appendTo(header));
 
-            const value = (count, percentage) => count === null ? 'N/A' : `${count} (${percentage === null ? 'N/A' : percentage + '%'})`;
+            const formatValue = (count, percentage) => count === null ? 'N/A' : `${count} (${percentage === null ? 'N/A' : percentage + '%'})`;
             data.course_groups.forEach(group => {
-                const row = $('<tr>').appendTo(body);
+                const row = $('<tr>').toggleClass('table-warning', group.clo_count === 0).appendTo(body);
                 $('<th>', { scope: 'row' }).text(group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`).appendTo(row);
                 [group.course_count, group.clo_count].forEach(count => $('<td>').text(count).appendTo(row));
                 data.bloom_levels.forEach(level => {
                     const result = group.blooms_levels.find(item => item.level_id === level.id);
-                    $('<td>').text(value(result.clo_count, result.percentage)).appendTo(row);
+                    $('<td>').text(formatValue(result.clo_count, result.percentage)).appendTo(row);
                 });
                 const unmatchedPercentage = data.bloom_reference_available && group.clo_count > 0
                     ? Math.round(group.unmatched_clo_count / group.clo_count * 10000) / 100 : null;
-                $('<td>').text(value(group.unmatched_clo_count, unmatchedPercentage)).appendTo(row);
+                $('<td>').text(formatValue(group.unmatched_clo_count, unmatchedPercentage)).appendTo(row);
             });
         }
 
@@ -415,7 +415,7 @@
                             if (needsReview(clo)) {
                                 const review = document.createElement('p');
                                 review.className = 'small text-muted mt-1 mb-0';
-                                review.textContent = 'Review suggested — matches three or more cognitive levels. This may be valid; check the intended learning against the wording.';
+                                review.innerHTML = '<span class="badge bg-warning text-dark">Review suggested</span> — matches three or more cognitive levels. This may be valid; check the intended learning against the wording.';
                                 item.appendChild(review);
                             }
                             const classification = document.createElement('div');
