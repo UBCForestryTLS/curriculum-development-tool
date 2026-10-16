@@ -222,27 +222,39 @@ class ProgramProgressionTest extends TestCase
         $program = $this->createProgram();
         $this->signInAsViewer($program);
         $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Selected outcome']);
+        $otherPlo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Other outcome']);
         $course = Course::factory()->create(['course_num' => '201']);
         $program->courses()->attach($course->course_id);
         $mapped = $course->learningOutcomes()->create(['l_outcome' => 'Mapped outcome']);
         $course->learningOutcomes()->create(['l_outcome' => 'Unmapped outcome']);
+
+        // This course only contributes to the other PLO and should be excluded.
+        $otherCourse = Course::factory()->create(['course_num' => '301']);
+        $program->courses()->attach($otherCourse->course_id);
+        $otherClo = $otherCourse->learningOutcomes()->create(['l_outcome' => 'Outcome for the other PLO']);
         foreach (['First', 'Second'] as $index => $name) {
             $scale = MappingScale::create([
                 'title' => $name, 'abbreviation' => $name, 'description' => $name, 'colour' => '#ffffff',
             ]);
             $program->mappingScaleLevels()->attach($scale->map_scale_id, ['position' => $index + 1]);
             $mapped->programLearningOutcomes()->attach($plo->pl_outcome_id, ['map_scale_id' => $scale->map_scale_id]);
+            $otherClo->programLearningOutcomes()->attach($otherPlo->pl_outcome_id, ['map_scale_id' => $scale->map_scale_id]);
         }
 
         $this->getJson(route('programWizard.progression', [$program->program_id, 'plo_id' => $plo->pl_outcome_id]))
             ->assertOk()
-            ->assertJsonPath('program_totals', ['course_count' => 1, 'clo_count' => 2])
+            ->assertJsonPath('program_totals', ['course_count' => 2, 'clo_count' => 3])
             ->assertJsonPath('scope_totals', ['course_count' => 1, 'clo_count' => 1])
             ->assertJsonPath('scope', 'plo')
-            ->assertJsonPath('plos.0.pl_outcome_id', $plo->pl_outcome_id)
+            ->assertJsonPath('selected_plo.pl_outcome_id', $plo->pl_outcome_id)
+            ->assertJsonCount(2, 'plos')
             ->assertJsonPath('has_incomplete_mappings', true)
+            ->assertJsonCount(1, 'courses')
+            ->assertJsonPath('courses.0.course_id', $course->course_id)
             ->assertJsonCount(1, 'courses.0.clos')
             ->assertJsonPath('courses.0.clos.0.l_outcome_id', $mapped->l_outcome_id)
+            ->assertJsonCount(1, 'course_groups')
+            ->assertJsonPath('course_groups.0.course_level', 200)
             ->assertJsonPath('course_groups.0.clo_count', 1);
     }
 
