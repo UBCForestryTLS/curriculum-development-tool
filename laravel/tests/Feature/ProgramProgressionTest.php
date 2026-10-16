@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\LearningOutcome;
 use App\Models\MappingScale;
 use App\Models\Program;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
@@ -31,6 +32,16 @@ class ProgramProgressionTest extends TestCase
         $this->actingAs($user);
     }
 
+    private function signInWithRoleAccess(Program $program, string $roleName): void
+    {
+        $user = User::factory()->create();
+        $role = Role::where('role', $roleName)->firstOrFail();
+        $user->roles()->attach($role->id);
+        // Give access through the role only, without adding a direct collaborator entry.
+        $user->programsWithElevatedRoleAccess()->attach($program->program_id, ['role_id' => $role->id]);
+        $this->actingAs($user);
+    }
+
     public function test_viewer_can_get_an_empty_program(): void
     {
         $program = $this->createProgram();
@@ -50,6 +61,42 @@ class ProgramProgressionTest extends TestCase
                 'program_totals' => ['course_count' => 0, 'clo_count' => 0],
                 'courses' => [],
             ]);
+    }
+
+    public function test_administrator_with_role_access_can_get_progression_data(): void
+    {
+        $program = $this->createProgram();
+        $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Analyze program progression.']);
+        $this->signInWithRoleAccess($program, 'administrator');
+
+        $this->getJson(route('programWizard.progression', $program->program_id))
+            ->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('plos.0.pl_outcome_id', $plo->pl_outcome_id);
+    }
+
+    public function test_program_director_with_role_access_can_get_progression_data(): void
+    {
+        $program = $this->createProgram();
+        $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Analyze program progression.']);
+        $this->signInWithRoleAccess($program, 'program director');
+
+        $this->getJson(route('programWizard.progression', $program->program_id))
+            ->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('plos.0.pl_outcome_id', $plo->pl_outcome_id);
+    }
+
+    public function test_department_head_with_role_access_can_get_progression_data(): void
+    {
+        $program = $this->createProgram();
+        $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Analyze program progression.']);
+        $this->signInWithRoleAccess($program, 'department head');
+
+        $this->getJson(route('programWizard.progression', $program->program_id))
+            ->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('plos.0.pl_outcome_id', $plo->pl_outcome_id);
     }
 
     public function test_it_returns_current_program_courses_and_all_their_clos(): void
@@ -209,6 +256,16 @@ class ProgramProgressionTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('plo_id');
         $this->getJson(route('programWizard.progression', [$program->program_id, 'plo_id' => $otherPlo->pl_outcome_id]))
             ->assertNotFound();
+    }
+
+    public function test_role_access_to_another_program_does_not_grant_progression_access(): void
+    {
+        $accessibleProgram = $this->createProgram();
+        $restrictedProgram = $this->createProgram();
+        $this->signInWithRoleAccess($accessibleProgram, 'program director');
+
+        $this->getJson(route('programWizard.progression', $restrictedProgram->program_id))
+            ->assertRedirect(route('home'));
     }
 
     public function test_user_without_program_access_cannot_get_progression_data(): void

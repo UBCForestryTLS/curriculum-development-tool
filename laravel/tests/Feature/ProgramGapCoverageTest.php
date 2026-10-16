@@ -10,6 +10,7 @@ use App\Models\MappingScale;
 use App\Models\MappingScaleProgram;
 use App\Models\Program;
 use App\Models\ProgramLearningOutcome;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +52,49 @@ class ProgramGapCoverageTest extends TestCase
             ->assertJsonMissingPath('coverage.0.coverage_level')
             ->assertJsonMissingPath('coverage.0.coverage_label')
             ->assertJsonMissingPath('coverage.0.coverage_explanation');
+    }
+
+    public function test_administrator_with_role_access_can_get_gap_coverage_report(): void
+    {
+        [$program, $plo] = $this->createProgramWithPlo();
+        $user = $this->createUserWithRoleAccess('administrator', $program);
+
+        $this->actingAs($user)->getJson(route('programWizard.gapCoverage', $program->program_id))
+            ->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('coverage.0.pl_outcome_id', $plo->pl_outcome_id);
+    }
+
+    public function test_program_director_with_role_access_can_get_gap_coverage_report(): void
+    {
+        [$program, $plo] = $this->createProgramWithPlo();
+        $user = $this->createUserWithRoleAccess('program director', $program);
+
+        $this->actingAs($user)->getJson(route('programWizard.gapCoverage', $program->program_id))
+            ->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('coverage.0.pl_outcome_id', $plo->pl_outcome_id);
+    }
+
+    public function test_department_head_with_role_access_can_get_gap_coverage_report(): void
+    {
+        [$program, $plo] = $this->createProgramWithPlo();
+        $user = $this->createUserWithRoleAccess('department head', $program);
+
+        $this->actingAs($user)->getJson(route('programWizard.gapCoverage', $program->program_id))
+            ->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('coverage.0.pl_outcome_id', $plo->pl_outcome_id);
+    }
+
+    public function test_role_access_to_another_program_does_not_grant_report_access(): void
+    {
+        [$accessibleProgram] = $this->createProgramWithPlo();
+        [$restrictedProgram] = $this->createProgramWithPlo();
+        $user = $this->createUserWithRoleAccess('program director', $accessibleProgram);
+
+        $this->actingAs($user)->getJson(route('programWizard.gapCoverage', $restrictedProgram->program_id))
+            ->assertRedirect(route('home'));
     }
 
     public function test_user_without_program_access_cannot_get_gap_coverage_report(): void
@@ -365,5 +409,31 @@ class ProgramGapCoverageTest extends TestCase
         $this->assertSame(1, $remainingCoverage['non_required_course_count']);
         $this->assertSame([1, 1, 0], collect($remainingCoverage['mapping_scale_histogram'])->pluck('mapped_clo_count')->all());
         $this->assertSame([$nonRequiredCourse->course_id, $unspecifiedCourse->course_id], collect($remainingCoverage['courses'])->pluck('course_id')->all());
+    }
+
+    private function createProgramWithPlo(): array
+    {
+        $program = Program::create([
+            'program' => 'Role Access Gap Coverage Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+        ]);
+        $plo = ProgramLearningOutcome::create([
+            'program_id' => $program->program_id,
+            'pl_outcome' => 'Interpret program coverage evidence.',
+        ]);
+
+        return [$program, $plo];
+    }
+
+    private function createUserWithRoleAccess(string $roleName, Program $program): User
+    {
+        $user = User::factory()->create();
+        $role = Role::where('role', $roleName)->firstOrFail();
+        $user->roles()->attach($role->id);
+        // Give access through the role only, without adding a direct collaborator entry.
+        $user->programsWithElevatedRoleAccess()->attach($program->program_id, ['role_id' => $role->id]);
+
+        return $user;
     }
 }
