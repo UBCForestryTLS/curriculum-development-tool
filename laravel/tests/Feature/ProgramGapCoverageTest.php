@@ -19,7 +19,7 @@ class ProgramGapCoverageTest extends TestCase
 {
     use DatabaseTransactions;
 
-    public function test_authorized_user_can_get_gap_coverage_report(): void
+    public function test_user_with_direct_permission_can_get_gap_coverage_report(): void
     {
         $program = Program::create([
             'program' => 'Gap Coverage Endpoint Program',
@@ -106,7 +106,7 @@ class ProgramGapCoverageTest extends TestCase
         $this->assertSame(['course_count' => 2, 'clo_count' => 2], ProgramGapCoverage::programTotals($program));
     }
 
-    public function test_it_identifies_incomplete_course_mappings(): void
+    public function test_mapping_completeness_identifies_incomplete_course_mappings(): void
     {
         $program = Program::create([
             'program' => 'Mapping Completeness Test Program',

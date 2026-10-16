@@ -638,6 +638,8 @@
                 unavailable = 'No data is available to chart for this metric. See the table below for details.';
             } else if (!window.Highcharts) unavailable = 'The chart could not be loaded. The comparison table remains available below.';
             container.classList.toggle('d-none', Boolean(unavailable));
+            // With zero configured levels, the report already shows a no-levels warning.
+            // Hide the duplicate chart message; unavailable still stops chart rendering below.
             message.classList.toggle('d-none', !unavailable || mappingScaleLevels.length === 0);
             message.textContent = unavailable;
             if (unavailable) return;
@@ -822,7 +824,8 @@
 
         function formatCoveragePercentage(comparison) {
             let percentage = Number(comparison.percentage.toFixed(2));
-            // Keep extra precision when rounding would make a flagged value look in range.
+            // Show the unrounded percentage if rounding would hide why it is flagged.
+            // For example, 39.999% is below a 40% minimum but would display as 40%.
             if ((comparison.status === 'gap' && percentage >= comparison.min)
                 || (comparison.status === 'redundancy' && percentage <= comparison.max)) {
                 percentage = comparison.percentage;
