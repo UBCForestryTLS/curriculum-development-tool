@@ -102,7 +102,7 @@
             <div class="mb-3">
                 <h6>Potential concerns</h6>
                 <ul id="gap-coverage-concern-summary" role="status"></ul>
-                <p id="gap-coverage-concern-scope" class="small text-muted">Counts and filtering include all applied metrics and levels, regardless of the metric displayed below. A PLO can have both potential gaps and potential redundancies.</p>
+                <p id="gap-coverage-concern-scope" class="small text-muted">Summary counts include all applied metrics and levels. The PLO filter applies to the selected coverage metric. A PLO can have both potential gaps and potential redundancies.</p>
                 <label for="gap-coverage-filter" class="form-label fw-bold">Show PLOs</label>
                 <select id="gap-coverage-filter" class="form-select w-auto mw-100" aria-describedby="gap-coverage-concern-summary gap-coverage-concern-scope">
                     <option value="all">All PLOs</option>
@@ -587,7 +587,10 @@
 
             data.coverage.forEach(function (coverage, index) {
                 const plo = report.plos[index];
-                if (reportFilterSelect.value === 'concerns' && !plo.has_gap && !plo.has_redundancy) return;
+                const comparisons = plo.comparisons.filter(comparison => comparison.metric === metric);
+                // Only concerns in the displayed metric should include a PLO in the filtered chart and table.
+                if (reportFilterSelect.value === 'concerns'
+                    && !comparisons.some(comparison => ['gap', 'redundancy'].includes(comparison.status))) return;
                 const row = document.createElement('tr');
                 const outcomeCell = document.createElement('th');
                 outcomeCell.scope = 'row';
@@ -603,7 +606,6 @@
                 }
 
                 row.appendChild(outcomeCell);
-                const comparisons = plo.comparisons.filter(comparison => comparison.metric === metric);
                 visiblePlos.push({ coverage, label: outcomeName.textContent, comparisons, allComparisons: plo.comparisons });
                 comparisons.forEach(comparison => row.appendChild(createComparisonCell(comparison)));
                 row.appendChild(createDetailsButtonCell(coverage, outcomeName.textContent, plo.comparisons));
@@ -614,7 +616,7 @@
                 const row = document.createElement('tr');
                 const cell = document.createElement('td');
                 cell.colSpan = mappingScaleLevels.length + 2;
-                cell.textContent = 'No PLOs match the concern filter. Select All PLOs to view the statistics.';
+                cell.textContent = 'No PLOs match the concern filter for this coverage metric. Select another metric or All PLOs to view the statistics.';
                 row.appendChild(cell);
                 rows.appendChild(row);
             }
@@ -633,7 +635,7 @@
             const message = document.getElementById('gap-coverage-chart-message');
             let unavailable = '';
             if (mappingScaleLevels.length === 0) unavailable = 'No mapping levels are available to chart.';
-            else if (plos.length === 0) unavailable = 'No PLOs match the concern filter. Select All PLOs to view the chart.';
+            else if (plos.length === 0) unavailable = 'No PLOs match the concern filter for this coverage metric. Select another metric or All PLOs to view the chart.';
             else if (plos.every(plo => plo.comparisons.every(comparison => comparison.percentage === null))) {
                 unavailable = 'No data is available to chart for this metric. See the table below for details.';
             } else if (!window.Highcharts) unavailable = 'The chart could not be loaded. The comparison table remains available below.';
