@@ -56,7 +56,7 @@
                 <label for="progression-view" class="mb-0">View</label>
                 <select id="progression-view" class="form-select w-auto">
                     <option value="comparison">Comparison</option>
-                    <option value="progression">Progression</option>
+                    <option value="cognitive-levels">By cognitive level</option>
                 </select>
                 <label for="progression-units" class="mb-0">Show</label>
                 <select id="progression-units" class="form-select w-auto">
@@ -66,7 +66,6 @@
             </div>
         </div>
         <p id="progression-chart-description" class="small text-muted">Percentages use all CLOs in each course group and selected scope, including those with no Bloom match. A CLO can count at several levels, so percentages may total above 100%.</p>
-        <p id="progression-placeholder" class="small text-muted d-none">Progression visualization coming soon.</p>
         <p id="progression-chart-unavailable" class="alert alert-info d-none">The chart could not be loaded. You can still review the exact values below.</p>
         <div id="progression-chart" aria-labelledby="progression-chart-heading" aria-describedby="progression-chart-description"></div>
     </section>
@@ -120,6 +119,8 @@
 </style>
 
 <script type="module">
+    import { summarizeCognitiveLevels } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/progression-report.js'));
+
     $(document).ready(function () {
         let progressionData = null;
         let progressionLoading = false;
@@ -236,27 +237,38 @@
             $('#progression-chart-section').toggleClass('d-none', !available);
             if (!available) return;
 
-            const placeholder = $('#progression-view').val() === 'progression';
-            $('#progression-placeholder').toggleClass('d-none', !placeholder);
-            $('#progression-chart-description').toggleClass('d-none', placeholder);
-            $('#progression-chart-unavailable').toggleClass('d-none', placeholder || Boolean(window.Highcharts));
-            $('#progression-chart').toggleClass('d-none', placeholder || !window.Highcharts);
-            $('#progression-units').prop('disabled', placeholder || !window.Highcharts);
-            if (placeholder || !window.Highcharts) return;
+            const byCognitiveLevel = $('#progression-view').val() === 'cognitive-levels';
+            $('#progression-chart-heading').text(byCognitiveLevel ? 'CLO distribution by cognitive level' : 'Cognitive levels by course group');
+            $('#progression-chart-description').text(
+                (byCognitiveLevel
+                    ? 'Percentages use all CLOs in the selected scope, including those with no Bloom match. '
+                    : 'Percentages use all CLOs in each course group and selected scope, including those with no Bloom match. ')
+                + 'A CLO can count at several levels, so percentages may total above 100%.'
+            );
+            $('#progression-chart-unavailable').toggleClass('d-none', Boolean(window.Highcharts));
+            $('#progression-chart').toggleClass('d-none', !window.Highcharts);
+            $('#progression-units').prop('disabled', !window.Highcharts);
+            if (!window.Highcharts) return;
 
             const counts = $('#progression-units').val() === 'counts';
             const groups = data.course_groups;
+            // The new view combines the scoped CLOs across all course groups.
+            const distribution = byCognitiveLevel ? summarizeCognitiveLevels(data) : null;
             const label = group => !group ? '' : group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`;
             progressionChart = Highcharts.chart('progression-chart', {
                 chart: {
                     type: 'column',
                     animation: false,
-                    scrollablePlotArea: { minWidth: Math.max(360, groups.length * Math.max(100, data.bloom_levels.length * 24)) },
+                    scrollablePlotArea: { minWidth: byCognitiveLevel
+                        ? Math.max(360, data.bloom_levels.length * 100)
+                        : Math.max(360, groups.length * Math.max(100, data.bloom_levels.length * 24)) },
                 },
                 title: { text: null },
                 xAxis: {
-                    categories: groups.map(group => label(group) + (group?.clo_count === 0 ? ' (no CLOs)' : '')),
-                    title: { text: 'Course group' },
+                    categories: byCognitiveLevel
+                        ? distribution.levels.map(level => escapeChartText(level.name))
+                        : groups.map(group => label(group) + (group?.clo_count === 0 ? ' (no CLOs)' : '')),
+                    title: { text: byCognitiveLevel ? 'Cognitive level' : 'Course group' },
                 },
                 yAxis: {
                     min: 0,
@@ -270,7 +282,8 @@
                 exporting: { enabled: false },
                 credits: { enabled: false },
                 accessibility: { enabled: false },
-                tooltip: {
+                legend: { enabled: !byCognitiveLevel },
+                tooltip: byCognitiveLevel ? { valueSuffix: counts ? ' CLOs' : '%' } : {
                     outside: true,
                     animation: false,
                     formatter: function () {
@@ -281,7 +294,10 @@
                             + `${group.unmatched_clo_count} CLOs with no Bloom match in this group`;
                     },
                 },
-                series: data.bloom_levels.map(level => ({
+                series: byCognitiveLevel ? [{
+                    name: 'CLOs',
+                    data: distribution.levels.map(level => counts ? level.clo_count : level.percentage),
+                }] : data.bloom_levels.map(level => ({
                     name: escapeChartText(level.name),
                     data: groups.map(group => {
                         if (!group) return null;

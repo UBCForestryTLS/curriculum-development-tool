@@ -5,7 +5,7 @@ import vue from '@vitejs/plugin-vue';
 export default defineConfig({
     build: {
         rollupOptions: {
-            // The report's inline module imports the coverage helpers' exports.
+            // The reports' inline modules import the helpers' exports.
             preserveEntrySignatures: 'exports-only',
         },
     },
@@ -15,7 +15,8 @@ export default defineConfig({
                 'resources/sass/app.scss',
                 'resources/js/bootstrap.js',
                 'resources/js/programs/coverage-expectations.js',
-                'resources/js/programs/coverage-report.js'
+                'resources/js/programs/coverage-report.js',
+                'resources/js/programs/progression-report.js'
             ],
             refresh: true,
         }),
