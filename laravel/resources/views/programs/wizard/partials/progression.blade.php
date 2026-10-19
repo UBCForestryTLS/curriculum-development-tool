@@ -66,7 +66,7 @@
             </div>
         </div>
         <p id="progression-chart-description" class="small text-muted">Percentages use all CLOs in each course group and selected scope, including those with no Bloom match. A CLO can count at several levels, so percentages may total above 100%.</p>
-        <p id="progression-trend-description" class="small text-muted d-none">Each line shows a Bloom level across course groups. Gaps indicate groups with no CLOs. Other/unknown courses appear as separate points because their course stage is unknown.</p>
+        <p id="progression-placeholder" class="small text-muted d-none">Progression visualization coming soon.</p>
         <p id="progression-chart-unavailable" class="alert alert-info d-none">The chart could not be loaded. You can still review the exact values below.</p>
         <div id="progression-chart" aria-labelledby="progression-chart-heading" aria-describedby="progression-chart-description"></div>
     </section>
@@ -236,22 +236,20 @@
             $('#progression-chart-section').toggleClass('d-none', !available);
             if (!available) return;
 
-            $('#progression-chart-unavailable').toggleClass('d-none', Boolean(window.Highcharts));
-            $('#progression-chart').toggleClass('d-none', !window.Highcharts);
-            $('#progression-units, #progression-view').prop('disabled', !window.Highcharts);
-            if (!window.Highcharts) return;
+            const placeholder = $('#progression-view').val() === 'progression';
+            $('#progression-placeholder').toggleClass('d-none', !placeholder);
+            $('#progression-chart-description').toggleClass('d-none', placeholder);
+            $('#progression-chart-unavailable').toggleClass('d-none', placeholder || Boolean(window.Highcharts));
+            $('#progression-chart').toggleClass('d-none', placeholder || !window.Highcharts);
+            $('#progression-units').prop('disabled', placeholder || !window.Highcharts);
+            if (placeholder || !window.Highcharts) return;
 
             const counts = $('#progression-units').val() === 'counts';
-            const trend = $('#progression-view').val() === 'progression';
-            const groups = [...data.course_groups];
-            // Leave a break before unknown course numbers so they are not part of the trend.
-            const otherIndex = groups.findIndex(group => group.course_level === 'other');
-            if (trend && otherIndex > 0) groups.splice(otherIndex, 0, null);
-            $('#progression-trend-description').toggleClass('d-none', !trend);
+            const groups = data.course_groups;
             const label = group => !group ? '' : group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`;
             progressionChart = Highcharts.chart('progression-chart', {
                 chart: {
-                    type: trend ? 'line' : 'column',
+                    type: 'column',
                     animation: false,
                     scrollablePlotArea: { minWidth: Math.max(360, groups.length * Math.max(100, data.bloom_levels.length * 24)) },
                 },
@@ -268,7 +266,6 @@
                 },
                 plotOptions: {
                     series: { animation: false },
-                    line: { connectNulls: false, marker: { enabled: true } },
                 },
                 exporting: { enabled: false },
                 credits: { enabled: false },
