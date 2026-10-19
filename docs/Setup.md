@@ -238,6 +238,8 @@ The instructions below assume these defaults.
 composer test
 ```
 
+*To run the program report browser tests, please check [laravel/tests/Browser/ProgramReports/README.md](../laravel/tests/Browser/ProgramReports/README.md) for setup and running instructions.*
+
 
 
 ## Python Setup
