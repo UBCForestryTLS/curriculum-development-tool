@@ -26,9 +26,12 @@ test('uses all scoped CLOs rather than averaging course-group percentages', () =
 
     assert.equal(result.clo_count, 4);
     assert.deepEqual(result.levels, [
-        { level_id: 10, name: 'Remember', clo_count: 2, percentage: 50 },
-        { level_id: 30, name: 'Analyze', clo_count: 0, percentage: 0 },
-        { level_id: 20, name: 'Create', clo_count: 0, percentage: 0 },
+        { level_id: 10, name: 'Remember', clo_count: 2, percentage: 50, courses: [
+            { course_id: 1, course_code: '', course_num: '101', course_title: '' },
+            { course_id: 2, course_code: '', course_num: '201', course_title: '' },
+        ] },
+        { level_id: 30, name: 'Analyze', clo_count: 0, percentage: 0, courses: [] },
+        { level_id: 20, name: 'Create', clo_count: 0, percentage: 0, courses: [] },
     ]);
 });
 
@@ -64,6 +67,7 @@ test('uses the selected PLO courses rather than the whole-program totals', () =>
     assert.equal(result.clo_count, 1);
     assert.deepEqual(result.levels.map(level => level.clo_count), [0, 1, 0]);
     assert.deepEqual(result.levels.map(level => level.percentage), [0, 100, 0]);
+    assert.deepEqual(result.levels.map(level => level.courses.map(course => course.course_id)), [[], [2], []]);
 
     // Switching back should give the original result without changing the response data.
     assert.equal(summarizeCognitiveLevels(program).levels[1].percentage, 25);
@@ -97,8 +101,31 @@ test('keeps an unavailable reference distinct from zero matches', () => {
     assert.equal(result.clo_count, 1);
     assert.deepEqual(result.levels.map(level => level.clo_count), [null, null, null]);
     assert.deepEqual(result.levels.map(level => level.percentage), [null, null, null]);
+    assert.deepEqual(result.levels.map(level => level.courses), [[], [], []]);
     assert.deepEqual(summarizeCognitiveLevels({ ...response, bloom_levels: [] }), {
         clo_count: 1,
         levels: [],
     });
+});
+
+test('lists each contributing course once per level with its display details', () => {
+    const course = {
+        course_id: 1, course_code: 'TEST', course_num: '101', course_title: 'Foundations',
+        clos: [clo(1, [10, 10, 30]), clo(2, [10])],
+    };
+    const otherCourse = {
+        course_id: 2, course_code: 'TEST', course_num: '201', course_title: 'Advanced topics',
+        clos: [clo(3, [30])],
+    };
+    const result = summarizeCognitiveLevels(data([
+        course, course, otherCourse,
+        { course_id: 3, clos: [clo(4)] },
+    ]));
+    const { clos: firstClos, ...firstDetails } = course;
+    const { clos: otherClos, ...otherDetails } = otherCourse;
+
+    // Repeated CLO matches and course records should not repeat names in the tooltip.
+    assert.deepEqual(result.levels.map(level => level.courses), [
+        [firstDetails], [firstDetails, otherDetails], [],
+    ]);
 });
