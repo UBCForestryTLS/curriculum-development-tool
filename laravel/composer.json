@@ -82,7 +82,12 @@
         "test": [
             "php scripts/check-test-db.php",
             "php artisan migrate:fresh --seed --env=testing",
-            "php artisan test --exclude-group=ai-suggestions-e2e --exclude-group=text-extraction-e2e"
+            "php artisan test --exclude-group=ai-suggestions-e2e --exclude-group=text-extraction-e2e --exclude-group=program-reports-browser"
+        ],
+        "test:program-reports-browser": [
+            "Composer\\Config::disableProcessTimeout",
+            "php scripts/check-test-db.php",
+            "php artisan test --group=program-reports-browser"
         ],
         "test:ai-suggestions-e2e": [
             "Composer\\Config::disableProcessTimeout",
