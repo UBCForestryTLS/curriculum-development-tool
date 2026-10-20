@@ -23,7 +23,7 @@ export function evaluateCoverage(data, expectations = null) {
     const plos = data.coverage.map(plo => {
         let hasGap = false;
         let hasRedundancy = false;
-        let evaluated = false;
+        let hasEvaluatedComparison = false;
         const comparisons = plo.mapping_scale_histogram
             .filter(level => Number(level.map_scale_id) !== 0)
             .flatMap(level => Object.entries(metricDenominators).map(([metric, denominatorKey]) => {
@@ -47,12 +47,21 @@ export function evaluateCoverage(data, expectations = null) {
                     status = 'within_expectations';
                 }
 
-                if (['gap', 'redundancy', 'within_expectations'].includes(status)) evaluated = true;
+                if (['gap', 'redundancy', 'within_expectations'].includes(status)) hasEvaluatedComparison = true;
 
-                return { metric, map_scale_id: level.map_scale_id, count, denominator, percentage, min, max, status };
+                return {
+                    metric,
+                    map_scale_id: level.map_scale_id,
+                    count,
+                    denominator,
+                    percentage,
+                    min,
+                    max,
+                    status,
+                };
             }));
 
-        if (evaluated) evaluatedPloCount++;
+        if (hasEvaluatedComparison) evaluatedPloCount++;
         if (hasGap || hasRedundancy) concernPloCount++;
         if (hasGap) gapPloCount++;
         if (hasRedundancy) redundancyPloCount++;

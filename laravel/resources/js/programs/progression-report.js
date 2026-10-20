@@ -5,17 +5,17 @@
  */
 export function summarizeCognitiveLevels(data) {
     const cloIds = new Set();
-    const matches = new Map(data.bloom_levels.map(level => [level.id, new Set()]));
-    const courses = new Map(data.bloom_levels.map(level => [level.id, new Map()]));
+    const cloIdsByLevel = new Map(data.bloom_levels.map(level => [level.id, new Set()]));
+    const coursesByLevel = new Map(data.bloom_levels.map(level => [level.id, new Map()]));
 
     data.courses.forEach(course => {
         course.clos.forEach(clo => {
             cloIds.add(clo.l_outcome_id);
             (clo.bloom_levels ?? []).forEach(level => {
                 // Count a CLO once at each level, even if it has several matching verbs.
-                matches.get(level.level_id)?.add(clo.l_outcome_id);
+                cloIdsByLevel.get(level.level_id)?.add(clo.l_outcome_id);
                 // List each contributing course once, even when several of its CLOs match.
-                courses.get(level.level_id)?.set(course.course_id, {
+                coursesByLevel.get(level.level_id)?.set(course.course_id, {
                     course_id: course.course_id,
                     course_code: course.course_code ?? '',
                     course_num: course.course_num ?? '',
@@ -28,7 +28,7 @@ export function summarizeCognitiveLevels(data) {
     return {
         clo_count: cloIds.size,
         levels: data.bloom_levels.map(level => {
-            const count = data.bloom_reference_available ? matches.get(level.id).size : null;
+            const count = data.bloom_reference_available ? cloIdsByLevel.get(level.id).size : null;
             return {
                 level_id: level.id,
                 name: level.name,
@@ -36,7 +36,7 @@ export function summarizeCognitiveLevels(data) {
                 // Include unmatched CLOs in the total. Do not average course-group percentages.
                 percentage: data.bloom_reference_available && cloIds.size > 0
                     ? Math.round(count / cloIds.size * 10000) / 100 : null,
-                courses: data.bloom_reference_available ? [...courses.get(level.id).values()] : [],
+                courses: data.bloom_reference_available ? [...coursesByLevel.get(level.id).values()] : [],
             };
         }),
     };

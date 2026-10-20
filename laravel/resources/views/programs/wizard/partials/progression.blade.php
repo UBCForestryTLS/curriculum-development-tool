@@ -245,7 +245,11 @@
             ['Course group', 'Courses', 'Total CLOs', ...data.bloom_levels.map(level => level.name), 'No Bloom match']
                 .forEach(title => $('<th>', { scope: 'col' }).text(title).appendTo(header));
 
-            const formatValue = (count, percentage) => count === null ? 'N/A' : `${count} (${percentage === null ? 'N/A' : percentage + '%'})`;
+            const formatValue = (count, percentage) => {
+                if (count === null) return 'N/A';
+                const formattedPercentage = percentage === null ? 'N/A' : `${percentage}%`;
+                return `${count} (${formattedPercentage})`;
+            };
             data.course_groups.forEach(group => {
                 const row = $('<tr>').toggleClass('table-warning', group.clo_count === 0).appendTo(body);
                 $('<th>', { scope: 'row' }).text(group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`).appendTo(row);
@@ -286,20 +290,72 @@
             const groups = data.course_groups;
             // The new view combines the scoped CLOs across all course groups.
             const distribution = byCognitiveLevel ? summarizeCognitiveLevels(data) : null;
-            const label = group => !group ? '' : group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`;
+            const formatCourseGroupLabel = group => {
+                if (!group) return '';
+                if (group.course_level === 'other') return 'Other/unknown';
+                return `${group.course_level}-level`;
+            };
+
+            // Prepare each view's data and tooltip before setting up the shared chart.
+            let chartSeries;
+            let tooltipFormatter;
+            if (byCognitiveLevel) {
+                chartSeries = [{
+                    name: 'CLOs',
+                    data: distribution.levels.map(level => ({
+                        y: counts ? level.clo_count : level.percentage,
+                        custom: { level },
+                    })),
+                }];
+                tooltipFormatter = function () {
+                    const point = this.point || this;
+                    const level = point.options.custom.level;
+                    const displayedValue = counts ? `${level.clo_count} CLOs` : `${level.percentage}%`;
+                    const courseLabels = level.courses.map(course => escapeChartText(courseLabel(course))).join('<br>');
+                    return `<b>${escapeChartText(level.name)}: ${displayedValue}</b><br>`
+                        + `${level.clo_count} of ${distribution.clo_count} CLOs in the selected scope<br>`
+                        + (courseLabels ? `<b>Contributing courses</b><br>${courseLabels}` : 'No matching courses');
+                };
+            } else {
+                chartSeries = data.bloom_levels.map(level => ({
+                    name: escapeChartText(level.name),
+                    data: groups.map(group => {
+                        if (!group) return null;
+                        const result = group.blooms_levels.find(item => item.level_id === level.id);
+                        let chartValue = null;
+                        if (result.percentage !== null) {
+                            chartValue = counts ? result.clo_count : result.percentage;
+                        }
+                        return {
+                            y: chartValue,
+                            custom: { group, level: result },
+                        };
+                    }),
+                }));
+                tooltipFormatter = function () {
+                    const point = this.point || this;
+                    const { group, level } = point.options.custom;
+                    return `<b>${formatCourseGroupLabel(group)}</b><br>${escapeChartText(level.name)}<br>`
+                        + `${level.clo_count} of ${group.clo_count} CLOs (${level.percentage}%)<br>`
+                        + `${group.unmatched_clo_count} CLOs with no Bloom match in this group`;
+                };
+            }
+
             progressionChart = Highcharts.chart('progression-chart', {
                 chart: {
                     type: 'column',
                     animation: false,
-                    scrollablePlotArea: { minWidth: byCognitiveLevel
-                        ? Math.max(360, data.bloom_levels.length * 100)
-                        : Math.max(360, groups.length * Math.max(100, data.bloom_levels.length * 24)) },
+                    scrollablePlotArea: {
+                        minWidth: byCognitiveLevel
+                            ? Math.max(360, data.bloom_levels.length * 100)
+                            : Math.max(360, groups.length * Math.max(100, data.bloom_levels.length * 24)),
+                    },
                 },
                 title: { text: null },
                 xAxis: {
                     categories: byCognitiveLevel
                         ? distribution.levels.map(level => escapeChartText(level.name))
-                        : groups.map(group => label(group) + (group?.clo_count === 0 ? ' (no CLOs)' : '')),
+                        : groups.map(group => formatCourseGroupLabel(group) + (group?.clo_count === 0 ? ' (no CLOs)' : '')),
                     title: { text: byCognitiveLevel ? 'Cognitive level' : 'Course group' },
                 },
                 yAxis: {
@@ -315,46 +371,12 @@
                 credits: { enabled: false },
                 accessibility: { enabled: false },
                 legend: { enabled: !byCognitiveLevel },
-                tooltip: byCognitiveLevel ? {
+                tooltip: {
                     outside: true,
                     animation: false,
-                    formatter: function () {
-                        const point = this.point || this;
-                        const level = point.options.custom.level;
-                        const value = counts ? `${level.clo_count} CLOs` : `${level.percentage}%`;
-                        const courses = level.courses.map(course => escapeChartText(courseLabel(course))).join('<br>');
-                        return `<b>${escapeChartText(level.name)}: ${value}</b><br>`
-                            + `${level.clo_count} of ${distribution.clo_count} CLOs in the selected scope<br>`
-                            + (courses ? `<b>Contributing courses</b><br>${courses}` : 'No matching courses');
-                    },
-                } : {
-                    outside: true,
-                    animation: false,
-                    formatter: function () {
-                        const point = this.point || this;
-                        const { group, level } = point.options.custom;
-                        return `<b>${label(group)}</b><br>${escapeChartText(level.name)}<br>`
-                            + `${level.clo_count} of ${group.clo_count} CLOs (${level.percentage}%)<br>`
-                            + `${group.unmatched_clo_count} CLOs with no Bloom match in this group`;
-                    },
+                    formatter: tooltipFormatter,
                 },
-                series: byCognitiveLevel ? [{
-                    name: 'CLOs',
-                    data: distribution.levels.map(level => ({
-                        y: counts ? level.clo_count : level.percentage,
-                        custom: { level },
-                    })),
-                }] : data.bloom_levels.map(level => ({
-                    name: escapeChartText(level.name),
-                    data: groups.map(group => {
-                        if (!group) return null;
-                        const result = group.blooms_levels.find(item => item.level_id === level.id);
-                        return {
-                            y: result.percentage === null ? null : counts ? result.clo_count : result.percentage,
-                            custom: { group, level: result },
-                        };
-                    }),
-                })),
+                series: chartSeries,
             });
         }
 

@@ -658,23 +658,31 @@
 
             const counts = reportUnitsSelect.value === 'counts';
             const metricLabel = reportMetricSelect.selectedOptions[0].textContent;
+            let axisTitle = 'Coverage (%)';
+            if (counts) {
+                axisTitle = reportMetricSelect.value === 'mapped_clo_count' ? 'Number of CLOs' : 'Number of courses';
+            }
             coverageChart = Highcharts.chart(container, {
                 chart: {
                     type: 'column',
                     animation: false,
-                    scrollablePlotArea: { minWidth: Math.max(360, plos.length * Math.max(100, mappingScaleLevels.length * 24)) },
+                    scrollablePlotArea: {
+                        minWidth: Math.max(360, plos.length * Math.max(100, mappingScaleLevels.length * 24)),
+                    },
                 },
                 title: { text: metricLabel + (counts ? ' — counts' : ' — percentages') },
                 xAxis: {
                     title: { text: 'Program Learning Outcomes' },
                     categories: plos.map(plo => escapeChartText(plo.label)),
-                    labels: { style: { textOverflow: 'ellipsis', width: '110px' } },
+                    labels: {
+                        style: { textOverflow: 'ellipsis', width: '110px' },
+                    },
                 },
                 yAxis: {
                     min: 0,
                     max: counts ? undefined : 100,
                     allowDecimals: !counts,
-                    title: { text: counts ? (reportMetricSelect.value === 'mapped_clo_count' ? 'Number of CLOs' : 'Number of courses') : 'Coverage (%)' },
+                    title: { text: axisTitle },
                 },
                 legend: {
                     itemStyle: { cursor: 'default' },
@@ -723,8 +731,12 @@
                         color: scale.colour,
                         data: plos.map(plo => {
                             const comparison = plo.comparisons[index];
+                            let chartValue = null;
+                            if (comparison.percentage !== null) {
+                                chartValue = counts ? comparison.count : comparison.percentage;
+                            }
                             return {
-                                y: comparison.percentage === null ? null : counts ? comparison.count : comparison.percentage,
+                                y: chartValue,
                                 custom: { comparison, label: plo.label, scaleLabel },
                             };
                         }),
@@ -811,19 +823,19 @@
         // Show the coverage value and its result, highlighting gaps and redundancies.
         function createComparisonCell(comparison) {
             const cell = document.createElement('td');
-            const value = document.createElement('strong');
+            const valueElement = document.createElement('strong');
             const basis = document.createElement('small');
             basis.classList.add('d-block');
             const unit = comparison.metric === 'mapped_clo_count' ? 'CLOs in program courses' : 'program courses';
             if (comparison.percentage === null) {
-                value.textContent = 'Not applicable';
+                valueElement.textContent = 'Not applicable';
                 basis.textContent = `No ${unit}.`;
-                cell.append(value, basis);
+                cell.append(valueElement, basis);
                 return cell;
             }
 
             const counts = reportUnitsSelect.value === 'counts';
-            value.textContent = counts ? String(comparison.count) : formatCoveragePercentage(comparison);
+            valueElement.textContent = counts ? String(comparison.count) : formatCoveragePercentage(comparison);
             basis.textContent = `${comparison.count} of ${comparison.denominator} ${unit}`
                 + (counts ? ` (${formatCoveragePercentage(comparison)})` : '');
             const finding = document.createElement('span');
@@ -834,7 +846,7 @@
                 cell.classList.add('table-info');
             }
             finding.textContent = getComparisonResultMessage(comparison);
-            cell.append(value, basis, finding);
+            cell.append(valueElement, basis, finding);
             return cell;
         }
 

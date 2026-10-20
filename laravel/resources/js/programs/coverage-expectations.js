@@ -11,14 +11,20 @@ const metricKeys = [
  * {
  *     concerns: { gaps: true, redundancies: true },
  *     metrics: {
- *         covering_course_count: { enabled: true, levels: { '1': { min: '25', max: '50' } } }
+ *         covering_course_count: {
+ *             enabled: true,
+ *             levels: { '1': { min: '25', max: '50' } }
+ *         }
  *     }
  * }
  */
 export function normalizeExpectations(draft, configuredLevels = []) {
     if (draft.concerns.gaps !== true && draft.concerns.redundancies !== true) {
         return {
-            settings: { concerns: { gaps: false, redundancies: false }, metrics: {} },
+            settings: {
+                concerns: { gaps: false, redundancies: false },
+                metrics: {},
+            },
             errors: {},
         };
     }
@@ -48,22 +54,22 @@ export function normalizeExpectations(draft, configuredLevels = []) {
         for (const id of levelIds) {
             const bounds = { min: null, max: null };
             if (concerns.gaps) {
-                const value = String(metric.levels?.[id]?.min ?? '').trim();
-                if (value !== '') {
-                    if (!/^\d+$/.test(value) || Number(value) > 100) {
+                const minimumInput = String(metric.levels?.[id]?.min ?? '').trim();
+                if (minimumInput !== '') {
+                    if (!/^\d+$/.test(minimumInput) || Number(minimumInput) > 100) {
                         errors[`${key}.levels.${id}.min`] = 'Enter a whole percentage from 0 to 100, or leave blank.';
                     } else {
-                        bounds.min = Number(value);
+                        bounds.min = Number(minimumInput);
                     }
                 }
             }
             if (concerns.redundancies) {
-                const value = String(metric.levels?.[id]?.max ?? '').trim();
-                if (value !== '') {
-                    if (!/^\d+$/.test(value) || Number(value) > 100) {
+                const maximumInput = String(metric.levels?.[id]?.max ?? '').trim();
+                if (maximumInput !== '') {
+                    if (!/^\d+$/.test(maximumInput) || Number(maximumInput) > 100) {
                         errors[`${key}.levels.${id}.max`] = 'Enter a whole percentage from 0 to 100, or leave blank.';
                     } else {
-                        bounds.max = Number(value);
+                        bounds.max = Number(maximumInput);
                     }
                 }
             }
