@@ -75,6 +75,114 @@ it('follows the comparison report flow from program totals to scoped CLO details
         ->assertNoJavaScriptErrors();
 });
 
+it('follows the cognitive-level report flow through units, tooltips, scope and comparison', function () {
+    $page = visit('/programWizard/'.$this->report['program']->program_id.'/step4');
+    $chart = "Highcharts.charts.find(chart => chart?.renderTo.id === 'progression-chart')";
+    $analyzeBar = '#progression-chart .highcharts-series-0 .highcharts-point:nth-child(2)';
+
+    // There are four CLOs, including one with no Bloom match. Two match Analyze,
+    // so the chart and table should both show 50%, with each contributing course once.
+    $page->click('#nav-progression-tab')
+        ->assertVisible('#progression-chart .highcharts-root')
+        ->select('#progression-view', 'cognitive-levels')
+        ->assertSeeIn('#progression-chart-heading', 'CLO distribution by cognitive level')
+        ->assertScript($chart.'.xAxis[0].categories', ['Remember', 'Analyze', 'Create'])
+        ->assertScript($chart.'.series[0].points.map(point => point.y)', [50, 50, 25])
+        ->click('#progression-table-section summary')
+        ->assertSeeIn('#progression-table-section summary', 'Exact values by cognitive level')
+        ->assertSeeIn('#progression-table tbody tr:nth-child(2)', '50%')
+        ->assertSeeIn('#progression-table tbody tr:nth-child(2)', 'TEST 101: Foundations')
+        ->assertSeeIn('#progression-table tbody tr:nth-child(2)', 'TEST 201: Advanced topics')
+        ->assertScript("document.querySelectorAll('#progression-table tbody tr:first-child td:last-child div').length", 1)
+        ->hover($analyzeBar)
+        ->assertSeeIn('.highcharts-tooltip', 'Analyze: 50%')
+        ->assertSeeIn('.highcharts-tooltip', '2 of 4 CLOs in the selected scope')
+        ->assertSeeIn('.highcharts-tooltip', 'TEST 101: Foundations')
+        ->assertSeeIn('.highcharts-tooltip', 'TEST 201: Advanced topics')
+        ->assertDontSeeIn('.highcharts-tooltip', 'Future course');
+
+    // Counts change the bars and tooltip, while the exact-values table keeps both units.
+    $page->select('#progression-units', 'counts')
+        ->assertScript($chart.'.series[0].points.map(point => point.y)', [2, 2, 1])
+        ->hover($analyzeBar)
+        ->assertSeeIn('.highcharts-tooltip', 'Analyze: 2 CLOs')
+        ->assertSeeIn('#progression-table tbody tr:nth-child(2) td:first-of-type', '2')
+        ->assertSeeIn('#progression-table tbody tr:nth-child(2)', '50%');
+
+    // Beta only includes the Advanced topics CLO. The other course must disappear
+    // from both the table and tooltip, and levels with no matches should stay at zero.
+    $page->select('#progression-scope', (string) $this->report['beta']->pl_outcome_id)
+        ->assertSeeIn('#progression-clo-count', '1')
+        ->assertScript($chart.'.series[0].points.map(point => point.y)', [0, 1, 0])
+        ->assertSeeIn('#progression-table tbody tr:first-child', 'No matching courses')
+        ->assertSeeIn('#progression-table tbody tr:first-child', '0%')
+        ->assertDontSeeIn('#progression-table tbody', 'Foundations')
+        ->select('#progression-units', 'percentages')
+        ->assertScript($chart.'.series[0].points.map(point => point.y)', [0, 100, 0])
+        ->hover($analyzeBar)
+        ->assertSeeIn('.highcharts-tooltip', 'Analyze: 100%')
+        ->assertSeeIn('.highcharts-tooltip', '1 of 1 CLOs in the selected scope')
+        ->assertSeeIn('.highcharts-tooltip', 'TEST 201: Advanced topics')
+        ->assertDontSeeIn('.highcharts-tooltip', 'Foundations');
+
+    // Going back should restore the whole program, then the original Comparison view.
+    $page->select('#progression-scope', '')
+        ->assertSeeIn('#progression-clo-count', '4')
+        ->assertScript($chart.'.series[0].points.map(point => point.y)', [50, 50, 25])
+        ->assertSeeIn('#progression-table tbody tr:first-child', 'Foundations')
+        ->select('#progression-view', 'comparison')
+        ->assertSeeIn('#progression-chart-heading', 'Cognitive levels by course group')
+        ->assertSeeIn('#progression-table-section summary', 'Exact values by course group')
+        ->assertSeeIn('#progression-table tbody', '2 (66.67%)')
+        ->assertScript($chart.'.series[0].points.map(point => point.y)', [66.67, 0, null])
+        ->assertNoJavaScriptErrors();
+});
+
+it('shows cognitive-level exact values when the chart library is unavailable', function () {
+    $page = visit('/programWizard/'.$this->report['program']->program_id.'/step4');
+    $page->click('#nav-progression-tab')
+        ->assertVisible('#progression-chart .highcharts-root');
+
+    // Simulate the library being unavailable on the next render. The report data
+    // still comes from the real endpoint, and the table should open automatically.
+    $page->script('window.Highcharts = undefined');
+    $page->select('#progression-view', 'cognitive-levels')
+        ->assertVisible('#progression-chart-unavailable')
+        ->assertMissing('#progression-chart')
+        ->assertDisabled('#progression-units')
+        ->assertVisible('#progression-table tbody')
+        ->assertSeeIn('#progression-table tbody tr:nth-child(2)', '50%')
+        ->assertSeeIn('#progression-table tbody tr:nth-child(2)', 'TEST 201: Advanced topics')
+        ->select('#progression-scope', (string) $this->report['beta']->pl_outcome_id)
+        ->assertSeeIn('#progression-table tbody tr:nth-child(2)', '100%')
+        ->assertDontSeeIn('#progression-table tbody', 'Foundations')
+        ->assertNoJavaScriptErrors();
+});
+
+it('clears cognitive-level results if the Bloom reference becomes unavailable', function () {
+    $page = visit('/programWizard/'.$this->report['program']->program_id.'/step4');
+    $page->click('#nav-progression-tab')
+        ->assertVisible('#progression-chart .highcharts-root')
+        ->select('#progression-view', 'cognitive-levels')
+        ->click('#progression-table-section summary')
+        ->assertSeeIn('#progression-table tbody tr:first-child', 'Foundations');
+
+    // Keep the selected view while the reference changes. Refreshing the scope
+    // must clear the old results rather than presenting unavailable data as zero.
+    foreach ($this->report['levels'] as $level) {
+        $level->verbs()->delete();
+        $level->delete();
+    }
+    $page->select('#progression-scope', (string) $this->report['beta']->pl_outcome_id)
+        ->assertVisible('#progression-no-reference')
+        ->assertMissing('#progression-chart-section')
+        ->assertSeeIn('#progression-table tbody', 'The Bloom’s cognitive reference is unavailable.')
+        ->assertDontSeeIn('#progression-table tbody', 'Foundations')
+        ->assertDontSeeIn('#progression-table tbody', '0%')
+        ->assertVisible('#progression-groups')
+        ->assertNoJavaScriptErrors();
+});
+
 it('opens the CLOs suggested for review with a visible review badge', function () {
     $page = visit('/programWizard/'.$this->report['program']->program_id.'/step4');
 
@@ -94,7 +202,7 @@ it('opens the CLOs suggested for review with a visible review badge', function (
         ->assertNoJavaScriptErrors();
 });
 
-it('shows an empty PLO scope and restores the comparison report when returning to the program', function () {
+it('shows an empty PLO scope and restores the selected view when returning to the program', function (string $view) {
     // This PLO exists in the selector but has no mapped CLOs.
     $plo = $this->report['program']->programLearningOutcomes()->create([
         'plo_shortphrase' => 'Unmapped', 'pl_outcome' => 'An outcome without contributing CLOs.',
@@ -103,6 +211,7 @@ it('shows an empty PLO scope and restores the comparison report when returning t
 
     $page->click('#nav-progression-tab')
         ->assertVisible('#progression-chart .highcharts-root')
+        ->select('#progression-view', $view)
         ->select('#progression-scope', (string) $plo->pl_outcome_id)
         ->assertVisible('#progression-no-mappings')
         ->assertSeeIn('#progression-clo-count', '0')
@@ -114,9 +223,12 @@ it('shows an empty PLO scope and restores the comparison report when returning t
     $page->select('#progression-scope', '')
         ->assertMissing('#progression-no-mappings')
         ->assertVisible('#progression-chart .highcharts-root')
+        ->assertValue('#progression-view', $view)
         ->assertSeeIn('#progression-clo-count', '4')
+        ->assertScript("Highcharts.charts.find(chart => chart?.renderTo.id === 'progression-chart').series[0].points.map(point => point.y)",
+            $view === 'cognitive-levels' ? [50, 50, 25] : [66.67, 0, null])
         ->assertNoJavaScriptErrors();
-});
+})->with(['comparison', 'cognitive-levels']);
 
 it('keeps course and CLO details available when the Bloom reference is missing', function () {
     // Delete the verbs before their levels because the database prevents the reverse.
