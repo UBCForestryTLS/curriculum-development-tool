@@ -444,10 +444,17 @@
             const filter = $('#progression-details-filter').val();
             const filtered = filter === 'all' ? courses : courses.map(course => ({
                 ...course,
-                clos: course.clos.filter(clo => filter === 'unmatched'
-                    ? clo.bloom_levels.length === 0
-                    : filter === 'review' ? needsReview(clo)
-                    : clo.bloom_levels.some(level => String(level.level_id) === filter)),
+                clos: course.clos.filter(clo => {
+                    if (filter === 'unmatched') {
+                        return clo.bloom_levels.length === 0;
+                    }
+
+                    if (filter === 'review') {
+                        return needsReview(clo);
+                    }
+
+                    return clo.bloom_levels.some(level => String(level.level_id) === filter);
+                }),
             })).filter(course => course.clos.length > 0);
             const total = courses.reduce((sum, course) => sum + course.clos.length, 0);
             const shown = filtered.reduce((sum, course) => sum + course.clos.length, 0);
