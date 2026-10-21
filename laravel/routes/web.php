@@ -210,6 +210,7 @@ Route::get('/programWizard/{program}/step3', [ProgramWizardController::class, 's
 Route::get('/programWizard/{program}/step4', [ProgramWizardController::class, 'step4'])->name('programWizard.step4');
 
 // Program step3 add existing courses to a program
+Route::get('/programWizard/{program}/step3/available-courses', [ProgramWizardController::class, 'availableCourses'])->name('programWizard.availableCourses');
 Route::post('/programWizard/{program}/step3/addCoursesToProgram', [CourseProgramController::class, 'addCoursesToProgram'])->name('courseProgram.addCoursesToProgram');
 // Program step3 edit required status
 Route::post('/programWizard/{program}/step3/editCourseRequired', [CourseProgramController::class, 'editCourseRequired'])->name('courseProgram.editCourseRequired');
