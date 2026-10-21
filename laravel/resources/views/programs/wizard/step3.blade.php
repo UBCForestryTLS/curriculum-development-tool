@@ -548,7 +548,7 @@
 
                     <!-- Add existing course Modal -->
                     <div class="modal fade" id="addCourseModal" tabindex="-1" role="dialog" aria-labelledby="createCourseModalLabel" aria-hidden="true">
-                        <div class="modal-dialog modal-lg" role="document" style="width:1250px;">
+                        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down" role="document">
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="createCourseModalLabel">Add Existing Courses to {{$program->program}}</h5>

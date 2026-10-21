@@ -84,7 +84,7 @@ class CourseProgramController extends Controller
 
             $request->session()->flash('success', 'Successfully added ' . strval(count($courseIds)) . ' course(s) to this program.');
         } else {
-            $request->session()->flash('error', 'There was an error adding ' . strval(count($courseIds) - $numCoursesAddedSuccessfully));
+            $request->session()->flash('error', 'There was an error adding ' . strval(count($courseIds) - $numCoursesAddedSuccessfully) . ' course(s) to this program.');
         }
 
         return redirect()->route('programWizard.step3', $programId);
