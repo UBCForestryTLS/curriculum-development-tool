@@ -73,29 +73,29 @@ Example request:
 
 Successful responses include:
 
-- a message from the Lambda start step
-- the created batch job name
-- the request record identifier of DynamoDB
+- `message`: submission or reuse information
+- `jobName`: the started or existing job name (may be null while queued)
+- `startedForRecordId`: the record selected by the start-job Lambda, or the submitted request ID if none was returned
 
-### `POST /get-processed-results`
+If a request is already in flight for the same course/program pair, the service reuses it and returns `deduplicated: true`.
 
-This endpoint lets Laravel tool manually request the mapping result for a specific `course_id` and `program_id` for demand-based access to results.
+### `POST /in-flight-status`
 
-It:
+Accepts `{"pairs": [{"course_id": 101, "program_id": 202}]}` and returns a `statuses` list with `in_flight` for each pair. Existing requests also include their status, request ID, and creation time. Laravel uses this when rendering Course Wizard Step 5 and before submitting a new request.
 
-- looks up the latest matching DynamoDB record in `AWAITING_COMPLETION` or `AWAITING_COMPLETION_FAILED`
-- processes it if available
-- otherwise returns a `pending` response
+### `POST /poll-results-status`
 
-This acts as a catch-up mechanism when Laravel tool wants to access the results before they are automatically stored by the scheduled job.
+Accepts `{"course_id": 101, "program_id": 202}`. This read-only check returns `ready_to_process` with the record ID and status when an `AWAITING_COMPLETION` or `AWAITING_COMPLETION_FAILED` record exists, otherwise `pending`.
+
+### `POST /process-pending-results`
+
+Accepts the same course/program pair and starts result processing in the background. It returns `processing_triggered` with the record ID, or `pending` if no record is ready. Laravel calls this after a ready response from `/poll-results-status`; completion is confirmed once the results reach Laravel's database.
 
 ### `POST /process-batch-transform-results`
 
-**Note: This would no longer be required with scheduled job and demand-based access of mapping results**
-
 This endpoint accepts a payload containing `recordsAwaitingProcessing` and schedules background post-processing using FastAPI `BackgroundTasks`.
 
-It exists so the Lambda function does not need to block while full post-processing runs.
+It returns `{"message": "accepted"}` immediately. Laravel's current polling flow uses `/process-pending-results` instead.
 
 ## End-To-End Lifecycle
 
@@ -103,13 +103,13 @@ The normal job lifecycle is:
 
 1. A client requests for mapping results via AI suggests on the Laravel tool
 2. The tool creates a request with course id, program id, course outcomes, program outcomes, and mapping scales to `POST /map-program-outcomes`.
-3. `BatchTransformInputBuilder` creates batch transform input records and writes the generated input in S3.
-4. The service creates a DynamoDB request record with metadata such as `request_id`, `course_id`, `program_id`, `status`, `input_s3_path`, and `output_s3_path`.
-5. The service synchronously invokes the `start-batch-transform-job` Lambda.
+3. If a request is already in flight for this pair, the service reuses it. Otherwise, `BatchTransformInputBuilder` creates batch transform input records and writes the generated input in S3.
+4. For a new request, the service creates a DynamoDB record with metadata such as `request_id`, `course_id`, `program_id`, `status`, `input_s3_path`, and `output_s3_path`.
+5. For that new request, the service synchronously invokes the `start-batch-transform-job` Lambda.
 6. AWS processing eventually produces output in S3.
-7. Eventbridge is triggered when Sagemaker batch transform job status changes to `COMPLETE` or `FAILED`.
+7. The EventBridge-triggered Lambda handles SageMaker terminal statuses `Completed`, `Failed`, and `Stopped`.
 8. Result-processing lambda function changes the status of corresponding request in DynamoDB and triggers `start-batch-transform-job` Lambda for any requests in `PENDING` status in DynamoDB.
-9. A scheduled job or demand-based request from Laravel tool causes `process_records()` to run.
+9. A scheduled job, or Laravel checking `/poll-results-status` and calling `/process-pending-results`, causes `process_records()` to run.
 10. The service reads JSONL output from S3, parses mapping results, and converts them into structured result.
 11. The service posts those results to the Laravel URL.
 12. The DynamoDB request record is deleted after successful completion.
@@ -179,9 +179,12 @@ This service depends on several external systems:
 - `ACCESS_KEY`
 - `SECRET_KEY`
 - `DYNAMODB_STATUS_INDEX`
+- `BATCH_TRANSFORM_INPUT_S3_BUCKET`
+- `OUTPUT_S3_URI` (output prefix; must match the start-job Lambda's output location)
 - `LARAVEL_API_URL`
+- `POLL_INTERVAL_HOURS` (scheduled post-processing interval; default: 6)
 
-These settings control CORS, DynamoDB table access, AWS clients, and the Laravel tool target.
+These settings control CORS, DynamoDB/S3 access, AWS clients, scheduling, and the Laravel callback. The deployed Lambda functions have separate environment settings in their [handlers](../python/services/lo_mapping_service/app/lambda_handlers/).
 
 ## Startup And Background Behavior
 
@@ -211,4 +214,4 @@ The service includes tests for several layers of behavior:
   - [`python/services/lo_mapping_service/tests/test_lambda_handler_start_batch_tranform_job.py`](../python/services/lo_mapping_service/tests/test_lambda_handler_start_batch_tranform_job.py)
   - [`python/services/lo_mapping_service/tests/test_lambda_handler_process_batch_transform_inference_results.py`](../python/services/lo_mapping_service/tests/test_lambda_handler_process_batch_transform_inference_results.py)
 - **Result post-processing:** [`python/services/lo_mapping_service/tests/test_process_batch_transform_results.py`](../python/services/lo_mapping_service/tests/test_process_batch_transform_results.py)
-- **LocalStack end-to-end testing (TBD)**
+- **Browser tests with LocalStack:** [setup and running instructions](../laravel/tests/Browser/AiSuggestionsE2E/README.md). These simulate SageMaker output and seed pending requests rather than invoking live inference.
