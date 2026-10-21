@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Course;
 use App\Models\Program;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
@@ -26,6 +27,23 @@ class ProgramAvailableCoursesTest extends TestCase
 
         $this->actingAs($user)->getJson(route('programWizard.availableCourses', $program->program_id))
             ->assertOk()->assertExactJson(['courses' => [$available->fresh()->only([
+                'course_id', 'course_title', 'course_code', 'course_num', 'year', 'semester',
+            ])]]);
+    }
+
+    public function test_program_director_can_load_courses_with_only_role_based_program_access(): void
+    {
+        $user = User::factory()->create();
+        $program = Program::create(['program' => 'Role-based course list', 'level' => 'Undergraduate', 'status' => 0]);
+        $role = Role::where('role', 'program director')->firstOrFail();
+        $user->roles()->attach($role->id);
+        $user->programsWithElevatedRoleAccess()->attach($program->program_id, ['role_id' => $role->id]);
+        $course = Course::factory()->create();
+        $user->courses()->attach($course->course_id, ['permission' => 3]);
+
+        $this->assertFalse($user->programs()->where('programs.program_id', $program->program_id)->exists());
+        $this->actingAs($user)->getJson(route('programWizard.availableCourses', $program->program_id))
+            ->assertOk()->assertExactJson(['courses' => [$course->fresh()->only([
                 'course_id', 'course_title', 'course_code', 'course_num', 'year', 'semester',
             ])]]);
     }
