@@ -13,6 +13,8 @@
 
 <em>This repository was created from the [Curriculum MAP](https://github.com/bohuie/curriculum/tree/master) repository, which is owned and maintained by UBC Okanagan.</em>
 
+Requires **PHP 8.4.27 or a newer 8.4.x patch**. See the [setup instructions](docs/Setup.md).
+
 ## About Curriculum MAP
 
 Curriculum MAP is a web application developed to support curriculum mapping, analysis and planning. Curriculum MAP aims to support:
