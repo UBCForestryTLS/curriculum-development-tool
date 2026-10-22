@@ -2,12 +2,14 @@
 
 ## Requirements
 
-- PHP 8.4.1–8.4.x for the current Composer lockfile (the application declares `^8.2`, but locked dependencies narrow the supported range)
+- PHP 8.4.27 or a newer 8.4.x patch, including the security fixes (the current Composer lockfile does not support PHP 8.5)
 - Composer
 - Laravel 11
 - Node.js `^20.19.0 || >=22.12.0` and npm, as required by the locked Vite dependencies
 - PostgreSQL
 - Python (for running the microservices under `python/services/`)
+
+To update an existing Homebrew PHP 8.4 installation, run `brew update` and `brew upgrade php@8.4`. Check that `php -v` shows 8.4.27 or a newer 8.4.x patch, then restart any running PHP servers or workers. Deployed environments must be updated separately.
 
 ### Clone this repository
 
