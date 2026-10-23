@@ -257,8 +257,11 @@ python -m venv env
 
 ### Install Dependencies
 
+Inside the activated Python environment, update pip before installing packages. The checksum below is from the [Python security advisory](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576) and verifies the patched download. Use pip 26.2.2 or newer and certifi 2026.10.19 or newer in each environment; updating the system Python alone does not update existing environments.
+
 ``` 
-pip install -r requirements.txt
+python -m pip install "pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
+python -m pip install -r requirements.txt
 ```
 Also check the service's documentation under `docs/` for additional specific setup steps.
 

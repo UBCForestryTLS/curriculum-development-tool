@@ -13,6 +13,7 @@ Pillow==12.3.0
 regex==2026.4.4
 pytest==9.0.2
 httpx==0.28.1
+certifi==2026.10.19
 boto3==1.42.80
 botocore==1.42.80
 
