@@ -7,7 +7,11 @@ from app.handler import handler
 from app.main import app
 
 
-def test_health_returns_json_over_http():
+def test_health_returns_json_without_aws_configuration(monkeypatch, tmp_path):
+    monkeypatch.delenv("AWS_REGION", raising=False)
+    monkeypatch.delenv("LO_MAPPING_DYNAMODB_TABLE", raising=False)
+    monkeypatch.chdir(tmp_path)
+
     with TestClient(app) as client:
         response = client.get("/health")
 
