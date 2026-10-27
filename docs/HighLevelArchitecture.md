@@ -58,7 +58,7 @@ For service-specific notes, see [FastAPI Syllabi Service](./FastAPISyllabiServic
 Its responsibilities are to:
 
 - accept mapping requests through `POST /map-program-outcomes`
-- generate batch tranform input records from course outcomes, program outcomes, and mapping scales
+- generate batch transform input records from course outcomes, program outcomes, and mapping scales
 - persist request state in DynamoDB with processing status
 - store batch input/output references in S3
 - invoke Lambda functions to start and monitor batch inference jobs
@@ -68,8 +68,10 @@ Its responsibilities are to:
 It also provides:
 
 - `GET /health` for service health checks
-- `POST /get-processed-results` for demand-based access to mappinf results
-- `POST /process-batch-transform-results` to trigger result processing in the background (This would no longer be needed with scheduled and demand-based access of results)
+- `POST /in-flight-status` to check existing requests for course/program pairs
+- `POST /poll-results-status` to check whether results are ready to process
+- `POST /process-pending-results` to process ready results in the background
+- `POST /process-batch-transform-results` to process an explicitly supplied list of records in the background
 
 
 For service-specific notes, see [FastAPI LO Mapping Service](./FastAPILOMappingService.md)
@@ -91,12 +93,12 @@ In this flow, communication is synchronous HTTP from the Laravel queue job to Fa
 
 1. User submits a mapping request in the Laravel Tool
 2. A request is sent to Python `POST /map-program-outcomes` whose payload contains course id, program id, course outcomes, program outcomes, and mapping scales.
-3. The service creates batch tranform input records and uploads them to S3.
-4. It creates a DynamoDB request record with statuses such as `PENDING`, `IN_PROGRESS`, `AWAITING_COMPLETION`, or `AWAITING_COMPLETION_FAILED`.
-5. A Lambda function starts the batch tranform job for the oldest job in `PENDING` status stored in DynamoDB if no job is running, otherwise does nothing.
-6. When inference completes, eventbridge triggers the result-processing lambda function which updates the staus of corresponding job in DynamoDB and starts batch tranform job for the oldest record in DynamoDB in `PENDING` status
-7. A scheduled job or demand-based request from Laravel tool runs `process_records` in FastAPI
+3. The service reuses an existing in-flight request for the course/program pair, or creates batch transform input records and uploads them to S3.
+4. For a new request, it creates a DynamoDB record whose status progresses through values such as `PENDING`, `IN_PROGRESS`, `AWAITING_COMPLETION`, or `AWAITING_COMPLETION_FAILED`.
+5. A Lambda function starts the batch transform job for the oldest job in `PENDING` status stored in DynamoDB if no job is running, otherwise does nothing.
+6. When inference completes, fails, or stops, the EventBridge-triggered Lambda updates the corresponding job's status in DynamoDB and invokes the start-job Lambda if a pending request exists.
+7. A scheduled job runs `process_records` in FastAPI. Laravel can also check `/poll-results-status` and call `/process-pending-results` when results are ready.
 8. The output is read from S3 and converted into structured mapping results such as `clo_id`, `plo_id`, `is_mapped`, `map_labels`, and `explanation`.
 9. The mapping service sends those processed results to a Laravel endpoint defined by `LARAVEL_API_URL`.
 
-The core backend functionality for the LO Mapping Service in Python service and UI changes needed to support learning outcome mapping in Laravel are largely complete. The remaining work is the final end-to-end testing of backend functionality and integration with Laravel.
+The integration has [browser tests using LocalStack](../laravel/tests/Browser/AiSuggestionsE2E/README.md). These cover the UI and result-delivery workflow, with SageMaker inference simulated; they do not verify live AWS inference.

@@ -1,13 +1,13 @@
 ## AI Suggestions Feature End-to-End Tests
 
-These are end-to-end browser tests don't run automatically with `composer test`.
+These end-to-end browser tests do not run automatically with `composer test`.
 
-Like the other tests, make sure the database is initialized and the server is running on your device before running the tests. Instructions are in `docs/Setup.md`, under *Database Setup*.
+Set up the dedicated test database and `.env.testing` as described in [Project Setup](../../../../docs/Setup.md#running-tests). The test command recreates and seeds this database. The test runner starts its Laravel server automatically; keep port 8010 available for callbacks.
 
 Then complete the following set up specific to these tests:
 
-### Browser Playwrights
-Install the browser playwrights with `npx playwright install` from the `laravel/` directory. This will install mock browsers onto your system, using around 0.5GB of storage. You can remove these after running the tests with `npx playwright uninstall`, and reinstall them later if necessary.
+### Playwright Browsers
+Install the browser binaries with `npx playwright install` from the `laravel/` directory, then build the frontend assets with `npm run build`. These are real browsers used for automation. You can remove the binaries with `npx playwright uninstall` and reinstall them later if necessary.
 
 <small>
 Optional: If you'd like these to install onto a specific drive, follow <a href="https://playwright.dev/docs/browsers#managing-browser-binaries">these configuration steps</a>. However, as of writing this, only the default set up has been tested.
@@ -23,7 +23,18 @@ Like for the other tests, make sure to have `.env.testing` set up. You can just 
 
 ### Running the Test server (and LocalStack)
 
-`cd` into the `python/services/lo_mapping_services` and activate the virtual environment (steps are in *Activate virtual environment* section in `docs/Setup.md`).
+From the repository root, `cd` into `python/services/lo_mapping_service`, activate the virtual environment, and install `requirements.txt` as described in [Project Setup](../../../../docs/Setup.md#activate-virtual-environment).
+
+Create a `.env` in that service directory with local test settings:
+
+```dotenv
+AWS_REGION=ca-central-1
+LO_MAPPING_DYNAMODB_REQUESTS_TABLE=lo-mapping-e2e
+BATCH_TRANSFORM_INPUT_S3_BUCKET=lo-mapping-e2e
+OUTPUT_S3_URI=s3://lo-mapping-e2e/output
+```
+
+`app.test` supplies dummy AWS credentials, the LocalStack endpoint, and the Laravel callback URL on port 8010. It resets the configured table in LocalStack when it starts.
 
 Then run `python -m app.test`. 
 
@@ -31,7 +42,7 @@ If the LocalStack container isn't already up and running, this command automatic
 
 ### Running the tests 
 
-Run these specific tests with `composer test:ai-suggestions-e2e`.
+In another terminal, run `composer test:ai-suggestions-e2e` from `laravel/`.
 
 **Debugging**
 
@@ -40,7 +51,7 @@ To see the browser and debug-step, use `composer test:ai-suggestions-e2e:debug`.
 
 ### Troubleshooting
 - If the failure message says 'interrupted by ...', try closing unnecessary processes on your device.
-- If the failure message says it could not find a specific element, this could either be a genuine issue to debug, or it could be a viewport issue (see **Environment Variables** section aobve).
+- If the failure message says it could not find a specific element, this could either be a genuine issue to debug, or it could be a viewport issue (see **Environment Variables** section above).
 - Use `$page->screenshot()` before and after problematic points to see what the page showed.
 - Use `$page->debug()` to open a debug stepping browser window at that point. This also skips other tests, so you can get here fast - great for debugging one specific point!
 
@@ -58,4 +69,4 @@ To see the browser and debug-step, use `composer test:ai-suggestions-e2e:debug`.
 
 - If a button press fails often, try to `hover()` over the button first and then press.
 
-- In the test LO mapping service (`test.py`), the environment variables are set within the code. This seemed simpler than using an `.env.testing` there, as most of the values don't matter and aren't confidential.
+- The test service overrides AWS credentials, the endpoint, and the callback URL in `app.test`; the table, bucket, and region settings come from the service's `.env` above.

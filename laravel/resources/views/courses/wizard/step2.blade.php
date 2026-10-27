@@ -214,7 +214,7 @@
                                                         <label for="a_method_weight{{$a_method->a_method_id}}" style="font-size: medium; margin-top:5px;margin-left:5px"><strong>%</strong></label>
                                                     </td>
                                                     <td class="text-center">
-                                                        <i class="bi bi-x-circle-fill text-danger fs-4 btn" onclick="deleteAssessmentMethod(this)"></i>
+                                                        <button type="button" class="btn text-danger fs-4" onclick="deleteAssessmentMethod(this)" aria-label="Remove assessment method"><i class="bi bi-x-circle-fill" aria-hidden="true"></i></button>
                                                     </td>
 
                                                 </tr>
@@ -297,7 +297,7 @@
                             <label for="a_method_weight{{$a_method->a_method_id}}" style="font-size: medium; margin-top:5px;margin-left:5px"><strong>%</strong></label>
                         </td>
                         <td class="text-center">
-                            <i class="bi bi-x-circle-fill text-danger fs-4 btn" onclick="deleteAssessmentMethod(this)"></i>
+                            <button type="button" class="btn text-danger fs-4" onclick="deleteAssessmentMethod(this)" aria-label="Remove assessment method"><i class="bi bi-x-circle-fill" aria-hidden="true"></i></button>
                         </td>
                     </tr>
                 @endforeach
@@ -306,7 +306,6 @@
     });
 
     function deleteAssessmentMethod(submitter) {
-        console.log(submitter);
         $(submitter).parents('tr').remove();
     }
 
@@ -318,11 +317,11 @@
                     <input list="assessmentMethodOptions" type="text" class="form-control @error('a_method') is-invalid @enderror" name="new_a_methods[]" value="${$('#assessmentMethod').val()}" placeholder="Choose from the dropdown list or type your own" form="saveAssessmentMethodChanges" required >
                 </td>
                 <td>
-                    <input class="p-1" type="number" step="0.1" form="saveAssessmentMethodChanges" class="form-control @error('weight') is-invalid @enderror" value="${$('#weight').val()}" name="new_weights[]" min="0" max="100" required >
+                    <input class="p-1 form-control @error('weight') is-invalid @enderror" type="number" step="0.1" form="saveAssessmentMethodChanges" value="${$('#weight').val()}" name="new_weights[]" min="0" max="100" required >
                     <label style="font-size: medium; margin-top:5px;margin-left:5px"><strong>%</strong></label>
                 </td>
                 <td class="text-center">
-                    <i class="bi bi-x-circle-fill text-danger fs-4 btn" onclick="deleteAssessmentMethod(this)"></i>
+                    <button type="button" class="btn text-danger fs-4" onclick="deleteAssessmentMethod(this)" aria-label="Remove assessment method"><i class="bi bi-x-circle-fill" aria-hidden="true"></i></button>
                 </td>
             </tr>
         `);

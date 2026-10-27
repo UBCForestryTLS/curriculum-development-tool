@@ -624,6 +624,20 @@ and constraints.
 | updated_at  | timestamp with time zone |             |
 
 
+### `saved_search_filters` table
+
+| Column Name | Type                        | Constraints                          |
+|-------------|-----------------------------|--------------------------------------|
+| id          | bigint                      | PK                                   |
+| user_id     | bigint                      | FK on users, NOT NULL, CASCADE DELETE |
+| name        | character varying(100)      | NOT NULL                             |
+| filters     | jsonb                       | NOT NULL                             |
+| created_at  | timestamp without time zone | Nullable                             |
+| updated_at  | timestamp without time zone | Nullable                             |
+
+**Constraints**:
+* UNIQUE (user_id, name)
+
 ### `standard_categories` table
 
 | Column Name          | Type                     | Constraints |

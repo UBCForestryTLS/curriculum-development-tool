@@ -2,12 +2,14 @@
 
 ## Requirements
 
-- PHP `^8.2`
+- PHP 8.4.27 or a newer 8.4.x patch, including the security fixes (the current Composer lockfile does not support PHP 8.5)
 - Composer
 - Laravel 11
-- Node.js and npm
+- Node.js `^20.19.0 || >=22.12.0` and npm, as required by the locked Vite dependencies
 - PostgreSQL
 - Python (for running the microservices under `python/services/`)
+
+To update an existing Homebrew PHP 8.4 installation, run `brew update` and `brew upgrade php@8.4`. Check that `php -v` shows 8.4.27 or a newer 8.4.x patch, then restart any running PHP servers or workers. Deployed environments must be updated separately.
 
 ### Clone this repository
 
@@ -139,7 +141,7 @@ npm run build
 
 Compiles a static bundle into `public/build/`. Use this for deployments or when you want to run the app without the dev server.
 
-Both commands trigger a `prebuild`/`predev` hook that copies jQuery into `public/vendor/` (the same copy described in **Install Dependencies**). You do not need to run anything separately.
+Both commands trigger a `prebuild`/`predev` hook that copies jQuery into `public/vendor/`. `npm install` also performs this copy automatically.
 
 ### Run the Application
 
@@ -166,7 +168,7 @@ Access the application at [http://localhost:8000](http://localhost:8000). If you
 
 The project uses a separate `.env.testing` file and a dedicated test database so that running tests do not interfere with the development data.
 
-The committed `.env.testing.example` template is:
+The core settings in `.env.testing.example` are:
 
 ```
 APP_NAME=Laravel
@@ -207,13 +209,23 @@ The instructions below assume these defaults.
 
 **Running the test suite**:
 
-*Please note that this only runs the unit tests and feature tests. To run the End-to-end tests for the AI Suggestions service, please check `laravel\tests\Browser\AiSuggestionsE2E\README.md` for set up and running instructions.*
+This runs unit and feature tests and recreates the database configured in `.env.testing` with `migrate:fresh --seed`. Keep that database separate from development data. Both browser suites are excluded.
 
 ```
 composer test
 ```
 
+For AI Suggestions browser tests, see the [setup and running instructions](../laravel/tests/Browser/AiSuggestionsE2E/README.md).
 
+For text-extraction browser tests, complete the [service setup](./FastAPITextExtractionService.md), run the service on `http://127.0.0.1:8003`, and set the browser viewport values in `.env.testing`. From `laravel/`, run:
+
+```sh
+npx playwright install
+npm run build
+composer test:text-extraction-e2e
+```
+
+The browser test command also recreates the test database. The test runner starts its Laravel server automatically; keep port 8010 available. These tests use synchronous queue processing.
 
 ## Python Setup
 
@@ -245,8 +257,11 @@ python -m venv env
 
 ### Install Dependencies
 
+Inside the activated Python environment, update pip before installing packages. The checksum below is from the [Python security advisory](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576) and verifies the patched download. Use pip 26.2.2 or newer and certifi 2026.10.19 or newer in each environment; updating the system Python alone does not update existing environments.
+
 ``` 
-pip install -r requirements.txt
+python -m pip install "pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
+python -m pip install -r requirements.txt
 ```
 Also check the service's documentation under `docs/` for additional specific setup steps.
 
