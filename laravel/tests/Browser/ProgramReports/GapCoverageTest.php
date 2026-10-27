@@ -30,7 +30,7 @@ it('follows the gap report flow from setting expectations to reviewing and editi
         ->assertVisible('#gap-coverage-report')
         ->assertSeeIn('#gap-coverage-expectations-summary', 'Potential gaps')
         ->assertSeeIn('#gap-coverage-expectations-summary', 'Potential redundancies')
-        ->assertSeeIn('#gap-coverage-rows tr:nth-child(1)', '75%')
+        ->assertSeeIn('#gap-coverage-rows tr:nth-child(1) td:first-of-type strong', '75%')
         ->assertSeeIn('#gap-coverage-rows tr:nth-child(1)', 'Potential redundancy')
         ->assertSeeIn('#gap-coverage-rows tr:nth-child(2)', '25%')
         ->assertSeeIn('#gap-coverage-rows tr:nth-child(2)', 'Potential gap')
@@ -39,7 +39,7 @@ it('follows the gap report flow from setting expectations to reviewing and editi
 
     // Counts change how coverage is displayed. The concern flags still use percentages.
     $page->select('#gap-coverage-units', 'counts')
-        ->assertSeeIn('#gap-coverage-rows tr:nth-child(1) td:first-of-type', '3 of 4')
+        ->assertSeeIn('#gap-coverage-rows tr:nth-child(1) td:first-of-type strong', '3')
         ->assertSeeIn('#gap-coverage-rows tr:nth-child(1)', 'Potential redundancy')
         ->assertScript("Highcharts.charts.find(chart => chart?.renderTo.id === 'gap-coverage-chart').series[0].points.map(point => point.y)", [3, 1]);
 
