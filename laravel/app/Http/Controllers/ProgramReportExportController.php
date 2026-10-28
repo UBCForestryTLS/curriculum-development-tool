@@ -45,6 +45,8 @@ class ProgramReportExportController extends Controller
         $options['view'] = $options['view'] ?? 'comparison';
         $options['plo_id'] = isset($options['plo_id']) ? (int) $options['plo_id'] : null;
         $report = ProgramProgression::report($program, $options['plo_id']);
+        // Use the same scoped distribution for the PDF chart, tables and Excel sheet.
+        $report['cognitive_distribution'] = ProgramProgression::summarizeCognitiveLevels($report);
 
         $export = $this->prepare($program, 'progression', $options, $report);
         if ($options['format'] === 'xlsx') {

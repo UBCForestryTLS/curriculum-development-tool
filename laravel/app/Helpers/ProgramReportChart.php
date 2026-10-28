@@ -39,22 +39,29 @@ class ProgramReportChart
     public static function progression(array $report, array $options): array
     {
         $counts = $options['units'] === 'counts';
-        $trend = $options['view'] === 'progression';
-        $groups = $report['course_groups'];
-        // Match the page's break before Other/unknown in the progression view.
-        foreach ($groups as $index => $group) {
-            if ($trend && $index > 0 && $group['course_level'] === 'other') {
-                array_splice($groups, $index, 0, [null]);
-                break;
+        if ($options['view'] === 'cognitive-levels') {
+            $distribution = $report['cognitive_distribution'];
+            $series = [];
+            if ($report['bloom_reference_available'] && $distribution['clo_count'] > 0) {
+                $series[] = [
+                    'name' => 'CLOs',
+                    'data' => array_column($distribution['levels'], $counts ? 'clo_count' : 'percentage'),
+                ];
             }
+
+            $chart = self::config('column', 'CLO distribution by cognitive level',
+                array_map(fn ($level) => e($level['name']), $distribution['levels']),
+                $series, $counts, $counts ? 'Number of CLOs' : 'CLOs (%)');
+            $chart['legend'] = ['enabled' => false];
+
+            return $chart;
         }
+
+        $groups = $report['course_groups'];
         $series = [];
         if ($report['bloom_reference_available']) {
             foreach ($report['bloom_levels'] as $level) {
                 $series[] = ['name' => e($level['name']), 'data' => array_map(function ($group) use ($level, $counts) {
-                    if ($group === null) {
-                        return null;
-                    }
                     $row = collect($group['blooms_levels'])->firstWhere('level_id', $level['id']);
 
                     return $row['percentage'] === null ? null : ($counts ? $row['clo_count'] : $row['percentage']);
@@ -62,9 +69,8 @@ class ProgramReportChart
             }
         }
 
-        return self::config($trend ? 'line' : 'column', $trend ? 'Cognitive progression' : 'Cognitive level comparison',
-            array_map(fn ($group) => $group === null ? '' :
-                ($group['course_level'] === 'other' ? 'Other/unknown' : $group['course_level'].'-level')
+        return self::config('column', 'Cognitive levels by course group',
+            array_map(fn ($group) => ($group['course_level'] === 'other' ? 'Other/unknown' : $group['course_level'].'-level')
                 .($group['clo_count'] === 0 ? ' (no CLOs)' : ''), $groups),
             $series, $counts, $counts ? 'Number of CLOs' : 'CLOs (%)');
     }
@@ -76,7 +82,7 @@ class ProgramReportChart
             'title' => ['text' => $title],
             'xAxis' => ['categories' => $categories],
             'yAxis' => ['min' => 0, 'max' => $counts ? null : 100, 'allowDecimals' => ! $counts, 'title' => ['text' => $axis]],
-            'plotOptions' => ['series' => ['animation' => false], 'line' => ['connectNulls' => false, 'marker' => ['enabled' => true]]],
+            'plotOptions' => ['series' => ['animation' => false]],
             'credits' => ['enabled' => false], 'exporting' => ['enabled' => false],
             'series' => $series,
         ];

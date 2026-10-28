@@ -25,7 +25,7 @@ class ProgramReportExportRequest extends FormRequest
             'metric' => ['nullable', 'in:mapped_clo_count,covering_course_count,required_course_count,non_required_course_count'],
         ] : [
             'plo_id' => ['nullable', 'integer', 'min:1', 'max:'.PHP_INT_MAX],
-            'view' => ['nullable', 'in:comparison,progression'],
+            'view' => ['nullable', 'in:comparison,cognitive-levels'],
         ]);
     }
 }

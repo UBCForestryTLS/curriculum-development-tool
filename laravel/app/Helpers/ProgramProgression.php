@@ -92,6 +92,48 @@ class ProgramProgression
         return $response;
     }
 
+    /** Match progression-report.js using courses already filtered to the selected scope. */
+    public static function summarizeCognitiveLevels(array $report): array
+    {
+        $courses = collect($report['courses']);
+        $cloCount = $courses->flatMap(fn ($course) => $course['clos'])->unique('l_outcome_id')->count();
+        $referenceAvailable = $report['bloom_reference_available'];
+        $levels = array_map(function ($level) use ($courses, $cloCount, $referenceAvailable) {
+            $cloIds = [];
+            $contributingCourses = [];
+            if ($referenceAvailable) {
+                foreach ($courses as $course) {
+                    foreach ($course['clos'] as $clo) {
+                        if (! collect($clo['bloom_levels'])->contains('level_id', $level['id'])) {
+                            continue;
+                        }
+                        // Repeated matches should not repeat a CLO count or a course name.
+                        $cloIds[$clo['l_outcome_id']] = true;
+                        $contributingCourses[$course['course_id']] = [
+                            'course_id' => $course['course_id'],
+                            'course_code' => $course['course_code'] ?? '',
+                            'course_num' => $course['course_num'] ?? '',
+                            'course_title' => $course['course_title'] ?? '',
+                        ];
+                    }
+                }
+            }
+
+            $count = $referenceAvailable ? count($cloIds) : null;
+
+            return [
+                'level_id' => $level['id'],
+                'name' => $level['name'],
+                'clo_count' => $count,
+                // Include unmatched CLOs in the total, rather than averaging course-group percentages.
+                'percentage' => $referenceAvailable && $cloCount > 0 ? round($count / $cloCount * 100, 2) : null,
+                'courses' => array_values($contributingCourses),
+            ];
+        }, $report['bloom_levels']);
+
+        return ['clo_count' => $cloCount, 'levels' => $levels];
+    }
+
     /**
      * Group loaded courses by hundred-level, keeping unrecognized numbers last.
      * Numeric keys identify levels; "other" represents Other/unknown.

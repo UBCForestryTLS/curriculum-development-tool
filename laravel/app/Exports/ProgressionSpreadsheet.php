@@ -37,10 +37,10 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
             ['Bloom reference', $available ? 'Available' : 'Unavailable. Classification values are blank.'],
             ['Mapping warning', $report['has_incomplete_mappings']
                 ? 'Program mappings are incomplete. PLO scope may be incomplete.' : 'None'],
-            ['Percentages', 'Each level uses all CLOs in its course group, including unmatched CLOs. Overlapping matches can total above 100%.'],
+            ['Percentages', 'Course-group percentages use all CLOs in that group. Cognitive-level percentages use all CLOs in the selected scope. Both include unmatched CLOs; overlapping matches can total above 100%.'],
             ['Unmatched', 'No cognitive Bloom level matched the CLO text.'],
             ['Review suggested', 'CLOs matching three or more distinct cognitive levels. This is a suggestion to check the classification.'],
-            ['Blank percentages', 'No CLOs in the group, or the Bloom reference is unavailable.'],
+            ['Blank percentages', 'No CLOs in the group or scope, or the Bloom reference is unavailable.'],
         ], false);
         $summary->getColumnDimension('B')->setWidth(85);
 
@@ -75,6 +75,21 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
             }
         }
         $this->writeRows($book->createSheet()->setTitle('CLO classifications'), $details);
+
+        $cognitiveLevels = [['Cognitive level', 'CLO count', 'Percentage (%)', 'Contributing courses']];
+        foreach ($report['cognitive_distribution']['levels'] as $level) {
+            $courseLabels = array_map(
+                fn ($course) => trim($course['course_code'].' '.$course['course_num']).' — '.$course['course_title'],
+                $level['courses'],
+            );
+            $cognitiveLevels[] = [
+                $level['name'], $level['clo_count'], $level['percentage'],
+                $available ? (implode("\n", $courseLabels) ?: 'No matching courses') : 'Reference unavailable',
+            ];
+        }
+        $cognitiveSheet = $book->createSheet()->setTitle('Cognitive-level distribution');
+        $this->writeRows($cognitiveSheet, $cognitiveLevels);
+        $cognitiveSheet->getColumnDimension('D')->setWidth(60);
         $book->setActiveSheetIndex(0);
 
         return $book;

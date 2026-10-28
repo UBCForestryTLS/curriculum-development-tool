@@ -38,9 +38,35 @@
     Review suggested: {{ $reviewCount ?? 'N/A' }}</p>
 <p>Classification uses cognitive Bloom reference terms found in CLO text and retains all matching levels.
     Unmatched means no Bloom level matched the text, not that the CLO is unmapped to a PLO.</p>
-<p>Percentages use all CLOs in each course group, including unmatched CLOs. A CLO can match multiple levels,
-    so percentages can total above 100%. N/A means there are no CLOs in the group or the reference is unavailable.</p>
+<p>Course-group percentages use all CLOs in that group. Cognitive-level percentages use all CLOs in the selected scope.
+    Both include unmatched CLOs. A CLO can match multiple levels, so percentages can total above 100%.
+    N/A means there are no CLOs to calculate a percentage, or the reference is unavailable.</p>
 @include('programs.exports.chart')
+<h2>CLO distribution by cognitive level</h2>
+<p>Counts and percentages below use {{ $report['cognitive_distribution']['clo_count'] }} CLOs in the selected scope.</p>
+@if ($available)
+    <table>
+        <thead><tr><th>Cognitive level</th><th>CLO count</th><th>Percentage</th></tr></thead>
+        <tbody>
+        @foreach ($report['cognitive_distribution']['levels'] as $level)
+            <tr><td>{{ $level['name'] }}</td><td>{{ $level['clo_count'] }}</td><td>{{ $percent($level['percentage']) }}</td></tr>
+        @endforeach
+        </tbody>
+    </table>
+    <h3>Contributing courses</h3>
+    {{-- Keep course lists outside table rows so long lists can continue onto the next page. --}}
+    @foreach ($report['cognitive_distribution']['levels'] as $level)
+        <p><strong>{{ $level['name'] }}:</strong>
+        @forelse ($level['courses'] as $course)
+            {{ trim($course['course_code'].' '.$course['course_num']) }} — {{ $course['course_title'] }}@if (! $loop->last); @endif
+        @empty
+            No matching courses
+        @endforelse
+        </p>
+    @endforeach
+@else
+    <p>The distribution is unavailable without the cognitive Bloom reference.</p>
+@endif
 <h2>Course-group distributions</h2>
 @forelse ($report['course_groups'] as $group)
     <h3>{{ $group['course_level'] === 'other' ? 'Other/unknown' : $group['course_level'].'-level' }}</h3>
