@@ -17,7 +17,9 @@ class MappingScale extends Model
 
     public function programs()
     {
-        return $this->belongsToMany(Program::class, 'mapping_scale_programs', 'map_scale_id', 'program_id')->withTimestamps();
+        return $this->belongsToMany(Program::class, 'mapping_scale_programs', 'map_scale_id', 'program_id')
+            ->withPivot('position')
+            ->withTimestamps();
     }
 
     /*public function newPivot(Model $parent, array $attributes, $table, $exists, $using=NULL) {

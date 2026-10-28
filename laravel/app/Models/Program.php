@@ -30,12 +30,18 @@ class Program extends Model
 
     public function mappingScaleLevels()
     {
-        return $this->belongsToMany(MappingScale::class, 'mapping_scale_programs', 'program_id', 'map_scale_id')->withTimestamps();
+        return $this->belongsToMany(MappingScale::class, 'mapping_scale_programs', 'program_id', 'map_scale_id')
+            ->withPivot('position')
+            ->withTimestamps()
+            ->orderByPivot('position')
+            ->orderBy('mapping_scales.map_scale_id');
     }
 
     public function mappingScalePrograms()
     {
-        return $this->hasMany(MappingScaleProgram::class, 'program_id', 'program_id');
+        return $this->hasMany(MappingScaleProgram::class, 'program_id', 'program_id')
+            ->orderBy('position')
+            ->orderBy('map_scale_id');
     }
 
     /* public function newPivot(Model $parent, array $attributes, $table, $exists, $using = NULL) {

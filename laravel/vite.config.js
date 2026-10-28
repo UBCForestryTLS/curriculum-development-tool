@@ -3,11 +3,20 @@ import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
+    build: {
+        rollupOptions: {
+            // The reports' inline modules import the helpers' exports.
+            preserveEntrySignatures: 'exports-only',
+        },
+    },
     plugins: [
         laravel({
             input: [
                 'resources/sass/app.scss',
-                'resources/js/bootstrap.js'
+                'resources/js/bootstrap.js',
+                'resources/js/programs/coverage-expectations.js',
+                'resources/js/programs/coverage-report.js',
+                'resources/js/programs/progression-report.js'
             ],
             refresh: true,
         }),
