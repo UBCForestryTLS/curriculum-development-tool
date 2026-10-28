@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\LearningOutcome;
 use App\Models\MappingScale;
 use App\Models\Program;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
@@ -31,6 +32,16 @@ class ProgramProgressionTest extends TestCase
         $this->actingAs($user);
     }
 
+    private function signInWithRoleAccess(Program $program, string $roleName): void
+    {
+        $user = User::factory()->create();
+        $role = Role::where('role', $roleName)->firstOrFail();
+        $user->roles()->attach($role->id);
+        // Give access through the role only, without adding a direct collaborator entry.
+        $user->programsWithElevatedRoleAccess()->attach($program->program_id, ['role_id' => $role->id]);
+        $this->actingAs($user);
+    }
+
     public function test_viewer_can_get_an_empty_program(): void
     {
         $program = $this->createProgram();
@@ -40,6 +51,7 @@ class ProgramProgressionTest extends TestCase
             ->assertOk()
             ->assertExactJson([
                 'program_id' => $program->program_id,
+                'scope' => 'program',
                 'selected_plo' => null,
                 'plos' => [],
                 'has_incomplete_mappings' => false,
@@ -47,9 +59,44 @@ class ProgramProgressionTest extends TestCase
                 'bloom_levels' => [],
                 'course_groups' => [],
                 'program_totals' => ['course_count' => 0, 'clo_count' => 0],
-                'scope_totals' => ['course_count' => 0, 'clo_count' => 0],
                 'courses' => [],
             ]);
+    }
+
+    public function test_administrator_with_role_access_can_get_progression_data(): void
+    {
+        $program = $this->createProgram();
+        $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Analyze program progression.']);
+        $this->signInWithRoleAccess($program, 'administrator');
+
+        $this->getJson(route('programWizard.progression', $program->program_id))
+            ->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('plos.0.pl_outcome_id', $plo->pl_outcome_id);
+    }
+
+    public function test_program_director_with_role_access_can_get_progression_data(): void
+    {
+        $program = $this->createProgram();
+        $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Analyze program progression.']);
+        $this->signInWithRoleAccess($program, 'program director');
+
+        $this->getJson(route('programWizard.progression', $program->program_id))
+            ->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('plos.0.pl_outcome_id', $plo->pl_outcome_id);
+    }
+
+    public function test_department_head_with_role_access_can_get_progression_data(): void
+    {
+        $program = $this->createProgram();
+        $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Analyze program progression.']);
+        $this->signInWithRoleAccess($program, 'department head');
+
+        $this->getJson(route('programWizard.progression', $program->program_id))
+            ->assertOk()
+            ->assertJsonPath('program_id', $program->program_id)
+            ->assertJsonPath('plos.0.pl_outcome_id', $plo->pl_outcome_id);
     }
 
     public function test_it_returns_current_program_courses_and_all_their_clos(): void
@@ -104,6 +151,8 @@ class ProgramProgressionTest extends TestCase
         $this->getJson(route('programWizard.progression', $program->program_id))
             ->assertOk()
             ->assertJsonPath('program_totals', ['course_count' => 3, 'clo_count' => 3])
+            ->assertJsonPath('scope', 'program')
+            ->assertJsonMissingPath('scope_totals')
             ->assertJsonPath('bloom_levels', [])
             ->assertJsonCount(3, 'course_groups')
             ->assertJsonPath('course_groups.0.course_level', 100)
@@ -158,12 +207,12 @@ class ProgramProgressionTest extends TestCase
             ->assertJsonPath('course_groups.0.clo_count', 2)
             ->assertJsonPath('course_groups.0.matched_clo_count', 1)
             ->assertJsonPath('course_groups.0.unmatched_clo_count', 1)
-            ->assertJsonPath('course_groups.0.levels.0.level_id', $earlier->id)
-            ->assertJsonPath('course_groups.0.levels.0.clo_count', 1)
-            ->assertJsonPath('course_groups.0.levels.0.percentage', 50)
-            ->assertJsonPath('course_groups.0.levels.1.level_id', $later->id)
-            ->assertJsonPath('course_groups.0.levels.1.clo_count', 0)
-            ->assertJsonPath('course_groups.0.levels.1.percentage', 0)
+            ->assertJsonPath('course_groups.0.blooms_levels.0.level_id', $earlier->id)
+            ->assertJsonPath('course_groups.0.blooms_levels.0.clo_count', 1)
+            ->assertJsonPath('course_groups.0.blooms_levels.0.percentage', 50)
+            ->assertJsonPath('course_groups.0.blooms_levels.1.level_id', $later->id)
+            ->assertJsonPath('course_groups.0.blooms_levels.1.clo_count', 0)
+            ->assertJsonPath('course_groups.0.blooms_levels.1.percentage', 0)
             ->assertJsonPath('courses.0.clos.0.bloom_levels.0.level_id', $earlier->id)
             ->assertJsonPath('courses.0.clos.1.bloom_levels', []);
     }
@@ -173,26 +222,39 @@ class ProgramProgressionTest extends TestCase
         $program = $this->createProgram();
         $this->signInAsViewer($program);
         $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Selected outcome']);
+        $otherPlo = $program->programLearningOutcomes()->create(['pl_outcome' => 'Other outcome']);
         $course = Course::factory()->create(['course_num' => '201']);
         $program->courses()->attach($course->course_id);
         $mapped = $course->learningOutcomes()->create(['l_outcome' => 'Mapped outcome']);
         $course->learningOutcomes()->create(['l_outcome' => 'Unmapped outcome']);
+
+        // This course only contributes to the other PLO and should be excluded.
+        $otherCourse = Course::factory()->create(['course_num' => '301']);
+        $program->courses()->attach($otherCourse->course_id);
+        $otherClo = $otherCourse->learningOutcomes()->create(['l_outcome' => 'Outcome for the other PLO']);
         foreach (['First', 'Second'] as $index => $name) {
             $scale = MappingScale::create([
                 'title' => $name, 'abbreviation' => $name, 'description' => $name, 'colour' => '#ffffff',
             ]);
             $program->mappingScaleLevels()->attach($scale->map_scale_id, ['position' => $index + 1]);
             $mapped->programLearningOutcomes()->attach($plo->pl_outcome_id, ['map_scale_id' => $scale->map_scale_id]);
+            $otherClo->programLearningOutcomes()->attach($otherPlo->pl_outcome_id, ['map_scale_id' => $scale->map_scale_id]);
         }
 
         $this->getJson(route('programWizard.progression', [$program->program_id, 'plo_id' => $plo->pl_outcome_id]))
             ->assertOk()
-            ->assertJsonPath('program_totals', ['course_count' => 1, 'clo_count' => 2])
+            ->assertJsonPath('program_totals', ['course_count' => 2, 'clo_count' => 3])
             ->assertJsonPath('scope_totals', ['course_count' => 1, 'clo_count' => 1])
-            ->assertJsonPath('plos.0.pl_outcome_id', $plo->pl_outcome_id)
+            ->assertJsonPath('scope', 'plo')
+            ->assertJsonPath('selected_plo.pl_outcome_id', $plo->pl_outcome_id)
+            ->assertJsonCount(2, 'plos')
             ->assertJsonPath('has_incomplete_mappings', true)
+            ->assertJsonCount(1, 'courses')
+            ->assertJsonPath('courses.0.course_id', $course->course_id)
             ->assertJsonCount(1, 'courses.0.clos')
             ->assertJsonPath('courses.0.clos.0.l_outcome_id', $mapped->l_outcome_id)
+            ->assertJsonCount(1, 'course_groups')
+            ->assertJsonPath('course_groups.0.course_level', 200)
             ->assertJsonPath('course_groups.0.clo_count', 1);
     }
 
@@ -206,6 +268,16 @@ class ProgramProgressionTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('plo_id');
         $this->getJson(route('programWizard.progression', [$program->program_id, 'plo_id' => $otherPlo->pl_outcome_id]))
             ->assertNotFound();
+    }
+
+    public function test_role_access_to_another_program_does_not_grant_progression_access(): void
+    {
+        $accessibleProgram = $this->createProgram();
+        $restrictedProgram = $this->createProgram();
+        $this->signInWithRoleAccess($accessibleProgram, 'program director');
+
+        $this->getJson(route('programWizard.progression', $restrictedProgram->program_id))
+            ->assertRedirect(route('home'));
     }
 
     public function test_user_without_program_access_cannot_get_progression_data(): void

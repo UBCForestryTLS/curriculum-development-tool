@@ -3,11 +3,11 @@ import test from 'node:test';
 import { normalizeExpectations } from '../../resources/js/programs/coverage-expectations.js';
 
 const configuredLevels = [{ map_scale_id: 90 }, { map_scale_id: 3 }, { map_scale_id: 0 }];
-const both = { gaps: true, redundancies: true };
+const bothConcerns = { gaps: true, redundancies: true };
 
 test('normalizes independent ranges across all metrics without changing drafts', () => {
     const keys = ['mapped_clo_count', 'covering_course_count', 'required_course_count', 'non_required_course_count'];
-    const draft = { concerns: both, metrics: Object.fromEntries(keys.map(key => [key, {
+    const draft = { concerns: bothConcerns, metrics: Object.fromEntries(keys.map(key => [key, {
         enabled: true, levels: { 90: { min: ' 65 ', max: '90' }, 3: { min: '70', max: '100' } },
     }])) };
     const before = structuredClone(draft);
@@ -15,7 +15,7 @@ test('normalizes independent ranges across all metrics without changing drafts',
         levels: { 90: { min: 65, max: 90 }, 3: { min: 70, max: 100 } },
     }]));
     assert.deepEqual(normalizeExpectations(draft, configuredLevels), {
-        settings: { concerns: both, metrics: expected }, errors: {},
+        settings: { concerns: bothConcerns, metrics: expected }, errors: {},
     });
     assert.deepEqual(draft, before);
 });
@@ -29,39 +29,66 @@ test('accepts blank, one-sided, zero and equal bounds', () => {
         ['50', '50', { min: 50, max: 50 }],
         ['100', '100', { min: 100, max: 100 }],
     ]) {
-        const result = normalizeExpectations({ concerns: both, metrics: {
+        const result = normalizeExpectations({ concerns: bothConcerns, metrics: {
             covering_course_count: { enabled: true, levels: { 90: { min, max } } },
         } }, configuredLevels);
-        assert.deepEqual(result, { errors: {}, settings: { concerns: both,
+        assert.deepEqual(result, { errors: {}, settings: { concerns: bothConcerns,
             metrics: expected ? { covering_course_count: { levels: { 90: expected } } } : {},
         } });
     }
 });
 
 test('validates only selected concerns and metrics, preserving inactive drafts', () => {
-    for (const concerns of [both, { gaps: true, redundancies: false }, { gaps: false, redundancies: true }, { gaps: false, redundancies: false }]) {
-        const draft = { concerns, metrics: {
-            covering_course_count: { enabled: true, levels: {
-                90: { min: concerns.gaps ? '40' : 'invalid', max: concerns.redundancies ? '60' : '-1' },
-            } },
-            required_course_count: { enabled: false, levels: { 999: { min: 'invalid' } } },
-        } };
+    const testCases = [
+        bothConcerns,
+        { gaps: true, redundancies: false },
+        { gaps: false, redundancies: true },
+        { gaps: false, redundancies: false },
+    ];
+
+    for (const concerns of testCases) {
+        const draft = {
+            concerns,
+            metrics: {
+                covering_course_count: {
+                    enabled: true,
+                    levels: {
+                        90: {
+                            min: concerns.gaps ? '40' : 'invalid',
+                            max: concerns.redundancies ? '60' : '-1',
+                        },
+                    },
+                },
+                required_course_count: {
+                    enabled: false,
+                    levels: { 999: { min: 'invalid' } },
+                },
+            },
+        };
         const before = structuredClone(draft);
+        const expectedMetrics = concerns.gaps || concerns.redundancies ? {
+            covering_course_count: {
+                levels: {
+                    90: {
+                        min: concerns.gaps ? 40 : null,
+                        max: concerns.redundancies ? 60 : null,
+                    },
+                },
+            },
+        } : {};
+
         assert.deepEqual(normalizeExpectations(draft, configuredLevels), {
-            errors: {}, settings: { concerns, metrics: concerns.gaps || concerns.redundancies ? {
-                covering_course_count: { levels: { 90: {
-                    min: concerns.gaps ? 40 : null, max: concerns.redundancies ? 60 : null,
-                } } },
-            } : {} },
+            errors: {},
+            settings: { concerns, metrics: expectedMetrics },
         });
         assert.deepEqual(draft, before);
     }
 });
 
-test('rejects invalid active percentages and inverted ranges without partial application', () => {
+test('rejects invalid active percentages without partial application', () => {
     for (const value of ['-1', '101', '1.5', '1e2', 'abc', 'Infinity', 'NaN', '50%']) {
         for (const bound of ['min', 'max']) {
-            const result = normalizeExpectations({ concerns: both, metrics: {
+            const result = normalizeExpectations({ concerns: bothConcerns, metrics: {
                 mapped_clo_count: { enabled: true, levels: { 90: { [bound]: value } } },
                 covering_course_count: { enabled: true, levels: { 3: { min: '20', max: '80' } } },
             } }, configuredLevels);
@@ -69,21 +96,30 @@ test('rejects invalid active percentages and inverted ranges without partial app
             assert.deepEqual(Object.keys(result.errors), ['mapped_clo_count.levels.90.' + bound]);
         }
     }
-    const result = normalizeExpectations({ concerns: both, metrics: {
-        mapped_clo_count: { enabled: true, levels: { 90: { min: '70', max: '60' } } },
-    } }, configuredLevels);
+});
+
+test('rejects ranges where the minimum exceeds the maximum', () => {
+    const result = normalizeExpectations({
+        concerns: bothConcerns,
+        metrics: {
+            mapped_clo_count: {
+                enabled: true,
+                levels: { 90: { min: '70', max: '60' } },
+            },
+        },
+    }, configuredLevels);
     assert.equal(result.settings, null);
     assert.deepEqual(Object.keys(result.errors), ['mapped_clo_count.levels.90.max']);
 });
 
 test('accepts custom levels and statistics only, but rejects N/A or unavailable targets', () => {
-    assert.deepEqual(normalizeExpectations({ concerns: both, metrics: {
+    assert.deepEqual(normalizeExpectations({ concerns: bothConcerns, metrics: {
         mapped_clo_count: { enabled: true, levels: { 41: { min: '50', max: '80' } } },
     } }, [{ map_scale_id: 41 }]), {
-        errors: {}, settings: { concerns: both, metrics: { mapped_clo_count: { levels: { 41: { min: 50, max: 80 } } } } },
+        errors: {}, settings: { concerns: bothConcerns, metrics: { mapped_clo_count: { levels: { 41: { min: 50, max: 80 } } } } },
     });
-    assert.deepEqual(normalizeExpectations({ concerns: both, metrics: {} }, []), {
-        errors: {}, settings: { concerns: both, metrics: {} },
+    assert.deepEqual(normalizeExpectations({ concerns: bothConcerns, metrics: {} }, []), {
+        errors: {}, settings: { concerns: bothConcerns, metrics: {} },
     });
     for (const [levels, available] of [
         [{ 0: { min: '50' } }, configuredLevels],
@@ -91,7 +127,7 @@ test('accepts custom levels and statistics only, but rejects N/A or unavailable 
         [{}, []],
         [{}, [{ map_scale_id: 0 }]],
     ]) {
-        const result = normalizeExpectations({ concerns: both, metrics: {
+        const result = normalizeExpectations({ concerns: bothConcerns, metrics: {
             non_required_course_count: { enabled: true, levels },
         } }, available);
         assert.equal(result.settings, null);
@@ -115,7 +151,7 @@ test('inactive numeric bounds do not create inverted-range errors', () => {
 });
 
 test('reports all active field errors and omits corrected or disabled checks', () => {
-    const draft = { concerns: both, metrics: {
+    const draft = { concerns: bothConcerns, metrics: {
         mapped_clo_count: { enabled: true, levels: { 90: { min: '-1', max: '101' } } },
         covering_course_count: { enabled: true, levels: { 3: { min: '90', max: '80' } } },
     } };
@@ -126,6 +162,6 @@ test('reports all active field errors and omits corrected or disabled checks', (
     assert.deepEqual(Object.keys(normalizeExpectations(draft, configuredLevels).errors), ['covering_course_count.levels.3.max']);
     draft.metrics.covering_course_count.levels[3].min = ' 80 ';
     assert.deepEqual(normalizeExpectations(draft, configuredLevels), {
-        errors: {}, settings: { concerns: both, metrics: { covering_course_count: { levels: { 3: { min: 80, max: 80 } } } } },
+        errors: {}, settings: { concerns: bothConcerns, metrics: { covering_course_count: { levels: { 3: { min: 80, max: 80 } } } } },
     });
 });

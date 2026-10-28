@@ -66,31 +66,37 @@ class ProgramProgression
             ]),
         ]);
 
-        return [
+        $response = [
             'program_id' => (int) $program->program_id,
+            'scope' => $selectedPlo !== null ? 'plo' : 'program',
             'selected_plo' => $selectedPlo?->only(['pl_outcome_id', 'plo_shortphrase', 'pl_outcome']),
             'plos' => $plos,
             'has_incomplete_mappings' => $selectedPlo !== null
                 && ProgramGapCoverage::mappingCompleteness($program)['has_incomplete_mappings'],
             'bloom_reference_available' => $classification['reference_available'],
             'bloom_levels' => $classification['levels'],
-            'course_groups' => self::distributions(
+            'course_groups' => self::distributionsByCourseLevel(
                 $courses, $classification['levels'], $classification['reference_available'],
             ),
             'program_totals' => $programTotals,
-            'scope_totals' => [
-                'course_count' => $courses->count(),
-                'clo_count' => $courses->sum(fn ($course) => $course['clos']->count()),
-            ],
             'courses' => $courses,
         ];
+
+        if ($selectedPlo !== null) {
+            $response['scope_totals'] = [
+                'course_count' => $courses->count(),
+                'clo_count' => $courses->sum(fn ($course) => $course['clos']->count()),
+            ];
+        }
+
+        return $response;
     }
 
     /**
      * Group loaded courses by hundred-level, keeping unrecognized numbers last.
      * Numeric keys identify levels; "other" represents Other/unknown.
      */
-    public static function groupCourses(Collection $courses): Collection
+    public static function groupCoursesByHundredLevel(Collection $courses): Collection
     {
         return $courses->groupBy(function ($course) {
             $number = trim((string) ($course['course_num'] ?? ''));
@@ -108,11 +114,11 @@ class ProgramProgression
      * Summarize course arrays containing CLO IDs and their bloom_levels matches.
      * $levels is the full reference list (id, name, position), including unmatched levels.
      */
-    public static function distributions(Collection $courses, array $levels, bool $referenceAvailable): array
+    public static function distributionsByCourseLevel(Collection $courses, array $levels, bool $referenceAvailable): array
     {
         $levels = collect($levels)->sortBy('position')->values();
 
-        return self::groupCourses($courses)->map(function ($group, $courseLevel) use ($levels, $referenceAvailable) {
+        return self::groupCoursesByHundredLevel($courses)->map(function ($group, $courseLevel) use ($levels, $referenceAvailable) {
             $group = $group->unique('course_id');
             $clos = $group->flatMap(fn ($course) => $course['clos'])->unique('l_outcome_id');
             $total = $clos->count();
@@ -126,7 +132,7 @@ class ProgramProgression
                 'clo_count' => $total,
                 'matched_clo_count' => $matched,
                 'unmatched_clo_count' => $referenceAvailable ? $total - $matched : null,
-                'levels' => $levels->map(function ($level) use ($clos, $total, $referenceAvailable) {
+                'blooms_levels' => $levels->map(function ($level) use ($clos, $total, $referenceAvailable) {
                     // A CLO counts once per level, even when it contains several matching terms.
                     $count = $referenceAvailable
                         ? $clos->filter(fn ($clo) => collect($clo['bloom_levels'])->contains('level_id', $level['id']))->count()

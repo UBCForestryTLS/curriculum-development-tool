@@ -548,60 +548,36 @@
 
                     <!-- Add existing course Modal -->
                     <div class="modal fade" id="addCourseModal" tabindex="-1" role="dialog" aria-labelledby="createCourseModalLabel" aria-hidden="true">
-                        <div class="modal-dialog modal-lg" role="document" style="width:1250px;">
+                        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down" role="document">
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="createCourseModalLabel">Add Existing Courses to {{$program->program}}</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
-                                @if (count($userCoursesNotInProgram) < 1)
-                                    <div class="alert alert-warning wizard">
-                                        <i class="bi bi-exclamation-circle-fill pe-2 fs-5"></i>There are no courses to assign.
-                                    </div>
-                                @else
-                                    <div class="modal-body">
-                                        <p>Select the courses you want to add to this program.</p>
-                                        <form method="POST" id="addExistCourse" action="{{route('courseProgram.addCoursesToProgram', $program->program_id)}}">
-                                            @csrf
-                                            <input type="hidden" name="program_id" value="{{$program->program_id}}">
-                                            <table class="table table-light table-bordered">
+                                <div class="modal-body">
+                                    <p id="availableCoursesStatus" role="status">Loading courses…</p>
+                                    <button id="retryAvailableCourses" type="button" class="btn btn-outline-primary mb-3" hidden>Retry</button>
+                                    <form method="POST" id="addExistCourse" action="{{route('courseProgram.addCoursesToProgram', $program->program_id)}}">
+                                        @csrf
+                                        <input type="hidden" name="program_id" value="{{$program->program_id}}">
+                                        <table id="availableCoursesTable" class="table table-light table-bordered" hidden>
+                                            <thead>
                                                 <tr class="table-primary">
-                                                    <td></td>
+                                                    <th>Select</th>
                                                     <th>Course Title</th>
                                                     <th>Course Code</th>
                                                     <th>Term</th>
-                                                    <th>Required </i></th>
+                                                    <th>Required</th>
                                                 </tr>
-                                                @foreach($userCoursesNotInProgram as $index => $course)
-                                                <tr>
-                                                    <td>
-                                                        <input class="form-check-input ms-0" type="checkbox" name="selectedCourses[]" value={{$course->course_id}} id="flexCheck{{$course->course_id}}">
-                                                    </td>
-                                                    <td>
-                                                        {{$course->course_title}}
-                                                    </td>
-                                                    <td>
-                                                        {{$course->course_code}} {{$course->course_num}}
-                                                    </td>
-                                                    <td>
-                                                        {{$course->year}} {{$course->semester}}
-                                                    </td>
-                                                    <td>
-                                                        <div class="form-check form-switch">
-                                                            <input class="form-check-input ms-0" name="require{{$course->course_id}}" type="checkbox" id="flexSwitchCheck{{$course->course_id}}">
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                                @endforeach
-                                            </table>
-                                        </form>
-                                    </div>
-
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary col-2 btn-sm" data-bs-dismiss="modal">Close</button>
-                                        <button type="submit" class="btn btn-primary col-2 btn-sm" form="addExistCourse">Add Selected</button>
-                                    </div>
-                                @endif
+                                            </thead>
+                                            <tbody id="availableCoursesRows"></tbody>
+                                        </table>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary col-2 btn-sm" data-bs-dismiss="modal">Close</button>
+                                    <button id="addSelectedCourses" type="submit" class="btn btn-primary col-2 btn-sm" form="addExistCourse" disabled>Add Selected</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -622,6 +598,65 @@
 
 <script type="application/javascript">
     $(document).ready(function () {
+
+        let coursesLoaded = false;
+        let coursesLoading = false;
+        function loadAvailableCourses() {
+            if (coursesLoaded || coursesLoading) return;
+            coursesLoading = true;
+            $('#retryAvailableCourses').prop('hidden', true);
+            $('#addSelectedCourses').prop('disabled', true);
+            $('#availableCoursesStatus').text('Loading courses…');
+
+            $.ajax({
+                url: @json(route('programWizard.availableCourses', $program->program_id)),
+                dataType: 'json',
+                timeout: 30000
+            })
+                .done(function (data) {
+                    const rows = document.createDocumentFragment();
+                    data.courses.forEach(function (course) {
+                        const row = $('<tr>');
+                        const label = `${course.course_code} ${course.course_num} — ${course.course_title}`;
+                        $('<td>').append($('<input>', {
+                            type: 'checkbox', name: 'selectedCourses[]', value: course.course_id,
+                            class: 'form-check-input ms-0', 'aria-label': `Select ${label}`
+                        })).appendTo(row);
+                        $('<td>').text(course.course_title).appendTo(row);
+                        $('<td>').text(`${course.course_code} ${course.course_num}`).appendTo(row);
+                        $('<td>').text(`${course.year ?? ''} ${course.semester ?? ''}`).appendTo(row);
+                        $('<td>').append($('<div>', {class: 'form-check form-switch'}).append($('<input>', {
+                            type: 'checkbox', name: `require${course.course_id}`,
+                            class: 'form-check-input ms-0', 'aria-label': `Required: ${label}`
+                        }))).appendTo(row);
+                        rows.appendChild(row[0]);
+                    });
+                    $('#availableCoursesRows').empty().append(rows);
+                    $('#availableCoursesTable').prop('hidden', data.courses.length === 0);
+                    $('#addSelectedCourses').prop('disabled', data.courses.length === 0);
+                    $('#availableCoursesStatus').text(data.courses.length
+                        ? 'Select the courses you want to add to this program.' : 'There are no courses to assign.');
+                    coursesLoaded = true;
+                })
+                .fail(function () {
+                    $('#availableCoursesStatus').text('Unable to load courses. Please try again.');
+                    $('#retryAvailableCourses').prop('hidden', false);
+                })
+                .always(function () {
+                    coursesLoading = false;
+                });
+        }
+        $('#addCourseModal').on('show.bs.modal', loadAvailableCourses);
+        $('#retryAvailableCourses').on('click', loadAvailableCourses);
+
+        $('#addExistCourse').on('submit', function (event) {
+            const button = $('#addSelectedCourses');
+            if (button.prop('disabled')) {
+                event.preventDefault();
+                return;
+            }
+            button.prop('disabled', true).text('Adding…');
+        });
 
         // Enables functionality of tool tips
         $('[data-bs-toggle="tooltip"]').tooltip({html:true});

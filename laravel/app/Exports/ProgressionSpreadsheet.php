@@ -10,6 +10,7 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
     public function build(array $export): Spreadsheet
     {
         $report = $export['report'];
+        $totals = $report['scope_totals'] ?? $report['program_totals'];
         $available = $report['bloom_reference_available'];
         $plo = $report['selected_plo'];
         $clos = collect($report['courses'])->flatMap(fn ($course) => $course['clos'])->unique('l_outcome_id');
@@ -28,8 +29,8 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
             ['PLO description', $plo['pl_outcome'] ?? null],
             ['Program courses', $report['program_totals']['course_count']],
             ['Program CLOs', $report['program_totals']['clo_count']],
-            ['Courses in scope', $report['scope_totals']['course_count']],
-            ['CLOs in scope', $report['scope_totals']['clo_count']],
+            ['Courses in scope', $totals['course_count']],
+            ['CLOs in scope', $totals['clo_count']],
             ['Matched CLOs', $matched],
             ['Unmatched CLOs', $available ? $clos->count() - $matched : null],
             ['CLOs suggested for review', $reviewCount],
@@ -46,7 +47,7 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
         $distributions = [['Course group', 'Courses', 'CLOs', 'Classification', 'CLO count', 'Percentage (%)']];
         foreach ($report['course_groups'] as $group) {
             $prefix = [$this->groupLabel($group['course_level']), $group['course_count'], $group['clo_count']];
-            foreach ($group['levels'] as $level) {
+            foreach ($group['blooms_levels'] as $level) {
                 $distributions[] = [...$prefix, $level['name'], $level['clo_count'], $level['percentage']];
             }
             $distributions[] = [...$prefix, 'Unmatched', $group['unmatched_clo_count'],
@@ -56,7 +57,7 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
 
         $details = [['Course group', 'Course ID', 'Course code', 'Course number', 'Course title', 'Required',
             'CLO ID', 'CLO', 'CLO description', 'Classification', 'Bloom level', 'Matched terms', 'Review suggested']];
-        foreach (ProgramProgression::groupCourses(collect($report['courses'])) as $group => $courses) {
+        foreach (ProgramProgression::groupCoursesByHundredLevel(collect($report['courses'])) as $group => $courses) {
             foreach ($courses as $course) {
                 foreach ($course['clos'] as $clo) {
                     $matches = $clo['bloom_levels'] ?? [];

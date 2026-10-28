@@ -81,6 +81,81 @@ class MappingScaleOrderTest extends TestCase
         ]);
     }
 
+    public function test_new_mapping_scale_is_appended_after_an_earlier_level_is_deleted(): void
+    {
+        $program = $this->createProgramWithThreeScales();
+        $scaleIds = $program->mappingScaleLevels()->pluck('mapping_scales.map_scale_id')->all();
+
+        $this->actingAs(User::factory()->create())
+            ->delete(route('mappingScale.destroy', $scaleIds[1]), [
+                'program_id' => $program->program_id,
+            ])->assertRedirect(route('programWizard.step2', $program->program_id));
+        $this->assertDatabaseMissing('mapping_scale_programs', [
+            'program_id' => $program->program_id,
+            'map_scale_id' => $scaleIds[1],
+        ]);
+
+        $this->post(route('program.mappingScale.store'), [
+            'title' => 'New Level',
+            'abbreviation' => 'N',
+            'description' => 'Added after deleting a level.',
+            'colour' => '#123456',
+            'program_id' => $program->program_id,
+        ])->assertRedirect(route('programWizard.step2', $program->program_id));
+
+        $levels = $program->mappingScaleLevels()->get();
+        $newScale = $levels->sole('title', 'New Level');
+        $this->assertSame([$scaleIds[0], $scaleIds[2], $newScale->map_scale_id], $levels->pluck('map_scale_id')->all());
+        $this->assertSame([1, 3, 4], $levels->pluck('pivot.position')->all());
+    }
+
+    public function test_new_mapping_scale_reuses_the_position_of_the_deleted_last_level(): void
+    {
+        $program = $this->createProgramWithThreeScales();
+        $scaleIds = $program->mappingScaleLevels()->pluck('mapping_scales.map_scale_id')->all();
+
+        $this->actingAs(User::factory()->create())
+            ->delete(route('mappingScale.destroy', $scaleIds[2]), [
+                'program_id' => $program->program_id,
+            ])->assertRedirect(route('programWizard.step2', $program->program_id));
+        $this->assertDatabaseMissing('mapping_scale_programs', [
+            'program_id' => $program->program_id,
+            'map_scale_id' => $scaleIds[2],
+        ]);
+
+        $this->post(route('program.mappingScale.store'), [
+            'title' => 'New Level',
+            'abbreviation' => 'N',
+            'description' => 'Added after deleting the last level.',
+            'colour' => '#123456',
+            'program_id' => $program->program_id,
+        ])->assertRedirect(route('programWizard.step2', $program->program_id));
+
+        $levels = $program->mappingScaleLevels()->get();
+        $newScale = $levels->sole('title', 'New Level');
+        $this->assertSame([$scaleIds[0], $scaleIds[1], $newScale->map_scale_id], $levels->pluck('map_scale_id')->all());
+        $this->assertSame([1, 2, 3], $levels->pluck('pivot.position')->all());
+    }
+
+    private function createProgramWithThreeScales(): Program
+    {
+        $program = Program::create([
+            'program' => 'Mapping Scale Deletion Program',
+            'level' => 'Bachelors',
+            'status' => 1,
+        ]);
+        foreach ([1, 2, 3] as $position) {
+            $scale = $this->createScale("Level {$position}", "L{$position}");
+            MappingScaleProgram::create([
+                'program_id' => $program->program_id,
+                'map_scale_id' => $scale->map_scale_id,
+                'position' => $position,
+            ]);
+        }
+
+        return $program;
+    }
+
     private function createScale(string $title, string $abbreviation): MappingScale
     {
         return MappingScale::create([

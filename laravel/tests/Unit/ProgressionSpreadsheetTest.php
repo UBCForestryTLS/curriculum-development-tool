@@ -21,8 +21,8 @@ class ProgressionSpreadsheetTest extends TestCase
             $export = ['program_name' => 'Test', 'generated_at' => '2026-10-06', 'report' => [
                 'bloom_levels' => $levels, 'program_id' => 1, 'selected_plo' => null, 'bloom_reference_available' => $available,
                 'has_incomplete_mappings' => false, 'program_totals' => ['course_count' => 1, 'clo_count' => 2],
-                'scope_totals' => ['course_count' => 1, 'clo_count' => 2], 'courses' => $courses,
-                'course_groups' => ProgramProgression::distributions($courses, $levels, $available),
+                'courses' => $courses,
+                'course_groups' => ProgramProgression::distributionsByCourseLevel($courses, $levels, $available),
             ]];
             $chart = \App\Helpers\ProgramReportChart::progression($export['report'], ['units' => 'percentages', 'view' => 'comparison']);
             $this->assertSame('column', $chart['chart']['type']);

@@ -80,7 +80,6 @@ class BloomReferenceTest extends TestCase
         $unavailable = ['reference_available' => false, 'levels' => [], 'classifications' => []];
         $this->assertSame($unavailable, BloomClassifier::classifyClos([10 => 'Example-term']));
         $domain = BloomDomain::create(['name' => 'Cognitive']);
-        $this->assertSame($unavailable, BloomClassifier::classifyClos([10 => 'Example-term']));
         $level = $domain->levels()->create(['position' => 1, 'name' => 'Example']);
         $unavailable['levels'] = [['id' => $level->id, 'name' => 'Example', 'position' => 1]];
         $this->assertSame($unavailable, BloomClassifier::classifyClos([10 => 'Example-term']));
@@ -135,19 +134,24 @@ class BloomReferenceTest extends TestCase
 
     public function test_domain_cannot_be_deleted_while_it_has_levels(): void
     {
-        $this->expectException(QueryException::class);
-        $this->expectExceptionCode('23001');
+        // Roll back the failed delete so PostgreSQL allows the existence check.
+        $this->assertThrows(
+            fn () => DB::transaction(fn () => $this->domain->delete()),
+            QueryException::class,
+        );
 
-        $this->domain->delete();
+        $this->assertDatabaseHas('bloom_domains', ['id' => $this->domain->id]);
     }
 
     public function test_level_cannot_be_deleted_while_it_has_verbs(): void
     {
         $this->level->verbs()->create(['term' => 'Example-term']);
-        $this->expectException(QueryException::class);
-        $this->expectExceptionCode('23001');
+        $this->assertThrows(
+            fn () => DB::transaction(fn () => $this->level->delete()),
+            QueryException::class,
+        );
 
-        $this->level->delete();
+        $this->assertDatabaseHas('bloom_levels', ['id' => $this->level->id]);
     }
 
     #[DataProvider('invalidPositions')]

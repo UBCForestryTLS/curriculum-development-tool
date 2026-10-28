@@ -11,7 +11,7 @@ class ProgramReportChartTest extends TestCase
 {
     public function test_progression_chart_separates_unknown_groups_and_preserves_missing_values(): void
     {
-        $group = ['course_level' => 100, 'clo_count' => 2, 'levels' => [['level_id' => 1, 'clo_count' => 1, 'percentage' => 50]]];
+        $group = ['course_level' => 100, 'clo_count' => 2, 'blooms_levels' => [['level_id' => 1, 'clo_count' => 1, 'percentage' => 50]]];
         $report = ['bloom_reference_available' => true, 'bloom_levels' => [['id' => 1, 'name' => 'Apply']],
             'course_groups' => [$group, array_replace($group, ['course_level' => 'other'])]];
         $chart = ProgramReportChart::progression($report, ['units' => 'counts', 'view' => 'progression']);

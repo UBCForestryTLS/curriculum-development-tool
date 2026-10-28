@@ -8,6 +8,7 @@
 <body>
 @php
     $available = $report['bloom_reference_available'];
+    $totals = $report['scope_totals'] ?? $report['program_totals'];
     $plo = $report['selected_plo'];
     $clos = collect($report['courses'])->flatMap(fn ($course) => $course['clos'])->unique('l_outcome_id');
     $matched = $available ? $clos->filter(fn ($clo) => ! empty($clo['bloom_levels']))->count() : null;
@@ -32,7 +33,7 @@
 @endif
 <h2>Summary</h2>
 <p>Program: {{ $report['program_totals']['course_count'] }} courses · {{ $report['program_totals']['clo_count'] }} CLOs</p>
-<p>In scope: {{ $report['scope_totals']['course_count'] }} courses · {{ $report['scope_totals']['clo_count'] }} CLOs</p>
+<p>In scope: {{ $totals['course_count'] }} courses · {{ $totals['clo_count'] }} CLOs</p>
 <p>Matched CLOs: {{ $matched ?? 'N/A' }} · Unmatched CLOs: {{ $available ? $clos->count() - $matched : 'N/A' }} ·
     Review suggested: {{ $reviewCount ?? 'N/A' }}</p>
 <p>Classification uses cognitive Bloom reference terms found in CLO text and retains all matching levels.
@@ -47,7 +48,7 @@
     <table>
         <thead><tr><th>Cognitive level</th><th>CLO count</th><th>Percentage</th></tr></thead>
         <tbody>
-        @foreach ($group['levels'] as $level)
+        @foreach ($group['blooms_levels'] as $level)
             <tr><td>{{ $level['name'] }}</td><td>{{ $level['clo_count'] ?? 'N/A' }}</td><td>{{ $percent($level['percentage']) }}</td></tr>
         @endforeach
         <tr><td>Unmatched</td><td>{{ $group['unmatched_clo_count'] ?? 'N/A' }}</td>

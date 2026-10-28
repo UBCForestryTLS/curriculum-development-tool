@@ -113,8 +113,8 @@
         <div id="gap-coverage-results" class="position-relative d-none">
             <div class="mb-3">
                 <h6>Potential concerns</h6>
-                <p id="gap-coverage-concern-summary" role="status"></p>
-                <p id="gap-coverage-concern-scope" class="small text-muted">Counts and filtering include all applied metrics and levels, regardless of the metric displayed below. A PLO can have both potential gaps and potential redundancies.</p>
+                <ul id="gap-coverage-concern-summary" role="status"></ul>
+                <p id="gap-coverage-concern-scope" class="small text-muted">Summary counts include all applied metrics and levels. The PLO filter applies to the selected coverage metric. A PLO can have both potential gaps and potential redundancies.</p>
                 <label for="gap-coverage-filter" class="form-label fw-bold">Show PLOs</label>
                 <select id="gap-coverage-filter" class="form-select w-auto mw-100" aria-describedby="gap-coverage-concern-summary gap-coverage-concern-scope">
                     <option value="all">All PLOs</option>
@@ -143,6 +143,10 @@
             <div id="gap-coverage-chart" class="mb-3" aria-hidden="true"></div>
             <p class="small text-muted">Each level is compared independently with your applied expectations. View details for overall counts and contributing courses.</p>
             <p class="small text-muted d-sm-none">Scroll horizontally to see all mapping levels and details.</p>
+            <p class="mb-2">
+                <span id="gap-coverage-display-filter" class="coverage-concern-chip"></span>
+                <span id="gap-coverage-display-metric" class="coverage-concern-chip"></span>
+            </p>
             <div class="table-responsive" role="region" aria-label="Coverage comparisons" tabindex="0">
                 <table class="table table-bordered align-middle">
                     <caption class="visually-hidden">Coverage by PLO and mapping level</caption>
@@ -182,7 +186,7 @@
             @foreach (['min' => 'Minimum', 'max' => 'Maximum'] as $bound => $label)
                 <div class="col-6">
                     <label class="form-label small">{{ $label }} (%)</label>
-                    <input type="text" inputmode="numeric" class="form-control" placeholder="Not set" data-bound="{{ $bound }}" disabled>
+                    <input type="text" inputmode="numeric" class="form-control" placeholder="Not set" data-bound="{{ $bound }}" data-concern-label="{{ $bound === 'min' ? 'Gaps' : 'Redundancies' }}" disabled>
                     <div class="invalid-feedback"></div>
                     <div class="form-text" data-bound-status></div>
                 </div>
@@ -192,6 +196,22 @@
 </template>
 
 <style>
+    #gap-coverage-report h6,
+    #gap-coverage-details-modal h6 {
+        font-size: 1.2rem;
+    }
+
+    .coverage-concern-chip {
+        display: inline-flex;
+        align-items: center;
+        margin: 0.2rem 0.25rem;
+        padding: 0.25rem 0.55rem;
+        color: #002145;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 999px;
+        font-size: 0.86rem;
+    }
     #gap-coverage-columns th:not(:last-child) { min-width: 12rem; }
     #gap-coverage-details-comparisons { min-width: 620px; }
     #gap-coverage-details-findings::before { content: none; }
@@ -214,6 +234,7 @@
     .coverage-range[data-overlap] [data-slider="max"]::-webkit-slider-thumb { transform: translateY(.5rem); }
     .coverage-range[data-overlap] [data-slider="min"]::-moz-range-thumb { transform: translateY(-.5rem); }
     .coverage-range[data-overlap] [data-slider="max"]::-moz-range-thumb { transform: translateY(.5rem); }
+	ul::before { content: unset; }
 </style>
 
 <script type="module">
@@ -230,9 +251,9 @@
         let coverageChart = null;
         const expectationsForm = document.getElementById('gap-coverage-expectations-form');
         const metricSections = [...expectationsForm.querySelectorAll('[data-coverage-metric]')];
-        const reportMetric = document.getElementById('gap-coverage-metric');
-        const reportFilter = document.getElementById('gap-coverage-filter');
-        const reportUnits = document.getElementById('gap-coverage-units');
+        const reportMetricSelect = document.getElementById('gap-coverage-metric');
+        const reportFilterSelect = document.getElementById('gap-coverage-filter');
+        const reportUnitsSelect = document.getElementById('gap-coverage-units');
         // Temporary ranges for each metric; replace when the distributions are agreed.
         const metricDefaults = {
             mapped_clo_count: { min: 20, max: 80 },
@@ -245,6 +266,7 @@
             max: document.getElementById('gap-coverage-review-redundancies'),
         };
 
+        // Create the min/max inputs and sliders for each metric and mapping level.
         function initializeLevelInputs() {
             const template = document.getElementById('gap-coverage-level-template');
             metricSections.forEach(function (section) {
@@ -294,11 +316,12 @@
             updateExpectationInputs();
         }
 
+        // Keep sliders in sync with the inputs and separate the handles when they overlap.
         function syncRangeInputs(fields) {
             fields.querySelectorAll('[data-bound]').forEach(function (input) {
                 const slider = fields.querySelector(`[data-slider="${input.dataset.bound}"]`);
                 const value = input.value.trim();
-                input.parentElement.querySelector('[data-bound-status]').textContent = input.disabled ? 'Not selected' : '';
+                input.parentElement.querySelector('[data-bound-status]').textContent = input.disabled ? `${input.dataset.concernLabel} disabled` : '';
                 if (value === '') {
                     slider.value = input.dataset.bound === 'min' ? '0' : '100';
                     slider.setAttribute('aria-valuetext', 'Not set');
@@ -332,6 +355,7 @@
             });
         }
 
+        // Enable the inputs needed for the selected concerns and metrics.
         function updateExpectationInputs() {
             document.getElementById('gap-coverage-defaults-all').disabled = !gapCoverageData?.coverage.length
                 || mappingScaleLevels.length === 0 || (!concernInputs.min.checked && !concernInputs.max.checked);
@@ -377,6 +401,7 @@
             updateExpectationInputs();
         });
 
+        // Read the form values, validate them, and show errors beside the matching inputs.
         function validateExpectations() {
             clearExpectationErrors();
             const draft = { concerns: { gaps: concernInputs.min.checked, redundancies: concernInputs.max.checked }, metrics: {} };
@@ -415,11 +440,12 @@
             }
 
             appliedExpectations = settings;
-            reportMetric.value = Object.keys(settings.metrics)[0] ?? 'mapped_clo_count';
+            reportMetricSelect.value = Object.keys(settings.metrics)[0] ?? 'mapped_clo_count';
             renderExpectationsSummary();
             showReportStep(true);
         });
 
+        // Show the concerns and ranges that were applied to the report.
         function renderExpectationsSummary() {
             const summary = document.getElementById('gap-coverage-expectations-summary');
             summary.replaceChildren();
@@ -436,7 +462,7 @@
             const selectedConcerns = [];
             if (appliedExpectations.concerns.gaps) selectedConcerns.push('Potential gaps');
             if (appliedExpectations.concerns.redundancies) selectedConcerns.push('Potential redundancies');
-            concern.textContent = `Selected concerns: ${selectedConcerns.join(' and ')}.`;
+            concern.innerHTML = `Selected concerns: ${selectedConcerns.map(label => `<span class="coverage-concern-chip">${label}</span>`).join('')}`;
             const scope = document.createElement('p');
             scope.textContent = 'These bounds apply separately to every PLO. Only applied bounds are listed.';
             const metrics = document.createElement('dl');
@@ -469,7 +495,7 @@
             summary.append(heading, concern, scope, metrics);
         }
 
-        [reportMetric, reportFilter, reportUnits].forEach(function (control) {
+        [reportMetricSelect, reportFilterSelect, reportUnitsSelect].forEach(function (control) {
             control.addEventListener('change', function () {
                 if (gapCoverageData !== null) renderGapCoverage(gapCoverageData);
             });
@@ -486,7 +512,7 @@
             // Capture applied settings at the click, not any unsubmitted expectation edits.
             const payload = {
                 format, expectations: appliedExpectations,
-                metric: reportMetric.value, units: reportUnits.value,
+                metric: reportMetricSelect.value, units: reportUnitsSelect.value,
             };
             bootstrap.Dropdown.getOrCreateInstance(downloadButton).hide();
             exportInProgress = true;
@@ -522,7 +548,7 @@
                 validationStarted = false;
                 updateExpectationInputs();
                 appliedExpectations = null;
-                reportMetric.value = 'mapped_clo_count';
+                reportMetricSelect.value = 'mapped_clo_count';
                 renderExpectationsSummary();
                 showReportStep(true);
             }
@@ -532,6 +558,7 @@
         });
         if ($('#nav-gap-coverage-tab').hasClass('active')) loadGapCoverage();
 
+        // Switch between setting expectations and viewing the report.
         function showReportStep(showReport) {
             $('#gap-coverage-expectations').toggleClass('d-none', showReport);
             $('#gap-coverage-report').toggleClass('d-none', !showReport);
@@ -547,6 +574,7 @@
             document.getElementById(showReport ? 'gap-coverage-report-heading' : 'gap-coverage-expectations-heading').focus();
         }
 
+        // Fetch coverage when the tab opens, then reuse it while the page stays open.
         function loadGapCoverage() {
             if (gapCoverageData !== null || gapCoverageLoading) {
                 return;
@@ -582,6 +610,7 @@
             });
         }
 
+        // Update the table and chart using the selected metric, PLO filter, and units.
         function renderGapCoverage(data) {
             const rows = document.getElementById('gap-coverage-rows');
             rows.replaceChildren();
@@ -597,20 +626,26 @@
                 return;
             }
 
-            const metric = reportMetric.value;
+            const metric = reportMetricSelect.value;
             document.getElementById('gap-coverage-metric-description').textContent =
                 document.getElementById(`gap-coverage-${metric}-description`).textContent;
-            reportMetric.disabled = mappingScaleLevels.length === 0;
-            reportUnits.disabled = mappingScaleLevels.length === 0;
+            reportMetricSelect.disabled = mappingScaleLevels.length === 0;
+            reportUnitsSelect.disabled = mappingScaleLevels.length === 0;
             $('#gap-coverage-report-no-levels').toggleClass('d-none', mappingScaleLevels.length > 0);
             renderComparisonColumns(metric);
             const report = evaluateCoverage(data, appliedExpectations);
             renderConcernSummary(report);
+            document.getElementById('gap-coverage-display-filter').textContent = `Show: ${reportFilterSelect.selectedOptions[0].textContent}`;
+            document.getElementById('gap-coverage-display-metric').textContent = `Metric: ${reportMetricSelect.selectedOptions[0].textContent}`;
+            // Keep the same PLOs in the table and chart as we apply the filter below.
             const visiblePlos = [];
 
             data.coverage.forEach(function (coverage, index) {
                 const plo = report.plos[index];
-                if (reportFilter.value === 'concerns' && !plo.has_gap && !plo.has_redundancy) return;
+                const comparisons = plo.comparisons.filter(comparison => comparison.metric === metric);
+                // Only concerns in the displayed metric should include a PLO in the filtered chart and table.
+                if (reportFilterSelect.value === 'concerns'
+                    && !comparisons.some(comparison => ['gap', 'redundancy'].includes(comparison.status))) return;
                 const row = document.createElement('tr');
                 const outcomeCell = document.createElement('th');
                 outcomeCell.scope = 'row';
@@ -626,7 +661,6 @@
                 }
 
                 row.appendChild(outcomeCell);
-                const comparisons = plo.comparisons.filter(comparison => comparison.metric === metric);
                 visiblePlos.push({ coverage, label: outcomeName.textContent, comparisons, allComparisons: plo.comparisons });
                 comparisons.forEach(comparison => row.appendChild(createComparisonCell(comparison)));
                 row.appendChild(createDetailsButtonCell(coverage, outcomeName.textContent, plo.comparisons));
@@ -637,7 +671,7 @@
                 const row = document.createElement('tr');
                 const cell = document.createElement('td');
                 cell.colSpan = mappingScaleLevels.length + 2;
-                cell.textContent = 'No PLOs match the concern filter. Select All PLOs to view the statistics.';
+                cell.textContent = 'No PLOs match the concern filter for this coverage metric. Select another metric or All PLOs to view the statistics.';
                 row.appendChild(cell);
                 rows.appendChild(row);
             }
@@ -649,6 +683,7 @@
             }
         }
 
+        // Chart the filtered PLOs, or explain why a chart cannot be shown.
         function renderCoverageChart(plos) {
             coverageChart?.destroy();
             coverageChart = null;
@@ -656,34 +691,44 @@
             const message = document.getElementById('gap-coverage-chart-message');
             let unavailable = '';
             if (mappingScaleLevels.length === 0) unavailable = 'No mapping levels are available to chart.';
-            else if (plos.length === 0) unavailable = 'No PLOs match the concern filter. Select All PLOs to view the chart.';
+            else if (plos.length === 0) unavailable = 'No PLOs match the concern filter for this coverage metric. Select another metric or All PLOs to view the chart.';
             else if (plos.every(plo => plo.comparisons.every(comparison => comparison.percentage === null))) {
                 unavailable = 'No data is available to chart for this metric. See the table below for details.';
             } else if (!window.Highcharts) unavailable = 'The chart could not be loaded. The comparison table remains available below.';
             container.classList.toggle('d-none', Boolean(unavailable));
+            // With zero configured levels, the report already shows a no-levels warning.
+            // Hide the duplicate chart message; unavailable still stops chart rendering below.
             message.classList.toggle('d-none', !unavailable || mappingScaleLevels.length === 0);
             message.textContent = unavailable;
             if (unavailable) return;
 
-            const counts = reportUnits.value === 'counts';
-            const metricLabel = reportMetric.selectedOptions[0].textContent;
+            const counts = reportUnitsSelect.value === 'counts';
+            const metricLabel = reportMetricSelect.selectedOptions[0].textContent;
+            let axisTitle = 'Coverage (%)';
+            if (counts) {
+                axisTitle = reportMetricSelect.value === 'mapped_clo_count' ? 'Number of CLOs' : 'Number of courses';
+            }
             coverageChart = Highcharts.chart(container, {
                 chart: {
                     type: 'column',
                     animation: false,
-                    scrollablePlotArea: { minWidth: Math.max(360, plos.length * Math.max(100, mappingScaleLevels.length * 24)) },
+                    scrollablePlotArea: {
+                        minWidth: Math.max(360, plos.length * Math.max(100, mappingScaleLevels.length * 24)),
+                    },
                 },
                 title: { text: metricLabel + (counts ? ' — counts' : ' — percentages') },
                 xAxis: {
                     title: { text: 'Program Learning Outcomes' },
                     categories: plos.map(plo => escapeChartText(plo.label)),
-                    labels: { style: { textOverflow: 'ellipsis', width: '110px' } },
+                    labels: {
+                        style: { textOverflow: 'ellipsis', width: '110px' },
+                    },
                 },
                 yAxis: {
                     min: 0,
                     max: counts ? undefined : 100,
                     allowDecimals: !counts,
-                    title: { text: counts ? (reportMetric.value === 'mapped_clo_count' ? 'Number of CLOs' : 'Number of courses') : 'Coverage (%)' },
+                    title: { text: axisTitle },
                 },
                 legend: {
                     itemStyle: { cursor: 'default' },
@@ -721,9 +766,10 @@
                         return `<b>${escapeChartText(label)}</b><br>${escapeChartText(scaleLabel)}<br>`
                             + `${comparison.count} of ${comparison.denominator} ${unit} (${formatCoveragePercentage(comparison)})<br>`
                             + (targets.length ? targets.join(' · ') + '<br>' : '')
-                            + comparisonFinding(comparison);
+                            + getComparisonResultMessage(comparison);
                     },
                 },
+                // Each mapping level is a series, with one value per visible PLO.
                 series: mappingScaleLevels.map((scale, index) => {
                     const scaleLabel = scale.title + (scale.abbreviation ? ` (${scale.abbreviation})` : '');
                     return {
@@ -731,8 +777,12 @@
                         color: scale.colour,
                         data: plos.map(plo => {
                             const comparison = plo.comparisons[index];
+                            let chartValue = null;
+                            if (comparison.percentage !== null) {
+                                chartValue = counts ? comparison.count : comparison.percentage;
+                            }
                             return {
-                                y: comparison.percentage === null ? null : counts ? comparison.count : comparison.percentage,
+                                y: chartValue,
                                 custom: { comparison, label: plo.label, scaleLabel },
                             };
                         }),
@@ -747,32 +797,41 @@
             return text.innerHTML;
         }
 
+        // Summary counts cover all applied metrics, regardless of the metric being displayed.
         function renderConcernSummary(report) {
             const summary = report.summary;
             const hasExpectations = appliedExpectations !== null && Object.keys(appliedExpectations.metrics).length > 0;
             const canCompare = summary.evaluated_plo_count > 0;
-            reportFilter.disabled = !canCompare;
-            if (!canCompare) reportFilter.value = 'all';
+            reportFilterSelect.disabled = !canCompare;
+            if (!canCompare) reportFilterSelect.value = 'all';
             $('#gap-coverage-concern-scope').toggleClass('d-none', !canCompare);
 
-            let message;
+            const messages = [];
             if (!hasExpectations) {
-                message = 'No concern checks applied. All PLO statistics are available.';
+                messages.push('No concern checks applied. All PLO statistics are available.');
             } else if (!canCompare) {
-                message = 'Your expectations cannot be evaluated with the available data. No concern checks could be completed.';
+                messages.push('Your expectations cannot be evaluated with the available data. No concern checks could be completed.');
             } else {
-                message = `PLOs with any concern: ${summary.concern_plo_count} of ${report.plos.length}. `
-                    + `With potential gaps: ${summary.gap_plo_count}. With potential redundancies: ${summary.redundancy_plo_count}.`;
+                messages.push(
+                    `PLOs with any concern: ${summary.concern_plo_count} of ${report.plos.length}.`,
+                    `With potential gaps: ${summary.gap_plo_count}.`,
+                    `With potential redundancies: ${summary.redundancy_plo_count}.`,
+                );
                 if (summary.concern_plo_count === 0) {
-                    message = 'No potential concerns found against your applied expectations. ' + message;
+                    messages.unshift('No potential concerns found against your applied expectations.');
                 }
                 if (summary.evaluated_plo_count < report.plos.length) {
-                    message += ` Comparisons were available for ${summary.evaluated_plo_count} of ${report.plos.length} PLOs.`;
+                    messages.push(`Comparisons were available for ${summary.evaluated_plo_count} of ${report.plos.length} PLOs.`);
                 }
             }
-            document.getElementById('gap-coverage-concern-summary').textContent = message;
+            document.getElementById('gap-coverage-concern-summary').replaceChildren(...messages.map(message => {
+                const item = document.createElement('li');
+                item.textContent = message;
+                return item;
+            }));
         }
 
+        // Add a table column for each mapping level and its applied min/max for this metric.
         function renderComparisonColumns(metric) {
             const columns = document.getElementById('gap-coverage-columns');
             columns.replaceChildren();
@@ -807,21 +866,22 @@
             columns.appendChild(actions);
         }
 
+        // Show the coverage value and its result, highlighting gaps and redundancies.
         function createComparisonCell(comparison) {
             const cell = document.createElement('td');
-            const value = document.createElement('strong');
+            const valueElement = document.createElement('strong');
             const basis = document.createElement('small');
             basis.classList.add('d-block');
             const unit = comparison.metric === 'mapped_clo_count' ? 'CLOs in program courses' : 'program courses';
             if (comparison.percentage === null) {
-                value.textContent = 'Not applicable';
+                valueElement.textContent = 'Not applicable';
                 basis.textContent = `No ${unit}.`;
-                cell.append(value, basis);
+                cell.append(valueElement, basis);
                 return cell;
             }
 
-            const counts = reportUnits.value === 'counts';
-            value.textContent = counts ? String(comparison.count) : formatCoveragePercentage(comparison);
+            const counts = reportUnitsSelect.value === 'counts';
+            valueElement.textContent = counts ? String(comparison.count) : formatCoveragePercentage(comparison);
             basis.textContent = `${comparison.count} of ${comparison.denominator} ${unit}`
                 + (counts ? ` (${formatCoveragePercentage(comparison)})` : '');
             const finding = document.createElement('span');
@@ -831,14 +891,15 @@
             } else if (comparison.status === 'redundancy') {
                 cell.classList.add('table-info');
             }
-            finding.textContent = comparisonFinding(comparison);
-            cell.append(value, basis, finding);
+            finding.textContent = getComparisonResultMessage(comparison);
+            cell.append(valueElement, basis, finding);
             return cell;
         }
 
         function formatCoveragePercentage(comparison) {
             let percentage = Number(comparison.percentage.toFixed(2));
-            // Keep extra precision when rounding would make a flagged value look in range.
+            // Show the unrounded percentage if rounding would hide why it is flagged.
+            // For example, 39.999% is below a 40% minimum but would display as 40%.
             if ((comparison.status === 'gap' && percentage >= comparison.min)
                 || (comparison.status === 'redundancy' && percentage <= comparison.max)) {
                 percentage = comparison.percentage;
@@ -846,7 +907,7 @@
             return `${percentage}%`;
         }
 
-        function comparisonFinding(comparison) {
+        function getComparisonResultMessage(comparison) {
             if (comparison.status === 'not_applicable') return 'Not applicable';
             if (comparison.status === 'gap') return `Potential gap — below minimum ${comparison.min}%`;
             if (comparison.status === 'redundancy') return `Potential redundancy — above maximum ${comparison.max}%`;
@@ -883,6 +944,7 @@
             bootstrap.Modal.getOrCreateInstance(modal).show(button);
         }
 
+        // Build the PLO popup with its findings, comparisons, and contributing courses.
         function createPloDetailsContent(coverage, comparisons) {
             const content = document.createDocumentFragment();
             const description = document.createElement('p');
@@ -896,6 +958,7 @@
                 content.appendChild(warning);
             }
 
+            // Include findings from all applied metrics so the popup gives the full picture.
             const findingsHeading = document.createElement('h6');
             findingsHeading.textContent = 'Potential concerns across all applied metrics';
             content.appendChild(findingsHeading);
@@ -909,7 +972,7 @@
                         const item = document.createElement('li');
                         item.textContent = `${section.dataset.metricLabel} — ${scale.title}: `
                             + `${comparison.count} of ${comparison.denominator} (${formatCoveragePercentage(comparison)}). `
-                            + comparisonFinding(comparison);
+                            + getComparisonResultMessage(comparison);
                         list.appendChild(item);
                     });
                 });
@@ -925,6 +988,7 @@
                 content.appendChild(message);
             }
 
+            // Let users switch the popup's comparison metric without changing the main report.
             const label = document.createElement('label');
             label.htmlFor = 'gap-coverage-details-metric';
             label.classList.add('form-label', 'fw-bold');
@@ -932,8 +996,8 @@
             const metric = document.createElement('select');
             metric.id = label.htmlFor;
             metric.classList.add('form-select', 'w-auto', 'mw-100', 'mb-2');
-            metric.replaceChildren(...[...reportMetric.options].map(option => option.cloneNode(true)));
-            metric.value = reportMetric.value;
+            metric.replaceChildren(...[...reportMetricSelect.options].map(option => option.cloneNode(true)));
+            metric.value = reportMetricSelect.value;
             metric.disabled = mappingScaleLevels.length === 0;
             metric.setAttribute('aria-describedby', 'gap-coverage-details-metric-description');
             const metricDescription = document.createElement('p');
@@ -953,6 +1017,7 @@
             renderComparisons();
             content.append(label, metric, metricDescription, region);
 
+            // Follow the comparisons with overall totals and the courses/CLOs behind them.
             const totalsHeading = document.createElement('h6');
             totalsHeading.textContent = 'Overall PLO totals';
             content.append(totalsHeading, createCoverageSummary(coverage));
@@ -962,6 +1027,7 @@
             return content;
         }
 
+        // Compare actual coverage with the applied min/max at each mapping level in the popup.
         function createPloComparisonTable(comparisons) {
             const table = document.createElement('table');
             table.id = 'gap-coverage-details-comparisons';
@@ -993,7 +1059,7 @@
                 row.insertCell().textContent = comparison.min === null ? 'Not set' : `${comparison.min}%`;
                 row.insertCell().textContent = comparison.max === null ? 'Not set' : `${comparison.max}%`;
                 const result = row.insertCell();
-                result.textContent = comparisonFinding(comparison);
+                result.textContent = getComparisonResultMessage(comparison);
                 if (comparison.status === 'gap') result.classList.add('table-warning');
                 else if (comparison.status === 'redundancy') result.classList.add('table-info');
             });
@@ -1009,8 +1075,10 @@
             const content = document.createDocumentFragment();
             const summary = document.createElement('p');
 
+            const unspecifiedCourseCount = coverage.covering_course_count - coverage.required_course_count - coverage.non_required_course_count;
+            const unspecifiedStatus = unspecifiedCourseCount > 0 ? `, ${unspecifiedCourseCount} with required status unspecified` : '';
             summary.classList.add('mb-3');
-            summary.textContent = `${coverage.mapped_clo_count} CLOs across ${coverage.covering_course_count} courses: ${coverage.required_course_count} required, ${coverage.non_required_course_count} non-required, and ${coverage.n_a_clo_count} N/A CLOs.`;
+            summary.textContent = `${coverage.mapped_clo_count} CLOs across ${coverage.covering_course_count} courses: ${coverage.required_course_count} required, ${coverage.non_required_course_count} non-required${unspecifiedStatus}, and ${coverage.n_a_clo_count} N/A CLOs.`;
             content.appendChild(summary);
             if (coverage.multi_level_mapping_count > 0) {
                 const multiLevel = document.createElement('p');
@@ -1022,6 +1090,7 @@
             return content;
         }
 
+        // List the contributing courses and show each CLO with all its mapping levels.
         function createCourseEvidence(courses) {
             const content = document.createDocumentFragment();
             if (courses.length === 0) {

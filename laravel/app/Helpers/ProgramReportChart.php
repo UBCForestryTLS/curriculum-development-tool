@@ -55,7 +55,7 @@ class ProgramReportChart
                     if ($group === null) {
                         return null;
                     }
-                    $row = collect($group['levels'])->firstWhere('level_id', $level['id']);
+                    $row = collect($group['blooms_levels'])->firstWhere('level_id', $level['id']);
 
                     return $row['percentage'] === null ? null : ($counts ? $row['clo_count'] : $row['percentage']);
                 }, $groups)];

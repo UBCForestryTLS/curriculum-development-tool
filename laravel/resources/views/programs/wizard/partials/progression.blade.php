@@ -69,7 +69,7 @@
                 <label for="progression-view" class="mb-0">View</label>
                 <select id="progression-view" class="form-select w-auto">
                     <option value="comparison">Comparison</option>
-                    <option value="progression">Progression</option>
+                    <option value="cognitive-levels">By cognitive level</option>
                 </select>
                 <label for="progression-units" class="mb-0">Show</label>
                 <select id="progression-units" class="form-select w-auto">
@@ -79,7 +79,6 @@
             </div>
         </div>
         <p id="progression-chart-description" class="small text-muted">Percentages use all CLOs in each course group and selected scope, including those with no Bloom match. A CLO can count at several levels, so percentages may total above 100%.</p>
-        <p id="progression-trend-description" class="small text-muted d-none">Each line shows a Bloom level across course groups. Gaps indicate groups with no CLOs. Other/unknown courses appear as separate points because their course stage is unknown.</p>
         <p id="progression-chart-unavailable" class="alert alert-info d-none">The chart could not be loaded. You can still review the exact values below.</p>
         <div id="progression-chart" aria-labelledby="progression-chart-heading" aria-describedby="progression-chart-description"></div>
     </section>
@@ -134,6 +133,8 @@
 
 <script type="module">
     import { downloadReport } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/report-download.js'));
+    import { summarizeCognitiveLevels } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/progression-report.js'));
+
     $(document).ready(function () {
         let progressionData = null;
         let progressionLoading = false;
@@ -143,7 +144,11 @@
             loadProgression();
             progressionChart?.reflow();
         });
-        $('#progression-units, #progression-view').on('change', renderChart);
+        $('#progression-units, #progression-view').on('change', function () {
+            if (!progressionData) return;
+            renderTable(progressionData);
+            renderChart();
+        });
         $('#progression-retry').on('click', loadProgression);
         $('#progression-review-details').on('click', function () {
             openDetails(progressionData.courses, 'CLOs suggested for review', this, true);
@@ -213,8 +218,8 @@
                         selector.add(new Option(label, String(plo.pl_outcome_id)));
                     });
                     selector.value = scope;
-                    const totals = data.scope_totals;
-                    const selected = data.selected_plo !== null;
+                    const selected = data.scope === 'plo';
+                    const totals = selected ? data.scope_totals : data.program_totals;
                     const matched = data.course_groups.reduce((sum, group) => sum + group.matched_clo_count, 0);
                     const unmatched = data.course_groups.reduce((sum, group) => sum + group.unmatched_clo_count, 0);
                     $('#progression-plo-description').text(data.selected_plo?.pl_outcome ?? '').toggleClass('d-none', !selected);
@@ -256,21 +261,53 @@
             section.toggleClass('d-none', data.course_groups.length === 0);
             if (!window.Highcharts) section.prop('open', true);
 
+            const byCognitiveLevel = $('#progression-view').val() === 'cognitive-levels';
+            section.find('summary').text(byCognitiveLevel ? 'Exact values by cognitive level' : 'Exact values by course group');
+            section.find('[role="region"]').attr('aria-label', byCognitiveLevel ? 'Cognitive level values' : 'Course group values');
+            $('#progression-table caption').text(byCognitiveLevel
+                ? 'Counts and percentages use all CLOs in the selected scope, including those with no Bloom match. CLOs may match several levels. N/A means there are no CLOs to calculate a percentage, or the Bloom reference is unavailable.'
+                : 'Cells show CLO count (percentage of all CLOs in the group and selected scope). CLOs may match several levels. N/A means there are no CLOs to calculate a percentage, or the Bloom reference is unavailable.');
+
+            // Keep the exact values and course list available without hovering over the chart.
+            if (byCognitiveLevel) {
+                ['Cognitive level', 'CLOs', 'Percentage', 'Contributing courses']
+                    .forEach(title => $('<th>', { scope: 'col' }).text(title).appendTo(header));
+                if (!data.bloom_reference_available) {
+                    $('<td>', { colspan: 4 }).text('The Bloom’s cognitive reference is unavailable. Suggested levels cannot be shown.')
+                        .appendTo($('<tr>').appendTo(body));
+                    return;
+                }
+                summarizeCognitiveLevels(data).levels.forEach(level => {
+                    const row = $('<tr>').appendTo(body);
+                    $('<th>', { scope: 'row' }).text(level.name).appendTo(row);
+                    $('<td>').text(level.clo_count).appendTo(row);
+                    $('<td>').text(level.percentage === null ? 'N/A' : `${level.percentage}%`).appendTo(row);
+                    const cell = $('<td>').appendTo(row);
+                    if (level.courses.length === 0) cell.text('No matching courses');
+                    level.courses.forEach(course => $('<div>').text(courseLabel(course)).appendTo(cell));
+                });
+                return;
+            }
+
             ['Course group', 'Courses', 'Total CLOs', ...data.bloom_levels.map(level => level.name), 'No Bloom match']
                 .forEach(title => $('<th>', { scope: 'col' }).text(title).appendTo(header));
 
-            const value = (count, percentage) => count === null ? 'N/A' : `${count} (${percentage === null ? 'N/A' : percentage + '%'})`;
+            const formatValue = (count, percentage) => {
+                if (count === null) return 'N/A';
+                const formattedPercentage = percentage === null ? 'N/A' : `${percentage}%`;
+                return `${count} (${formattedPercentage})`;
+            };
             data.course_groups.forEach(group => {
-                const row = $('<tr>').appendTo(body);
+                const row = $('<tr>').toggleClass('table-warning', group.clo_count === 0).appendTo(body);
                 $('<th>', { scope: 'row' }).text(group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`).appendTo(row);
                 [group.course_count, group.clo_count].forEach(count => $('<td>').text(count).appendTo(row));
                 data.bloom_levels.forEach(level => {
-                    const result = group.levels.find(item => item.level_id === level.id);
-                    $('<td>').text(value(result.clo_count, result.percentage)).appendTo(row);
+                    const result = group.blooms_levels.find(item => item.level_id === level.id);
+                    $('<td>').text(formatValue(result.clo_count, result.percentage)).appendTo(row);
                 });
                 const unmatchedPercentage = data.bloom_reference_available && group.clo_count > 0
                     ? Math.round(group.unmatched_clo_count / group.clo_count * 10000) / 100 : null;
-                $('<td>').text(value(group.unmatched_clo_count, unmatchedPercentage)).appendTo(row);
+                $('<td>').text(formatValue(group.unmatched_clo_count, unmatchedPercentage)).appendTo(row);
             });
         }
 
@@ -278,33 +315,95 @@
             progressionChart?.destroy();
             progressionChart = null;
             const data = progressionData;
-            const available = data?.bloom_reference_available && data.scope_totals.clo_count > 0;
+            const totals = data?.scope === 'plo' ? data.scope_totals : data?.program_totals;
+            const available = data?.bloom_reference_available && totals.clo_count > 0;
             $('#progression-chart-section').toggleClass('d-none', !available);
             if (!available) return;
 
+            const byCognitiveLevel = $('#progression-view').val() === 'cognitive-levels';
+            $('#progression-chart-heading').text(byCognitiveLevel ? 'CLO distribution by cognitive level' : 'Cognitive levels by course group');
+            $('#progression-chart-description').text(
+                (byCognitiveLevel
+                    ? 'Percentages use all CLOs in the selected scope, including those with no Bloom match. '
+                    : 'Percentages use all CLOs in each course group and selected scope, including those with no Bloom match. ')
+                + 'A CLO can count at several levels, so percentages may total above 100%.'
+            );
             $('#progression-chart-unavailable').toggleClass('d-none', Boolean(window.Highcharts));
             $('#progression-chart').toggleClass('d-none', !window.Highcharts);
-            $('#progression-units, #progression-view').prop('disabled', !window.Highcharts);
+            $('#progression-units').prop('disabled', !window.Highcharts);
             if (!window.Highcharts) return;
 
             const counts = $('#progression-units').val() === 'counts';
-            const trend = $('#progression-view').val() === 'progression';
-            const groups = [...data.course_groups];
-            // Leave a break before unknown course numbers so they are not part of the trend.
-            const otherIndex = groups.findIndex(group => group.course_level === 'other');
-            if (trend && otherIndex > 0) groups.splice(otherIndex, 0, null);
-            $('#progression-trend-description').toggleClass('d-none', !trend);
-            const label = group => !group ? '' : group.course_level === 'other' ? 'Other/unknown' : `${group.course_level}-level`;
+            const groups = data.course_groups;
+            // The new view combines the scoped CLOs across all course groups.
+            const distribution = byCognitiveLevel ? summarizeCognitiveLevels(data) : null;
+            const formatCourseGroupLabel = group => {
+                if (!group) return '';
+                if (group.course_level === 'other') return 'Other/unknown';
+                return `${group.course_level}-level`;
+            };
+
+            // Prepare each view's data and tooltip before setting up the shared chart.
+            let chartSeries;
+            let tooltipFormatter;
+            if (byCognitiveLevel) {
+                chartSeries = [{
+                    name: 'CLOs',
+                    data: distribution.levels.map(level => ({
+                        y: counts ? level.clo_count : level.percentage,
+                        custom: { level },
+                    })),
+                }];
+                tooltipFormatter = function () {
+                    const point = this.point || this;
+                    const level = point.options.custom.level;
+                    const displayedValue = counts ? `${level.clo_count} CLOs` : `${level.percentage}%`;
+                    const courseLabels = level.courses.map(course => escapeChartText(courseLabel(course))).join('<br>');
+                    return `<b>${escapeChartText(level.name)}: ${displayedValue}</b><br>`
+                        + `${level.clo_count} of ${distribution.clo_count} CLOs in the selected scope<br>`
+                        + (courseLabels ? `<b>Contributing courses</b><br>${courseLabels}` : 'No matching courses');
+                };
+            } else {
+                chartSeries = data.bloom_levels.map(level => ({
+                    name: escapeChartText(level.name),
+                    data: groups.map(group => {
+                        if (!group) return null;
+                        const result = group.blooms_levels.find(item => item.level_id === level.id);
+                        let chartValue = null;
+                        if (result.percentage !== null) {
+                            chartValue = counts ? result.clo_count : result.percentage;
+                        }
+                        return {
+                            y: chartValue,
+                            custom: { group, level: result },
+                        };
+                    }),
+                }));
+                tooltipFormatter = function () {
+                    const point = this.point || this;
+                    const { group, level } = point.options.custom;
+                    return `<b>${formatCourseGroupLabel(group)}</b><br>${escapeChartText(level.name)}<br>`
+                        + `${level.clo_count} of ${group.clo_count} CLOs (${level.percentage}%)<br>`
+                        + `${group.unmatched_clo_count} CLOs with no Bloom match in this group`;
+                };
+            }
+
             progressionChart = Highcharts.chart('progression-chart', {
                 chart: {
-                    type: trend ? 'line' : 'column',
+                    type: 'column',
                     animation: false,
-                    scrollablePlotArea: { minWidth: Math.max(360, groups.length * Math.max(100, data.bloom_levels.length * 24)) },
+                    scrollablePlotArea: {
+                        minWidth: byCognitiveLevel
+                            ? Math.max(360, data.bloom_levels.length * 100)
+                            : Math.max(360, groups.length * Math.max(100, data.bloom_levels.length * 24)),
+                    },
                 },
                 title: { text: null },
                 xAxis: {
-                    categories: groups.map(group => label(group) + (group?.clo_count === 0 ? ' (no CLOs)' : '')),
-                    title: { text: 'Course group' },
+                    categories: byCognitiveLevel
+                        ? distribution.levels.map(level => escapeChartText(level.name))
+                        : groups.map(group => formatCourseGroupLabel(group) + (group?.clo_count === 0 ? ' (no CLOs)' : '')),
+                    title: { text: byCognitiveLevel ? 'Cognitive level' : 'Course group' },
                 },
                 yAxis: {
                     min: 0,
@@ -314,34 +413,23 @@
                 },
                 plotOptions: {
                     series: { animation: false },
-                    line: { connectNulls: false, marker: { enabled: true } },
                 },
                 exporting: { enabled: false },
                 credits: { enabled: false },
                 accessibility: { enabled: false },
+                legend: { enabled: !byCognitiveLevel },
                 tooltip: {
                     outside: true,
                     animation: false,
-                    formatter: function () {
-                        const point = this.point || this;
-                        const { group, level } = point.options.custom;
-                        return `<b>${label(group)}</b><br>${escapeChartText(level.name)}<br>`
-                            + `${level.clo_count} of ${group.clo_count} CLOs (${level.percentage}%)<br>`
-                            + `${group.unmatched_clo_count} CLOs with no Bloom match in this group`;
-                    },
+                    formatter: tooltipFormatter,
                 },
-                series: data.bloom_levels.map(level => ({
-                    name: escapeChartText(level.name),
-                    data: groups.map(group => {
-                        if (!group) return null;
-                        const result = group.levels.find(item => item.level_id === level.id);
-                        return {
-                            y: result.percentage === null ? null : counts ? result.clo_count : result.percentage,
-                            custom: { group, level: result },
-                        };
-                    }),
-                })),
+                series: chartSeries,
             });
+        }
+
+        function courseLabel(course) {
+            const code = [course.course_code, course.course_num].filter(Boolean).join(' ');
+            return [code, course.course_title].filter(Boolean).join(': ') || `Course ${course.course_id}`;
         }
 
         function escapeChartText(value) {
@@ -403,10 +491,17 @@
             const filter = $('#progression-details-filter').val();
             const filtered = filter === 'all' ? courses : courses.map(course => ({
                 ...course,
-                clos: course.clos.filter(clo => filter === 'unmatched'
-                    ? clo.bloom_levels.length === 0
-                    : filter === 'review' ? needsReview(clo)
-                    : clo.bloom_levels.some(level => String(level.level_id) === filter)),
+                clos: course.clos.filter(clo => {
+                    if (filter === 'unmatched') {
+                        return clo.bloom_levels.length === 0;
+                    }
+
+                    if (filter === 'review') {
+                        return needsReview(clo);
+                    }
+
+                    return clo.bloom_levels.some(level => String(level.level_id) === filter);
+                }),
             })).filter(course => course.clos.length > 0);
             const total = courses.reduce((sum, course) => sum + course.clos.length, 0);
             const shown = filtered.reduce((sum, course) => sum + course.clos.length, 0);
@@ -461,7 +556,7 @@
                             if (needsReview(clo)) {
                                 const review = document.createElement('p');
                                 review.className = 'small text-muted mt-1 mb-0';
-                                review.textContent = 'Review suggested — matches three or more cognitive levels. This may be valid; check the intended learning against the wording.';
+                                review.innerHTML = '<span class="badge bg-warning text-dark">Review suggested</span> — matches three or more cognitive levels. This may be valid; check the intended learning against the wording.';
                                 item.appendChild(review);
                             }
                             const classification = document.createElement('div');
