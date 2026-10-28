@@ -113,7 +113,7 @@ class ProgramReportExportTest extends TestCase
         $plo = $program->programLearningOutcomes()->create(['pl_outcome' => 'In scope']);
         $otherPlo = $this->program()->programLearningOutcomes()->create(['pl_outcome' => 'Outside scope']);
         $url = route('programReports.exportProgression', $program);
-        $pdf = $this->postJson($url, ['format' => 'pdf', 'plo_id' => $plo->pl_outcome_id, 'view' => 'progression', 'units' => 'counts'])
+        $pdf = $this->postJson($url, ['format' => 'pdf', 'plo_id' => $plo->pl_outcome_id, 'view' => 'cognitive-levels', 'units' => 'counts'])
             ->assertOk()->assertHeader('content-type', 'application/pdf')
             ->assertDownload('export-test-'.$program->program_id.'-progression-'.now()->format('Y-m-d').'.pdf');
         $text = (new \Smalot\PdfParser\Parser)->parseContent($pdf->getContent())->getText();
@@ -121,13 +121,13 @@ class ProgramReportExportTest extends TestCase
         $this->assertStringContainsString('In scope', $text);
         $this->assertStringNotContainsString('Outside scope', $text);
         $this->assertStringContainsString('No courses are included in this scope.', $text);
-        $download = $this->postJson($url, ['format' => 'xlsx', 'plo_id' => $plo->pl_outcome_id])->assertOk()
+        $download = $this->postJson($url, ['format' => 'xlsx', 'plo_id' => $plo->pl_outcome_id, 'view' => 'cognitive-levels'])->assertOk()
             ->assertDownload('export-test-'.$program->program_id.'-progression-'.now()->format('Y-m-d').'.xlsx');
         $path = tempnam(sys_get_temp_dir(), 'progression-export-');
         try {
             file_put_contents($path, $download->streamedContent());
             $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
-            $this->assertSame(['Summary', 'Course-group distributions', 'CLO classifications'], $book->getSheetNames());
+            $this->assertSame(['Summary', 'Course-group distributions', 'CLO classifications', 'Cognitive-level distribution'], $book->getSheetNames());
             $this->assertSame($plo->pl_outcome_id, $book->getSheet(0)->getCell('B6')->getValue());
             $this->assertSame(0, $book->getSheet(0)->getCell('B12')->getValue());
             $book->disconnectWorksheets();
@@ -137,6 +137,7 @@ class ProgramReportExportTest extends TestCase
         $this->postJson($url, ['format' => 'pdf', 'plo_id' => $otherPlo->pl_outcome_id])->assertNotFound();
         $this->postJson($url, ['format' => 'pdf', 'plo_id' => 'invalid', 'view' => 'invalid'])
             ->assertUnprocessable()->assertJsonValidationErrors(['plo_id', 'view']);
+        $this->postJson($url, ['format' => 'pdf', 'view' => 'progression'])->assertUnprocessable()->assertJsonValidationErrors('view');
         $this->postJson(route('programReports.exportProgression', 2147483647), ['format' => 'pdf'])->assertNotFound();
     }
 }

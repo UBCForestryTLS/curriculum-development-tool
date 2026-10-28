@@ -24,6 +24,7 @@ class ProgressionSpreadsheetTest extends TestCase
                 'courses' => $courses,
                 'course_groups' => ProgramProgression::distributionsByCourseLevel($courses, $levels, $available),
             ]];
+            $export['report']['cognitive_distribution'] = ProgramProgression::summarizeCognitiveLevels($export['report']);
             $chart = \App\Helpers\ProgramReportChart::progression($export['report'], ['units' => 'percentages', 'view' => 'comparison']);
             $this->assertSame('column', $chart['chart']['type']);
             $this->assertEquals($available ? [50] : [], $chart['series'][0]['data'] ?? []);
@@ -31,6 +32,7 @@ class ProgressionSpreadsheetTest extends TestCase
             $text = (new \Smalot\PdfParser\Parser)->parseContent($pdf)->getText();
             $this->assertStringContainsString('Scope: Entire program', $text);
             $this->assertStringContainsString('100-level', $text);
+            $this->assertStringContainsString('CLO distribution by cognitive level', $text);
             if ($available) {
                 foreach (['50%', 'Review suggested: 1', 'TEST 101', 'Multiple', 'Level 3', 'term'] as $expected) {
                     $this->assertStringContainsString($expected, $text);
@@ -52,6 +54,10 @@ class ProgressionSpreadsheetTest extends TestCase
                 $this->assertSame($available ? 'Yes' : null, $details->getCell('M2')->getValue());
                 $this->assertSame($available ? 'term' : null, $details->getCell('L2')->getValue());
                 $this->assertSame($available ? 'Unmatched' : 'Reference unavailable', $details->getCell('J'.$details->getHighestRow())->getValue());
+                $cognitiveLevels = $book->getSheetByName('Cognitive-level distribution');
+                $this->assertSame($available ? 1 : null, $cognitiveLevels->getCell('B2')->getValue());
+                $this->assertEquals($available ? 50 : null, $cognitiveLevels->getCell('C2')->getValue());
+                $this->assertSame($available ? 'TEST 101 — Course' : 'Reference unavailable', $cognitiveLevels->getCell('D2')->getValue());
             } finally {
                 $book->disconnectWorksheets();
             }
