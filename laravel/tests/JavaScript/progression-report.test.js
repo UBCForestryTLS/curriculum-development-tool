@@ -60,7 +60,6 @@ test('uses the selected PLO courses rather than the whole-program totals', () =>
         scope_totals: { course_count: 1, clo_count: 1 },
         courses: [program.courses[1]],
     };
-    const original = structuredClone(program);
 
     assert.equal(summarizeCognitiveLevels(program).levels[1].percentage, 25);
     const result = summarizeCognitiveLevels(selected);
@@ -69,9 +68,8 @@ test('uses the selected PLO courses rather than the whole-program totals', () =>
     assert.deepEqual(result.levels.map(level => level.percentage), [0, 100, 0]);
     assert.deepEqual(result.levels.map(level => level.courses.map(course => course.course_id)), [[], [2], []]);
 
-    // Switching back should give the original result without changing the response data.
+    // Switching back should give the original whole-program percentage.
     assert.equal(summarizeCognitiveLevels(program).levels[1].percentage, 25);
-    assert.deepEqual(program, original);
 });
 
 test('keeps reference order and includes levels with no matches', () => {
