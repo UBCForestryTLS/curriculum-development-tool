@@ -101,7 +101,10 @@ class ProgramReportChart
         ];
     }
 
-    /** Reuse the existing Highcharts export service; embed the image without shared temporary files. */
+    /**
+     * Reuse the existing Highcharts export service; embed the image without shared temporary files.
+     * Return null if the chart is unavailable so the PDF can still be downloaded with its tables.
+     */
     public static function image(array $config): ?string
     {
         if ($config['xAxis']['categories'] === [] || $config['series'] === []) {

@@ -20,6 +20,7 @@ export async function downloadReport(endpoint, payload, filename) {
             throw new Error('The report could not be downloaded. Please try again.');
         }
         const expectedType = payload.format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        // A successful response could still be an HTML login/error page, so check before saving it as a report.
         if (!response.headers.get('Content-Type')?.includes(expectedType)) {
             throw new Error('The report could not be downloaded. Refresh the page and try again.');
         }
