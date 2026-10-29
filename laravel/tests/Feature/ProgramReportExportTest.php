@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Program;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Browser\ProgramReports\ReportDownloads;
+use Tests\Browser\ProgramReports\ReportFixtures;
 use Tests\TestCase;
 
 class ProgramReportExportTest extends TestCase
@@ -23,25 +27,101 @@ class ProgramReportExportTest extends TestCase
         return Program::create(['program' => 'Export Test', 'level' => 'Bachelors', 'status' => 1]);
     }
 
-    public function test_report_exports_require_program_access(): void
+    public static function exportFormats(): array
+    {
+        return ['PDF' => ['pdf'], 'Excel' => ['xlsx']];
+    }
+
+    #[DataProvider('exportFormats')]
+    public function test_report_exports_require_program_access(string $format): void
     {
         $program = $this->program();
         $user = User::factory()->create();
         foreach (['exportGapCoverage', 'exportProgression'] as $action) {
             $url = route('programReports.'.$action, $program);
-            $this->postJson($url, ['format' => 'pdf'])->assertUnauthorized();
+            $this->postJson($url, ['format' => $format])->assertUnauthorized();
         }
         $this->actingAs($user);
         foreach (['exportGapCoverage', 'exportProgression'] as $action) {
             $url = route('programReports.'.$action, $program);
-            $this->postJson($url, ['format' => 'pdf'])->assertForbidden();
+            $this->postJson($url, ['format' => $format])->assertForbidden();
             foreach ([1, 2, 3] as $permission) {
                 $program->users()->sync([$user->id => ['permission' => $permission]]);
-                $response = $this->postJson($url, ['format' => 'pdf'])->assertOk();
-                $response->assertHeader('content-type', 'application/pdf');
+                $response = $this->postJson($url, ['format' => $format])->assertOk();
+                $response->assertHeader('content-type', $format === 'pdf'
+                    ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             }
             $program->users()->detach($user->id);
         }
+    }
+
+    public static function roleExportCases(): array
+    {
+        $cases = [];
+        foreach (['administrator', 'program director', 'department head'] as $role) {
+            foreach (['pdf', 'xlsx'] as $format) {
+                $cases[$role.' '.$format] = [$role, $format];
+            }
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('roleExportCases')]
+    public function test_role_access_allows_exports_only_for_the_assigned_program(string $roleName, string $format): void
+    {
+        $program = $this->program();
+        $otherProgram = $this->program();
+        $user = User::factory()->create();
+        $role = Role::where('role', $roleName)->firstOrFail();
+        $user->roles()->attach($role->id);
+        // Use role access only, so direct collaborator permissions cannot make this pass.
+        $user->programsWithElevatedRoleAccess()->attach($program->program_id, ['role_id' => $role->id]);
+        $this->actingAs($user);
+
+        foreach (['exportGapCoverage', 'exportProgression'] as $action) {
+            $this->postJson(route('programReports.'.$action, $program), ['format' => $format])->assertOk()->assertDownload();
+            $this->postJson(route('programReports.'.$action, $otherProgram), ['format' => $format])->assertForbidden();
+        }
+    }
+
+    #[DataProvider('exportFormats')]
+    public function test_unverified_users_cannot_export_even_with_program_access(string $format): void
+    {
+        $program = $this->program();
+        $user = User::factory()->create(['email_verified_at' => null]);
+        $program->users()->attach($user->id, ['permission' => 1]);
+        $this->actingAs($user);
+
+        foreach (['exportGapCoverage', 'exportProgression'] as $action) {
+            $this->postJson(route('programReports.'.$action, $program), ['format' => $format])->assertForbidden();
+        }
+    }
+
+    #[DataProvider('exportFormats')]
+    public function test_progression_exports_include_only_the_selected_plos_courses_and_clos(string $format): void
+    {
+        $fixture = ReportFixtures::create();
+        $this->actingAs($fixture['user']);
+        $url = route('programReports.exportProgression', $fixture['program']);
+        $response = $this->postJson($url, [
+            'format' => $format, 'plo_id' => $fixture['beta']->pl_outcome_id, 'view' => 'cognitive-levels',
+        ])->assertOk();
+        if ($format === 'pdf') {
+            $text = (new \Smalot\PdfParser\Parser)->parseContent($response->getContent())->getText();
+            $this->assertStringContainsString('Advanced topics', $text);
+            $this->assertStringNotContainsString('Foundations', $text);
+            $this->assertMatchesRegularExpression('/Analyze\s*1\s*100%/', $text);
+        } else {
+            $sheets = ReportDownloads::spreadsheetRows($response->streamedContent());
+            $this->assertSame(1, $sheets['Summary'][11][1]);
+            $this->assertStringContainsString('Analyze new questions.', json_encode($sheets['CLO classifications']));
+            $this->assertStringNotContainsString('Remember the main ideas.', json_encode($sheets['CLO classifications']));
+            $this->assertSame('TEST 201 — Advanced topics', $sheets['Cognitive-level distribution'][2][3]);
+        }
+
+        $otherPlo = $this->program()->programLearningOutcomes()->create(['pl_outcome' => 'Other program outcome']);
+        $this->postJson($url, ['format' => $format, 'plo_id' => $otherPlo->pl_outcome_id])->assertNotFound();
     }
 
     public function test_gap_export_validates_settings_and_prepares_statistics_only(): void
