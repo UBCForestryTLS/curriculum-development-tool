@@ -27,7 +27,20 @@
             $levels[$level['map_scale_id']] = $level['title'];
         }
     }
-    $percent = fn ($value) => $value === null ? 'N/A' : rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.').'%';
+    $formatCoveragePercentage = function (array $comparison): string {
+        if ($comparison['percentage'] === null) {
+            return 'N/A';
+        }
+
+        $percentage = round($comparison['percentage'], 2);
+        // Show the unrounded percentage if rounding would hide why it is flagged.
+        if (($comparison['status'] === 'gap' && $percentage >= $comparison['min'])
+            || ($comparison['status'] === 'redundancy' && $percentage <= $comparison['max'])) {
+            $percentage = $comparison['percentage'];
+        }
+
+        return $percentage.'%';
+    };
     $bound = fn ($value) => $value === null ? 'Not set' : $value.'%';
 @endphp
 <h1>Gap and Redundancy Report</h1>
@@ -77,7 +90,7 @@
             @foreach ($rows as $row)
                 <tr class="{{ in_array($row['status'], ['gap', 'redundancy']) ? $row['status'] : '' }}">
                     <td>{{ $levels[$row['map_scale_id']] }}</td>
-                    <td>{{ $row['count'] }} of {{ $row['denominator'] }}<br>{{ $percent($row['percentage']) }}</td>
+                    <td>{{ $row['count'] }} of {{ $row['denominator'] }}<br>{{ $formatCoveragePercentage($row) }}</td>
                     <td>{{ $bound($row['min']) }}</td><td>{{ $bound($row['max']) }}</td>
                     <td>{{ $statuses[$row['status']] }}</td>
                 </tr>

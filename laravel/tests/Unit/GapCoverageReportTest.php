@@ -68,6 +68,48 @@ class GapCoverageReportTest extends TestCase
         $data['coverage'] = [];
         $this->assertSame([], GapCoverageReport::evaluate($data)['plos']);
     }
+    public function test_pdf_preserves_precision_when_rounding_would_hide_a_concern(): void
+    {
+        $cases = [
+            [39999, '39.999%', 'Potential gap'],
+            [40000, '40%', 'Within expectations'],
+            [40001, '40.001%', 'Potential redundancy'],
+            [12346, '12.35%', 'Potential gap'],
+            [0, '0%', 'Potential gap'],
+        ];
+        $settings = $this->settings();
+        $report = [
+            'program_id' => 1, 'expectations' => $settings,
+            'program_totals' => ['course_count' => 100000, 'clo_count' => 0],
+            'mapping_completeness' => ['has_incomplete_mappings' => false],
+            'coverage' => [],
+        ];
+        foreach ($cases as $id => [$count]) {
+            $report['coverage'][] = [
+                'pl_outcome_id' => $id, 'plo_shortphrase' => 'PLO '.$id, 'pl_outcome' => 'Coverage example',
+                'mapping_scale_histogram' => [[
+                    'map_scale_id' => 90, 'title' => 'Introduced',
+                    'mapped_clo_count' => 0, 'covering_course_count' => $count,
+                    'required_course_count' => 0, 'non_required_course_count' => 0,
+                ]],
+            ];
+        }
+        $report['results'] = GapCoverageReport::evaluate($report, $settings);
+        $pdf = \PDF::loadView('programs.exports.gap-coverage', [
+            'program_name' => 'Test', 'generated_at' => '2026-10-29', 'report' => $report,
+        ])->output();
+        $text = (new \Smalot\PdfParser\Parser)->parseContent($pdf)->getText();
+
+        // Check the percentage beside its count and finding in the generated PDF.
+        foreach ($cases as [$count, $percentage, $finding]) {
+            $this->assertMatchesRegularExpression(
+                '/'.$count.' of 100000\s*'.preg_quote($percentage, '/').'\s*40%\s*40%\s*'.preg_quote($finding, '/').'/',
+                $text,
+            );
+        }
+        $this->assertMatchesRegularExpression('/0 of 0\s*N\/A\s*Not set\s*Not set\s*N\/A \(zero denominator\)/', $text);
+    }
+
     public function test_spreadsheet_preserves_comparisons_mappings_and_literal_text(): void
     {
         $settings = $this->settings(0, 0);
