@@ -59,17 +59,26 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
             'CLO ID', 'CLO', 'CLO description', 'Classification', 'Bloom level', 'Matched terms', 'Review suggested']];
         foreach (ProgramProgression::groupCoursesByHundredLevel(collect($report['courses'])) as $group => $courses) {
             foreach ($courses as $course) {
+                $requiredLabel = 'Unspecified';
+                if ($course['course_required'] !== null) {
+                    $requiredLabel = $course['course_required'] ? 'Yes' : 'No';
+                }
                 foreach ($course['clos'] as $clo) {
                     $matches = $clo['bloom_levels'] ?? [];
-                    $status = ! $available ? 'Reference unavailable' : ($matches === [] ? 'Unmatched' : 'Matched');
+                    $classificationStatus = 'Reference unavailable';
+                    $reviewLabel = null;
+                    if ($available) {
+                        $classificationStatus = $matches === [] ? 'Unmatched' : 'Matched';
+                        $reviewLabel = $this->needsReview($clo) ? 'Yes' : 'No';
+                    }
                     // One row per matched level keeps its terms together; unmatched CLOs still get a row.
                     foreach ($matches ?: [null] as $level) {
                         $details[] = [$this->groupLabel($group), $course['course_id'], $course['course_code'],
                             (string) $course['course_num'], $course['course_title'],
-                            $course['course_required'] === null ? 'Unspecified' : ($course['course_required'] ? 'Yes' : 'No'),
-                            $clo['l_outcome_id'], $clo['clo_shortphrase'], $clo['l_outcome'], $status,
+                            $requiredLabel,
+                            $clo['l_outcome_id'], $clo['clo_shortphrase'], $clo['l_outcome'], $classificationStatus,
                             $level['name'] ?? null, $level === null ? null : implode(', ', $level['matched_terms']),
-                            $available ? ($this->needsReview($clo) ? 'Yes' : 'No') : null];
+                            $reviewLabel];
                     }
                 }
             }

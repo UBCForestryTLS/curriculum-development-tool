@@ -149,11 +149,40 @@ class ProgramReportExportTest extends TestCase
         } finally {
             unlink($path);
         }
-        foreach ([['format' => 'csv'], ['format' => 'pdf', 'units' => 'invalid'],
-            ['format' => 'pdf', 'metric' => 'invalid'], ['format' => 'pdf', 'expectations' => 'invalid'],
-            ['format' => 'pdf', 'expectations' => ['concerns' => ['gaps' => true, 'redundancies' => true],
-                'metrics' => ['covering_course_count' => ['levels' => [999 => ['min' => 25, 'max' => 75]]]]]]]
-            as $input) {
+        $invalidInputs = [
+            [
+                'format' => 'csv',
+            ],
+            [
+                'format' => 'pdf',
+                'units' => 'invalid',
+            ],
+            [
+                'format' => 'pdf',
+                'metric' => 'invalid',
+            ],
+            [
+                'format' => 'pdf',
+                'expectations' => 'invalid',
+            ],
+            [
+                'format' => 'pdf',
+                'expectations' => [
+                    'concerns' => [
+                        'gaps' => true,
+                        'redundancies' => true,
+                    ],
+                    'metrics' => [
+                        'covering_course_count' => [
+                            'levels' => [
+                                999 => ['min' => 25, 'max' => 75],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+        foreach ($invalidInputs as $input) {
             $this->postJson($url, $input)->assertUnprocessable();
         }
     }

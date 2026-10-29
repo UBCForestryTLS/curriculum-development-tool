@@ -74,10 +74,14 @@ class GapCoverageSpreadsheet extends ReportSpreadsheet
                     $comparison['min'], $comparison['max'], self::RESULTS[$comparison['status']]];
             }
             foreach ($plo['courses'] as $course) {
+                $requiredLabel = 'Unspecified';
+                if ($course['course_required'] !== null) {
+                    $requiredLabel = $course['course_required'] ? 'Yes' : 'No';
+                }
                 foreach ($course['learning_outcomes'] as $clo) {
                     $mappings[] = [$plo['pl_outcome_id'], $plo['plo_shortphrase'], $course['course_id'],
                         $course['course_code'], (string) $course['course_num'], $course['course_title'],
-                        $course['course_required'] === null ? 'Unspecified' : ($course['course_required'] ? 'Yes' : 'No'),
+                        $requiredLabel,
                         $clo['l_outcome_id'], $clo['clo_shortphrase'], $clo['l_outcome'], $clo['map_scale_title']];
                 }
             }

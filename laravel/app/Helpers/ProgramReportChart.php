@@ -26,14 +26,23 @@ class ProgramReportChart
                     $row = collect($results[$plo['pl_outcome_id']]['comparisons'])
                         ->where('metric', $metric)->firstWhere('map_scale_id', $level['map_scale_id']);
 
-                    return $row['percentage'] === null ? null : ($counts ? $row['count'] : $row['percentage']);
+                    if ($row['percentage'] === null) {
+                        return null;
+                    }
+
+                    return $counts ? $row['count'] : $row['percentage'];
                 }, $plos),
             ];
         }
 
+        $axisTitle = 'Coverage (%)';
+        if ($counts) {
+            $axisTitle = $metric === 'mapped_clo_count' ? 'Number of CLOs' : 'Number of courses';
+        }
+
         return self::config('column', $labels[$metric], array_map(
             fn ($plo, $index) => e($plo['plo_shortphrase'] ?: 'PLO '.($index + 1)), $plos, array_keys($plos),
-        ), $series, $counts, $counts ? ($metric === 'mapped_clo_count' ? 'Number of CLOs' : 'Number of courses') : 'Coverage (%)');
+        ), $series, $counts, $axisTitle);
     }
 
     public static function progression(array $report, array $options): array
@@ -64,7 +73,11 @@ class ProgramReportChart
                 $series[] = ['name' => e($level['name']), 'data' => array_map(function ($group) use ($level, $counts) {
                     $row = collect($group['blooms_levels'])->firstWhere('level_id', $level['id']);
 
-                    return $row['percentage'] === null ? null : ($counts ? $row['clo_count'] : $row['percentage']);
+                    if ($row['percentage'] === null) {
+                        return null;
+                    }
+
+                    return $counts ? $row['clo_count'] : $row['percentage'];
                 }, $groups)];
             }
         }
