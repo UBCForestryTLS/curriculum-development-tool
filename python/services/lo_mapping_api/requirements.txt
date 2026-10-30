@@ -2,3 +2,4 @@ fastapi==0.135.2
 mangum==0.21.0
 certifi==2026.10.19
 pydantic-settings==2.16.1
+boto3==1.43.123
