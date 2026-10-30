@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Gap and Redundancy Report</title>
+    @include('programs.exports.pdf-styles')
+</head>
+<body>
+@php
+    $metrics = [
+        'mapped_clo_count' => 'Mapped CLOs',
+        'covering_course_count' => 'Covering courses',
+        'required_course_count' => 'Required covering courses',
+        'non_required_course_count' => 'Non-required covering courses',
+    ];
+    $statuses = [
+        'gap' => 'Potential gap', 'redundancy' => 'Potential redundancy',
+        'within_expectations' => 'Within expectations', 'no_expectation' => 'No expectation applied',
+        'not_applicable' => 'N/A (zero denominator)',
+    ];
+    $settings = $report['expectations'];
+    $summary = $report['results']['summary'];
+    $results = array_column($report['results']['plos'], null, 'pl_outcome_id');
+    $levels = [];
+    foreach ($report['coverage'] as $plo) {
+        foreach ($plo['mapping_scale_histogram'] as $level) {
+            $levels[$level['map_scale_id']] = $level['title'];
+        }
+    }
+    $formatCoveragePercentage = function (array $comparison): string {
+        if ($comparison['percentage'] === null) {
+            return 'N/A';
+        }
+
+        $percentage = round($comparison['percentage'], 2);
+        // Show the unrounded percentage if rounding would hide why it is flagged.
+        if (($comparison['status'] === 'gap' && $percentage >= $comparison['min'])
+            || ($comparison['status'] === 'redundancy' && $percentage <= $comparison['max'])) {
+            $percentage = $comparison['percentage'];
+        }
+
+        return $percentage.'%';
+    };
+    $bound = fn ($value) => $value === null ? 'Not set' : $value.'%';
+@endphp
+<h1>Gap and Redundancy Report</h1>
+<h2>{{ $program_name }}</h2>
+<p class="muted">Program ID: {{ $report['program_id'] }} · Generated: {{ $generated_at }}</p>
+<p>{{ $report['program_totals']['course_count'] }} courses · {{ $report['program_totals']['clo_count'] }} CLOs · {{ count($report['coverage']) }} PLOs</p>
+@if ($report['mapping_completeness']['has_incomplete_mappings'])
+    <p class="warning">Program mappings are incomplete. Potential gap and redundancy findings are provisional.</p>
+@endif
+<h2>Applied expectations</h2>
+<p>Check potential gaps: {{ ($settings['concerns']['gaps'] ?? false) ? 'Yes' : 'No' }} ·
+    Check potential redundancies: {{ ($settings['concerns']['redundancies'] ?? false) ? 'Yes' : 'No' }}</p>
+@if (empty($settings['metrics']))
+    <p>Statistics only — no coverage ranges applied.</p>
+@else
+    <table>
+        <thead><tr><th>Metric</th><th>Mapping level</th><th>Minimum</th><th>Maximum</th></tr></thead>
+        <tbody>
+        @foreach ($settings['metrics'] as $metric => $selection)
+            @foreach ($selection['levels'] as $id => $bounds)
+                <tr><td>{{ $metrics[$metric] }}</td><td>{{ $levels[$id] ?? "Level ID {$id}" }}</td>
+                    <td>{{ $bound($bounds['min']) }}</td><td>{{ $bound($bounds['max']) }}</td></tr>
+            @endforeach
+        @endforeach
+        </tbody>
+    </table>
+@endif
+<p>Coverage below the minimum is a potential gap; coverage above the maximum is a potential redundancy.
+    Values equal to either boundary are within the range. Findings use unrounded percentages.</p>
+<p>Mapped CLO percentages use all program CLOs. All course percentages, including required and non-required courses,
+    use all program courses. Coverage can overlap across levels; percentages do not need to total 100%. N/A mappings do not count as coverage.</p>
+<h2>Findings summary</h2>
+<p>{{ $summary['evaluated_plo_count'] }} PLOs evaluated against ranges · {{ $summary['concern_plo_count'] }} with any concern ·
+    {{ $summary['gap_plo_count'] }} with potential gaps · {{ $summary['redundancy_plo_count'] }} with potential redundancies</p>
+<p class="muted">A PLO can have both types of concern. Download Excel for the contributing courses and CLO mappings.</p>
+@include('programs.exports.chart')
+<h2>PLO coverage comparisons</h2>
+@forelse ($report['coverage'] as $plo)
+    <h2>{{ $plo['plo_shortphrase'] ?: 'PLO '.$loop->iteration }}</h2>
+    <p>{{ $plo['pl_outcome'] }}</p>
+    @php $comparisons = collect($results[$plo['pl_outcome_id']]['comparisons'])->groupBy('metric'); @endphp
+    @forelse ($comparisons as $metric => $rows)
+        <h3>{{ $metrics[$metric] }}</h3>
+        <table>
+            <thead><tr><th>Mapping level</th><th>Actual coverage</th><th>Minimum</th><th>Maximum</th><th>Result</th></tr></thead>
+            <tbody>
+            @foreach ($rows as $row)
+                <tr class="{{ in_array($row['status'], ['gap', 'redundancy']) ? $row['status'] : '' }}">
+                    <td>{{ $levels[$row['map_scale_id']] }}</td>
+                    <td>{{ $row['count'] }} of {{ $row['denominator'] }}<br>{{ $formatCoveragePercentage($row) }}</td>
+                    <td>{{ $bound($row['min']) }}</td><td>{{ $bound($row['max']) }}</td>
+                    <td>{{ $statuses[$row['status']] }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    @empty
+        <p>No applicable mapping levels are configured.</p>
+    @endforelse
+@empty
+    <p>No PLOs have been added to this program.</p>
+@endforelse
+</body>
+</html>

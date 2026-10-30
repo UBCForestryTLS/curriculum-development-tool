@@ -13,6 +13,55 @@ class ProgramProgressionTest extends TestCase
         ['id' => 30, 'name' => 'Last', 'position' => 3],
     ];
 
+    public function test_cognitive_distribution_counts_scoped_clos_and_courses_once_per_level(): void
+    {
+        $first = ['course_id' => 1, 'course_num' => '101', 'clos' => [
+            ['l_outcome_id' => 1, 'bloom_levels' => [['level_id' => 20], ['level_id' => 20], ['level_id' => 8]]],
+        ]];
+        $second = ['course_id' => 2, 'course_num' => '201', 'clos' => [
+            ['l_outcome_id' => 2, 'bloom_levels' => [['level_id' => 20]]],
+            ['l_outcome_id' => 3, 'bloom_levels' => []],
+            ['l_outcome_id' => 4, 'bloom_levels' => []],
+        ]];
+        $report = [
+            'courses' => [$first, $first, $second],
+            'bloom_reference_available' => true,
+            'bloom_levels' => [$this->levels[1], $this->levels[0], $this->levels[2]],
+        ];
+
+        $summary = ProgramProgression::summarizeCognitiveLevels($report);
+        $this->assertSame(4, $summary['clo_count']);
+        $this->assertSame([20, 8, 30], array_column($summary['levels'], 'level_id'));
+        $this->assertSame([2, 1, 0], array_column($summary['levels'], 'clo_count'));
+        // Two of four CLOs match, even though the course groups have 100% and 33.33% coverage.
+        $this->assertSame([50.0, 25.0, 0.0], array_column($summary['levels'], 'percentage'));
+        $this->assertSame([1, 2], array_column($summary['levels'][0]['courses'], 'course_id'));
+        $this->assertSame([], $summary['levels'][2]['courses']);
+
+        $report['courses'] = [$second];
+        $scoped = ProgramProgression::summarizeCognitiveLevels($report);
+        $this->assertSame(3, $scoped['clo_count']);
+        $this->assertSame([33.33, 0.0, 0.0], array_column($scoped['levels'], 'percentage'));
+        $this->assertSame([2], array_column($scoped['levels'][0]['courses'], 'course_id'));
+    }
+
+    public function test_cognitive_distribution_keeps_empty_scope_and_missing_reference_distinct(): void
+    {
+        $report = ['courses' => [], 'bloom_reference_available' => true, 'bloom_levels' => $this->levels];
+        $empty = ProgramProgression::summarizeCognitiveLevels($report);
+        $this->assertSame(0, $empty['clo_count']);
+        $this->assertSame([0, 0, 0], array_column($empty['levels'], 'clo_count'));
+        $this->assertSame([null, null, null], array_column($empty['levels'], 'percentage'));
+
+        $report['courses'] = [['course_id' => 1, 'clos' => [['l_outcome_id' => 1, 'bloom_levels' => null]]]];
+        $report['bloom_reference_available'] = false;
+        $unavailable = ProgramProgression::summarizeCognitiveLevels($report);
+        $this->assertSame(1, $unavailable['clo_count']);
+        $this->assertSame([null, null, null], array_column($unavailable['levels'], 'clo_count'));
+        $this->assertSame([null, null, null], array_column($unavailable['levels'], 'percentage'));
+        $this->assertSame([[], [], []], array_column($unavailable['levels'], 'courses'));
+    }
+
     public function test_counts_distinct_clos_and_keeps_unmatched_clos_in_percentages(): void
     {
         $clo = ['l_outcome_id' => 1, 'l_outcome' => 'Same wording', 'bloom_levels' => [
