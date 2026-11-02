@@ -1,8 +1,10 @@
 import json
+from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app import auth
 from app.handler import handler
 from app.main import app
 
@@ -11,12 +13,16 @@ def test_health_returns_json_without_aws_configuration(monkeypatch, tmp_path):
     monkeypatch.delenv("AWS_REGION", raising=False)
     monkeypatch.delenv("LO_MAPPING_DYNAMODB_TABLE", raising=False)
     monkeypatch.chdir(tmp_path)
+    # Health should stay available even when authentication storage cannot be reached.
+    store_constructor = Mock(side_effect=AssertionError("Health should not access AWS"))
+    monkeypatch.setattr(auth, "ApiKeyStore", store_constructor)
 
     with TestClient(app) as client:
         response = client.get("/health")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+    store_constructor.assert_not_called()
 
 
 @pytest.mark.parametrize(
