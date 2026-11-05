@@ -8,6 +8,13 @@ use Illuminate\Validation\ValidationException;
 
 class GapCoverageReport
 {
+    public const METRIC_LABELS = [
+        'mapped_clo_count' => 'Mapped CLOs',
+        'covering_course_count' => 'Covering courses',
+        'required_course_count' => 'Required covering courses',
+        'non_required_course_count' => 'Non-required covering courses',
+    ];
+
     private const DENOMINATORS = [
         'mapped_clo_count' => 'clo_count',
         'covering_course_count' => 'course_count',

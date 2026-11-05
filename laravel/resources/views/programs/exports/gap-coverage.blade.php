@@ -7,12 +7,7 @@
 </head>
 <body>
 @php
-    $metrics = [
-        'mapped_clo_count' => 'Mapped CLOs',
-        'covering_course_count' => 'Covering courses',
-        'required_course_count' => 'Required covering courses',
-        'non_required_course_count' => 'Non-required covering courses',
-    ];
+    $metrics = \App\Helpers\GapCoverageReport::METRIC_LABELS;
     $statuses = [
         'gap' => 'Potential gap', 'redundancy' => 'Potential redundancy',
         'within_expectations' => 'Within expectations', 'no_expectation' => 'No expectation applied',

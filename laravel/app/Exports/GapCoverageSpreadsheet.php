@@ -2,17 +2,11 @@
 
 namespace App\Exports;
 
+use App\Helpers\GapCoverageReport;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 
 class GapCoverageSpreadsheet extends ReportSpreadsheet
 {
-    private const METRICS = [
-        'mapped_clo_count' => 'Mapped CLOs',
-        'covering_course_count' => 'Covering courses',
-        'required_course_count' => 'Required covering courses',
-        'non_required_course_count' => 'Non-required covering courses',
-    ];
-
     private const RESULTS = [
         'gap' => 'Potential gap',
         'redundancy' => 'Potential redundancy',
@@ -57,7 +51,7 @@ class GapCoverageSpreadsheet extends ReportSpreadsheet
         }
         foreach ($settings['metrics'] ?? [] as $metric => $selection) {
             foreach ($selection['levels'] as $id => $bounds) {
-                $rows[] = [self::METRICS[$metric], $levels[$id] ?? "Level ID {$id}", $bounds['min'], $bounds['max']];
+                $rows[] = [GapCoverageReport::METRIC_LABELS[$metric], $levels[$id] ?? "Level ID {$id}", $bounds['min'], $bounds['max']];
             }
         }
         $this->writeRows($summary, $rows, false);
@@ -69,7 +63,7 @@ class GapCoverageSpreadsheet extends ReportSpreadsheet
         foreach ($report['coverage'] as $plo) {
             foreach ($results[$plo['pl_outcome_id']]['comparisons'] as $comparison) {
                 $comparisons[] = [$plo['pl_outcome_id'], $plo['plo_shortphrase'], $plo['pl_outcome'],
-                    self::METRICS[$comparison['metric']], $levels[$comparison['map_scale_id']],
+                    GapCoverageReport::METRIC_LABELS[$comparison['metric']], $levels[$comparison['map_scale_id']],
                     $comparison['count'], $comparison['denominator'], $comparison['percentage'],
                     $comparison['min'], $comparison['max'], self::RESULTS[$comparison['status']]];
             }

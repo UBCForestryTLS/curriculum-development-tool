@@ -56,11 +56,12 @@
                 </fieldset>
 
                 @php
+                    $metricLabels = \App\Helpers\GapCoverageReport::METRIC_LABELS;
                     $coverageMetrics = [
-                        'mapped_clo_count' => ['Mapped CLOs', 'Distinct CLOs mapped to each PLO at a level, as a percentage of all CLOs in program courses.'],
-                        'covering_course_count' => ['Covering courses', 'Distinct courses covering each PLO at a level, as a percentage of all program courses.'],
-                        'required_course_count' => ['Required covering courses', 'Distinct required courses covering each PLO at a level, as a percentage of all program courses.'],
-                        'non_required_course_count' => ['Non-required covering courses', 'Distinct non-required courses covering each PLO at a level, as a percentage of all program courses.'],
+                        'mapped_clo_count' => [$metricLabels['mapped_clo_count'], 'Distinct CLOs mapped to each PLO at a level, as a percentage of all CLOs in program courses.'],
+                        'covering_course_count' => [$metricLabels['covering_course_count'], 'Distinct courses covering each PLO at a level, as a percentage of all program courses.'],
+                        'required_course_count' => [$metricLabels['required_course_count'], 'Distinct required courses covering each PLO at a level, as a percentage of all program courses.'],
+                        'non_required_course_count' => [$metricLabels['non_required_course_count'], 'Distinct non-required courses covering each PLO at a level, as a percentage of all program courses.'],
                     ];
                 @endphp
                 @foreach ($coverageMetrics as $key => [$label, $description])

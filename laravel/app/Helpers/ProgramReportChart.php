@@ -11,8 +11,7 @@ class ProgramReportChart
     {
         $metric = $options['metric'];
         $counts = $options['units'] === 'counts';
-        $labels = ['mapped_clo_count' => 'Mapped CLOs', 'covering_course_count' => 'Covering courses',
-            'required_course_count' => 'Required covering courses', 'non_required_course_count' => 'Non-required covering courses'];
+        $labels = GapCoverageReport::METRIC_LABELS;
         $plos = $report['coverage'];
         $results = array_column($report['results']['plos'], null, 'pl_outcome_id');
         $series = [];
