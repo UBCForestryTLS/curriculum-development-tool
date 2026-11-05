@@ -75,7 +75,7 @@
 <h2>Findings summary</h2>
 <p>{{ $summary['evaluated_plo_count'] }} PLOs evaluated against ranges · {{ $summary['concern_plo_count'] }} with any concern ·
     {{ $summary['gap_plo_count'] }} with potential gaps · {{ $summary['redundancy_plo_count'] }} with potential redundancies</p>
-<p class="muted">A PLO can have both types of concern. Download Excel for the contributing courses and CLO mappings.</p>
+<p class="muted">A PLO can have both types of concern. Download the report as an Excel file to view contributing courses and CLO mappings in detail.</p>
 @include('programs.exports.chart')
 <h2>PLO coverage comparisons</h2>
 @forelse ($report['coverage'] as $plo)
