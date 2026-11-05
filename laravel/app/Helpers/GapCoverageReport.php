@@ -94,8 +94,17 @@ class GapCoverageReport
     /** Match coverage-report.js using validated settings and unrounded comparisons. */
     public static function evaluate(array $data, ?array $settings = null): array
     {
-        $plos = collect($data['coverage'])->map(function ($plo) use ($data, $settings) {
+        $summary = [
+            'evaluated_plo_count' => 0,
+            'concern_plo_count' => 0,
+            'gap_plo_count' => 0,
+            'redundancy_plo_count' => 0,
+        ];
+        $plos = collect($data['coverage'])->map(function ($plo) use ($data, $settings, &$summary) {
             $comparisons = [];
+            $hasGap = false;
+            $hasRedundancy = false;
+            $hasEvaluatedComparison = false;
             foreach ($plo['mapping_scale_histogram'] as $level) {
                 if ((int) $level['map_scale_id'] === 0) {
                     continue;
@@ -114,29 +123,44 @@ class GapCoverageReport
                         $min !== null || $max !== null => 'within_expectations',
                         default => 'no_expectation',
                     };
+                    if ($status === 'gap') {
+                        $hasGap = true;
+                    } elseif ($status === 'redundancy') {
+                        $hasRedundancy = true;
+                    }
+                    if (in_array($status, ['gap', 'redundancy', 'within_expectations'], true)) {
+                        $hasEvaluatedComparison = true;
+                    }
                     $comparisons[] = compact('metric', 'count', 'denominator', 'percentage', 'min', 'max', 'status')
                         + ['map_scale_id' => $level['map_scale_id']];
                 }
             }
-            $statuses = array_column($comparisons, 'status');
+
+            // Count each PLO once, even when several comparisons flag the same concern.
+            if ($hasEvaluatedComparison) {
+                $summary['evaluated_plo_count']++;
+            }
+            if ($hasGap || $hasRedundancy) {
+                $summary['concern_plo_count']++;
+            }
+            if ($hasGap) {
+                $summary['gap_plo_count']++;
+            }
+            if ($hasRedundancy) {
+                $summary['redundancy_plo_count']++;
+            }
 
             return [
                 'pl_outcome_id' => $plo['pl_outcome_id'],
                 'comparisons' => $comparisons,
-                'has_gap' => in_array('gap', $statuses, true),
-                'has_redundancy' => in_array('redundancy', $statuses, true),
+                'has_gap' => $hasGap,
+                'has_redundancy' => $hasRedundancy,
             ];
         });
 
         return [
             'plos' => $plos->values()->all(),
-            'summary' => [
-                'evaluated_plo_count' => $plos->filter(fn ($plo) => collect($plo['comparisons'])
-                    ->whereIn('status', ['gap', 'redundancy', 'within_expectations'])->isNotEmpty())->count(),
-                'concern_plo_count' => $plos->filter(fn ($plo) => $plo['has_gap'] || $plo['has_redundancy'])->count(),
-                'gap_plo_count' => $plos->where('has_gap', true)->count(),
-                'redundancy_plo_count' => $plos->where('has_redundancy', true)->count(),
-            ],
+            'summary' => $summary,
         ];
     }
 }
