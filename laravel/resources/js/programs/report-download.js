@@ -13,6 +13,7 @@ export async function downloadReport(endpoint, payload, filename) {
             },
             body: JSON.stringify(payload),
         });
+        // Turn failed export responses into messages the download controls can show.
         if (!response.ok) {
             if ([401, 419].includes(response.status)) throw new Error('Your session has expired. Refresh the page and sign in again.');
             if (response.status === 403) throw new Error('You no longer have permission to export this program.');
@@ -24,6 +25,7 @@ export async function downloadReport(endpoint, payload, filename) {
         if (!response.headers.get('Content-Type')?.includes(expectedType)) {
             throw new Error('The report could not be downloaded. Refresh the page and try again.');
         }
+        // Save the returned file using the server's filename when one is provided.
         url = URL.createObjectURL(await response.blob());
         link = document.createElement('a');
         link.href = url;

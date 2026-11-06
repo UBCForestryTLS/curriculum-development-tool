@@ -8,6 +8,7 @@ class ProgramReportExportRequest extends FormRequest
 {
     public function authorize(): bool
     {
+        // Owners (1), editors (2) and viewers (3) can download reports.
         return in_array((int) $this->user()->effectivePermissionForProgram(
             $this->route('program')->program_id,
         ), [1, 2, 3], true);

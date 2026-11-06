@@ -16,6 +16,7 @@ class ProgramReportChart
         $labels = GapCoverageReport::METRIC_LABELS;
         $plos = $report['coverage'];
         $results = array_column($report['results']['plos'], null, 'pl_outcome_id');
+        // Each mapping level is a series, with one value per PLO for the selected metric.
         $series = [];
         foreach ($plos[0]['mapping_scale_histogram'] ?? [] as $level) {
             if ((int) $level['map_scale_id'] === 0) {
@@ -41,6 +42,7 @@ class ProgramReportChart
             $axisTitle = $metric === 'mapped_clo_count' ? 'Number of CLOs' : 'Number of courses';
         }
 
+        // Array keys supply the positions used to label PLOs without a short phrase.
         return self::config('column', $labels[$metric], array_map(
             fn ($plo, $index) => e($plo['plo_shortphrase'] ?: 'PLO '.($index + 1)), $plos, array_keys($plos),
         ), $series, $counts, $axisTitle);
@@ -49,6 +51,7 @@ class ProgramReportChart
     public static function progression(array $report, array $options): array
     {
         $counts = $options['units'] === 'counts';
+        // The cognitive-level view combines all CLOs in the selected scope.
         if ($options['view'] === 'cognitive-levels') {
             $distribution = $report['cognitive_distribution'];
             $series = [];
@@ -67,6 +70,7 @@ class ProgramReportChart
             return $chart;
         }
 
+        // The comparison view shows each cognitive level across the course groups.
         $groups = $report['course_groups'];
         $series = [];
         if ($report['bloom_reference_available']) {

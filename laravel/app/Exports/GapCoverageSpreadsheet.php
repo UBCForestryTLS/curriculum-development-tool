@@ -20,6 +20,7 @@ class GapCoverageSpreadsheet extends ReportSpreadsheet
         $report = $export['report'];
         $settings = $report['expectations'];
         $spreadsheet = new Spreadsheet;
+        // Summary sheet: program totals, findings and the expectations applied to this export.
         $summary = $spreadsheet->getActiveSheet()->setTitle('Summary and expectations');
         $rows = [
             ['Gap and Redundancy Report', 'Value'],
@@ -43,6 +44,7 @@ class GapCoverageSpreadsheet extends ReportSpreadsheet
         }
         $rows[] = [];
         $rows[] = ['Metric', 'Mapping level', 'Minimum (%)', 'Maximum (%)'];
+        // Look up mapping-level names by ID for the expectations and comparison rows.
         $levels = [];
         foreach ($report['coverage'] as $plo) {
             foreach ($plo['mapping_scale_histogram'] as $level) {
@@ -57,6 +59,7 @@ class GapCoverageSpreadsheet extends ReportSpreadsheet
         $this->writeRows($summary, $rows, false);
         $summary->getColumnDimension('B')->setWidth(85);
 
+        // Keep each coverage comparison and its supporting course/CLO mappings in separate sheets.
         $comparisons = [['PLO ID', 'PLO', 'Description', 'Metric', 'Mapping level', 'Count', 'Denominator', 'Coverage (%)', 'Minimum (%)', 'Maximum (%)', 'Result']];
         $mappings = [['PLO ID', 'PLO', 'Course ID', 'Course code', 'Course number', 'Course title', 'Required', 'CLO ID', 'CLO', 'CLO description', 'Mapping level']];
         $results = array_column($report['results']['plos'], null, 'pl_outcome_id');

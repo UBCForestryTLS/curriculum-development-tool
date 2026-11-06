@@ -20,6 +20,7 @@ abstract class ReportSpreadsheet
                     is_int($value) || is_float($value) ? DataType::TYPE_NUMERIC : DataType::TYPE_STRING);
             }
         }
+        // Format the header and long text, then freeze the first row so headings stay visible.
         $lastColumn = $sheet->getHighestColumn();
         $sheet->getStyle("A1:{$lastColumn}1")->getFont()->setBold(true);
         $sheet->getStyle($sheet->calculateWorksheetDimension())->getAlignment()->setWrapText(true)->setVertical('top');

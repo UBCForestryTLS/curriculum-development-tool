@@ -7,6 +7,7 @@ use PHPUnit\Framework\TestCase;
 
 class ProgramProgressionTest extends TestCase
 {
+    // IDs do not follow level positions, so the tests can check position rather than ID order.
     private array $levels = [
         ['id' => 8, 'name' => 'Later', 'position' => 2],
         ['id' => 20, 'name' => 'Earlier', 'position' => 1],

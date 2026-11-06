@@ -65,6 +65,7 @@ it('downloads applied gap expectations and clears them when returning to statist
         expect((new Parser)->parseContent($statistics['content'])->getText())->toContain('Statistics only', 'No expectation applied');
     } else {
         $sheets = ReportDownloads::spreadsheetRows($statistics['content']);
+        // B8 and B9 record whether gap and redundancy checks are enabled.
         expect($sheets['Summary and expectations'][7][1])->toBe('No');
         expect($sheets['Summary and expectations'][8][1])->toBe('No');
         expect(array_unique(array_column(array_slice($sheets['Coverage comparisons'], 1), 10)))->toBe(['No expectation applied']);
@@ -88,6 +89,7 @@ it('downloads progression data after changing the view units and PLO scope', fun
         Http::assertSent(fn ($request) => array_column(json_decode($request['options'], true)['series'], 'data') === $expected);
     } else {
         $sheets = ReportDownloads::spreadsheetRows($program['content']);
+        // Array indexes start at zero: Summary[11][1] is B12, the CLO count in scope.
         expect($sheets['Summary'][11][1])->toBe(4);
         expect(array_column(array_slice($sheets['Cognitive-level distribution'], 1), 2))->toEqual([50, 50, 25]);
     }
@@ -110,9 +112,11 @@ it('downloads progression data after changing the view units and PLO scope', fun
         });
     } else {
         $sheets = ReportDownloads::spreadsheetRows($scoped['content']);
+        // The same B12 cell now counts only CLOs mapped to Beta.
         expect($sheets['Summary'][11][1])->toBe(1);
         expect(array_column(array_slice($sheets['Cognitive-level distribution'], 1), 2))->toEqual([0, 100, 0]);
         expect(json_encode($sheets['CLO classifications']))->toContain('Analyze new questions.')->not->toContain('Remember the main ideas.');
+        // D3 lists contributing courses for the Analyze level.
         expect($sheets['Cognitive-level distribution'][2][3])->toBe('TEST 201 — Advanced topics');
     }
 })->with(['pdf', 'xlsx'])->with(['comparison', 'cognitive-levels']);

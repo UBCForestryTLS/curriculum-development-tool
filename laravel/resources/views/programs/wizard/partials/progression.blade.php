@@ -164,6 +164,7 @@
         let exportInProgress = false;
         exportButtons.forEach(button => button.addEventListener('click', async function () {
             if (exportInProgress || progressionLoading || progressionData === null) return;
+            // Export the loaded scope; detail filters only affect the on-screen table.
             const payload = {
                 format: button.dataset.progressionExport,
                 plo_id: progressionData.selected_plo?.pl_outcome_id ?? null,

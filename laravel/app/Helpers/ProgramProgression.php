@@ -28,6 +28,7 @@ class ProgramProgression
             ->unique('course_id')
             ->values();
 
+        // Keep whole-program totals before narrowing the courses and CLOs to one PLO.
         $programTotals = [
             'course_count' => $courses->count(),
             'clo_count' => $courses->sum(fn ($course) => $course->learningOutcomes->count()),
@@ -46,6 +47,7 @@ class ProgramProgression
             })->values();
         }
 
+        // Classify only the CLOs left in the selected scope.
         $classification = BloomClassifier::classifyClos($courses
             ->flatMap(fn ($course) => $course->learningOutcomes)
             ->mapWithKeys(fn ($clo) => [$clo->l_outcome_id => (string) $clo->l_outcome])
@@ -98,6 +100,7 @@ class ProgramProgression
         $courses = collect($report['courses']);
         $cloCount = $courses->flatMap(fn ($course) => $course['clos'])->unique('l_outcome_id')->count();
         $referenceAvailable = $report['bloom_reference_available'];
+        // Include every cognitive reference level, even when no CLOs match it.
         $levels = array_map(function ($level) use ($courses, $cloCount, $referenceAvailable) {
             $cloIds = [];
             $contributingCourses = [];

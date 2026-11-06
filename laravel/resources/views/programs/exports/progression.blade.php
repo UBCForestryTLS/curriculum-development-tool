@@ -10,6 +10,7 @@
     $available = $report['bloom_reference_available'];
     $totals = $report['scope_totals'] ?? $report['program_totals'];
     $plo = $report['selected_plo'];
+    // Count each scoped CLO once; missing Bloom reference data leaves classification totals unavailable.
     $clos = collect($report['courses'])->flatMap(fn ($course) => $course['clos'])->unique('l_outcome_id');
     $matched = $available ? $clos->filter(fn ($clo) => ! empty($clo['bloom_levels']))->count() : null;
     $needsReview = fn ($clo) => collect($clo['bloom_levels'])->unique('level_id')->count() >= 3;

@@ -17,6 +17,7 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
         $matched = $available ? $clos->filter(fn ($clo) => ! empty($clo['bloom_levels']))->count() : null;
         $reviewCount = $available ? $clos->filter(fn ($clo) => $this->needsReview($clo))->count() : null;
         $book = new Spreadsheet;
+        // Summary sheet: selected scope, totals and notes on how classifications are counted.
         $summary = $book->getActiveSheet()->setTitle('Summary');
         $this->writeRows($summary, [
             ['Curriculum Progression Report', 'Value'],
@@ -44,6 +45,7 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
         ], false);
         $summary->getColumnDimension('B')->setWidth(85);
 
+        // Course-group sheet: cognitive-level counts and percentages for each course group.
         $distributions = [['Course group', 'Courses', 'CLOs', 'Classification', 'CLO count', 'Percentage (%)']];
         foreach ($report['course_groups'] as $group) {
             $prefix = [$this->groupLabel($group['course_level']), $group['course_count'], $group['clo_count']];
@@ -55,6 +57,7 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
         }
         $this->writeRows($book->createSheet()->setTitle('Course-group distributions'), $distributions);
 
+        // CLO sheet: the classifications and matched terms behind the summary counts.
         $details = [['Course group', 'Course ID', 'Course code', 'Course number', 'Course title', 'Required',
             'CLO ID', 'CLO', 'CLO description', 'Classification', 'Bloom level', 'Matched terms', 'Review suggested']];
         foreach (ProgramProgression::groupCoursesByHundredLevel(collect($report['courses'])) as $group => $courses) {
@@ -64,6 +67,7 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
                     $requiredLabel = $course['course_required'] ? 'Yes' : 'No';
                 }
                 foreach ($course['clos'] as $clo) {
+                    // These are the cognitive Bloom levels matched by this CLO, including their matched terms.
                     $matches = $clo['bloom_levels'] ?? [];
                     $classificationStatus = 'Reference unavailable';
                     $reviewLabel = null;
@@ -85,6 +89,7 @@ class ProgressionSpreadsheet extends ReportSpreadsheet
         }
         $this->writeRows($book->createSheet()->setTitle('CLO classifications'), $details);
 
+        // Cognitive-level sheet: totals across the selected scope, with the contributing courses.
         $cognitiveLevels = [['Cognitive level', 'CLO count', 'Percentage (%)', 'Contributing courses']];
         foreach ($report['cognitive_distribution']['levels'] as $level) {
             $courseLabels = array_map(

@@ -16,6 +16,7 @@
     $settings = $report['expectations'];
     $summary = $report['results']['summary'];
     $results = array_column($report['results']['plos'], null, 'pl_outcome_id');
+    // These names belong to mapping-scale levels and are looked up by their IDs.
     $levels = [];
     foreach ($report['coverage'] as $plo) {
         foreach ($plo['mapping_scale_histogram'] as $level) {

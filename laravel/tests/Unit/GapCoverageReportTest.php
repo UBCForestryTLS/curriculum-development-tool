@@ -10,6 +10,7 @@ class GapCoverageReportTest extends TestCase
 {
     private function settings($min = 40, $max = 40): array
     {
+        // 90 is the test mapping-level ID; it does not refer to seeded data.
         return ['concerns' => ['gaps' => true, 'redundancies' => true], 'metrics' => [
             'covering_course_count' => ['levels' => [90 => compact('min', 'max')]],
         ]];
@@ -47,6 +48,7 @@ class GapCoverageReportTest extends TestCase
 
     public function test_findings_use_inclusive_unrounded_bounds_and_distinct_plo_summaries(): void
     {
+        // Values just below and above 40% would both round to 40% with two decimal places.
         $data = ['program_totals' => ['course_count' => 100000, 'clo_count' => 0], 'coverage' => []];
         foreach ([39999, 40000, 40001] as $id => $count) {
             $data['coverage'][] = ['pl_outcome_id' => $id, 'mapping_scale_histogram' => [[
@@ -134,15 +136,19 @@ class GapCoverageReportTest extends TestCase
         try {
             $coverage = $book->getSheetByName('Coverage comparisons');
             $this->assertSame(5, $coverage->getHighestRow());
+            // H3, I3 and K3 hold the percentage, minimum and result for covering courses.
             $this->assertEquals(50, $coverage->getCell('H3')->getValue());
             $this->assertSame(0, $coverage->getCell('I3')->getValue());
             $this->assertSame('Potential redundancy', $coverage->getCell('K3')->getValue());
+            // Row 2 is mapped CLOs: no minimum is set, and the PLO short phrase stays text ('s').
             $this->assertNull($coverage->getCell('I2')->getValue());
             $this->assertSame('s', $coverage->getCell('B2')->getDataType());
             $mappings = $book->getSheetByName('Supporting mappings');
+            // E2 is the course number, G2 is required status and J2 is the CLO text.
             $this->assertSame('001', $mappings->getCell('E2')->getValue());
             $this->assertSame('Unspecified', $mappings->getCell('G2')->getValue());
             $this->assertSame('s', $mappings->getCell('J2')->getDataType());
+            // Summary B10 contains the mapping-completeness warning.
             $this->assertStringContainsString('provisional', $book->getSheet(0)->getCell('B10')->getValue());
         } finally {
             $book->disconnectWorksheets();

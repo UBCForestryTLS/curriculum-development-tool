@@ -25,6 +25,7 @@ class GapCoverageReport
     /** Prepare export data after the caller has authorized program access. */
     public static function report(Program $program, ?array $expectations = null): array
     {
+        // Mapping-scale ID 0 is N/A and cannot have coverage expectations.
         $levelIds = $program->mappingScaleLevels()->where('mapping_scales.map_scale_id', '<>', 0)
             ->pluck('mapping_scales.map_scale_id')->all();
         $settings = self::validateExpectations($expectations, $levelIds);
@@ -58,6 +59,7 @@ class GapCoverageReport
         if (! $concerns['gaps'] && ! $concerns['redundancies']) {
             return $normalized;
         }
+        // Check active ranges against the program's current mapping levels; blank bounds stay unset.
         $levelIds = array_filter(array_map('strval', $levelIds), fn ($id) => $id !== '0');
         $errors = [];
         foreach ($settings['metrics'] as $metric => $selection) {

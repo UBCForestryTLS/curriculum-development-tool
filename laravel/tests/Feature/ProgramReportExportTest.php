@@ -114,9 +114,11 @@ class ProgramReportExportTest extends TestCase
             $this->assertMatchesRegularExpression('/Analyze\s*1\s*100%/', $text);
         } else {
             $sheets = ReportDownloads::spreadsheetRows($response->streamedContent());
+            // Array indexes start at zero: Summary[11][1] is B12, the CLO count in scope.
             $this->assertSame(1, $sheets['Summary'][11][1]);
             $this->assertStringContainsString('Analyze new questions.', json_encode($sheets['CLO classifications']));
             $this->assertStringNotContainsString('Remember the main ideas.', json_encode($sheets['CLO classifications']));
+            // D3 lists contributing courses for the Analyze level.
             $this->assertSame('TEST 201 — Advanced topics', $sheets['Cognitive-level distribution'][2][3]);
         }
 
@@ -143,6 +145,7 @@ class ProgramReportExportTest extends TestCase
             file_put_contents($path, $download->streamedContent());
             $workbook = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
             $this->assertSame(['Summary and expectations', 'Coverage comparisons', 'Supporting mappings'], $workbook->getSheetNames());
+            // Summary B2 is the program name; B8 records whether gap checks are enabled.
             $this->assertSame('Export Test', $workbook->getSheet(0)->getCell('B2')->getValue());
             $this->assertSame('No', $workbook->getSheet(0)->getCell('B8')->getValue());
             $workbook->disconnectWorksheets();
@@ -237,6 +240,7 @@ class ProgramReportExportTest extends TestCase
             file_put_contents($path, $download->streamedContent());
             $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
             $this->assertSame(['Summary', 'Course-group distributions', 'CLO classifications', 'Cognitive-level distribution'], $book->getSheetNames());
+            // Summary B6 is the selected PLO ID; B12 is the CLO count in that scope.
             $this->assertSame($plo->pl_outcome_id, $book->getSheet(0)->getCell('B6')->getValue());
             $this->assertSame(0, $book->getSheet(0)->getCell('B12')->getValue());
             $book->disconnectWorksheets();

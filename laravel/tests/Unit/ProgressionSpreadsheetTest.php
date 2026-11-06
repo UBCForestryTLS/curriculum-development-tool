@@ -10,6 +10,7 @@ class ProgressionSpreadsheetTest extends TestCase
 {
     public function test_exports_preserve_overlapping_matches_unmatched_and_unavailable_reference(): void
     {
+        // One CLO matches all three test cognitive levels; the other matches none.
         $levels = array_map(fn ($id) => ['id' => $id, 'name' => "Level {$id}", 'position' => $id], [1, 2, 3]);
         $matches = array_map(fn ($level) => ['level_id' => $level['id'], 'name' => $level['name'], 'matched_terms' => ['term']], $levels);
         foreach ([true, false] as $available) {
@@ -44,17 +45,23 @@ class ProgressionSpreadsheetTest extends TestCase
             }
             $book = (new ProgressionSpreadsheet)->build($export);
             try {
+                // Summary B15 is the number of CLOs suggested for review.
                 $this->assertEquals($available ? 1 : null, $book->getSheet(0)->getCell('B15')->getValue());
                 $distribution = $book->getSheet(1);
+                // F2 is the first cognitive-level percentage; F5 is the unmatched percentage.
                 $this->assertEquals($available ? 50 : null, $distribution->getCell('F2')->getValue());
                 $this->assertEquals($available ? 50 : null, $distribution->getCell('F5')->getValue());
                 $details = $book->getSheet(2);
+                // With a reference: three matched rows, one unmatched row and a header.
+                // Without it: one row per CLO and a header.
                 $this->assertSame($available ? 5 : 3, $details->getHighestRow());
+                // I stores CLO text ('s'), M the review flag, L matched terms and J classification status.
                 $this->assertSame('s', $details->getCell('I2')->getDataType());
                 $this->assertSame($available ? 'Yes' : null, $details->getCell('M2')->getValue());
                 $this->assertSame($available ? 'term' : null, $details->getCell('L2')->getValue());
                 $this->assertSame($available ? 'Unmatched' : 'Reference unavailable', $details->getCell('J'.$details->getHighestRow())->getValue());
                 $cognitiveLevels = $book->getSheetByName('Cognitive-level distribution');
+                // B2, C2 and D2 hold the first level's CLO count, percentage and contributing courses.
                 $this->assertSame($available ? 1 : null, $cognitiveLevels->getCell('B2')->getValue());
                 $this->assertEquals($available ? 50 : null, $cognitiveLevels->getCell('C2')->getValue());
                 $this->assertSame($available ? 'TEST 101 — Course' : 'Reference unavailable', $cognitiveLevels->getCell('D2')->getValue());
