@@ -4,6 +4,8 @@ namespace App\Helpers;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use JsonException;
 
 class ProgramReportChart
 {
@@ -126,6 +128,12 @@ class ProgramReportChart
             }
 
             return 'data:image/png;base64,'.base64_encode($image);
+        } catch (JsonException $exception) {
+            Log::warning('Could not generate the report chart because its data could not be converted to JSON. The PDF export will continue without the chart.', [
+                'error' => $exception->getMessage(),
+            ]);
+
+            return null;
         } catch (ConnectionException $exception) {
             return null;
         }

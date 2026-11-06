@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Helpers\ProgramReportChart;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class ProgramReportChartTest extends TestCase
@@ -44,6 +45,26 @@ class ProgramReportChartTest extends TestCase
         $report['bloom_reference_available'] = true;
         $report['cognitive_distribution']['clo_count'] = 0;
         $this->assertSame([], ProgramReportChart::progression($report, ['units' => 'counts', 'view' => 'cognitive-levels'])['series']);
+    }
+
+    public function test_chart_image_logs_encoding_failures_and_falls_back_without_sending_a_request(): void
+    {
+        Http::fake();
+        Log::spy();
+        // JSON cannot represent infinity, so this fails before contacting the image service.
+        $config = ['xAxis' => ['categories' => ['PLO 1']], 'series' => [['data' => [INF]]]];
+
+        $image = ProgramReportChart::image($config);
+
+        $this->assertNull($image);
+        Http::assertNothingSent();
+        Log::shouldHaveReceived('warning')->once()->with(
+            'Could not generate the report chart because its data could not be converted to JSON. The PDF export will continue without the chart.',
+            ['error' => 'Inf and NaN cannot be JSON encoded'],
+        );
+        $pdf = \PDF::loadView('programs.exports.chart', ['chartImage' => $image])->output();
+        $text = (new \Smalot\PdfParser\Parser)->parseContent($pdf)->getText();
+        $this->assertStringContainsString('The chart is unavailable. Exact values remain available in the tables below.', $text);
     }
 
     public function test_chart_image_accepts_png_and_falls_back_on_service_failures(): void
