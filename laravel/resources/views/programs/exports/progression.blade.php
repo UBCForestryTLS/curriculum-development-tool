@@ -56,13 +56,14 @@
     <h3>Contributing courses</h3>
     {{-- Keep course lists outside table rows so long lists can continue onto the next page. --}}
     @foreach ($report['cognitive_distribution']['levels'] as $level)
-        <p><strong>{{ $level['name'] }}:</strong>
-        @forelse ($level['courses'] as $course)
-            {{ trim($course['course_code'].' '.$course['course_num']) }} — {{ $course['course_title'] }}@if (! $loop->last); @endif
-        @empty
-            No matching courses
-        @endforelse
-        </p>
+        <p><strong>{{ $level['name'] }}:</strong></p>
+        <ul>
+            @forelse ($level['courses'] as $course)
+                <li>{{ trim($course['course_code'].' '.$course['course_num']) }} — {{ $course['course_title'] }}</li>
+            @empty
+                <li>No matching courses</li>
+            @endforelse
+        </ul>
     @endforeach
 @else
     <p>The distribution is unavailable without the cognitive Bloom reference.</p>

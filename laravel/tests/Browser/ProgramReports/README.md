@@ -30,4 +30,4 @@ The dedicated command uses the existing test database without resetting it. Like
 
 The tests use Pest's built-in server and condition-based assertions, with no fixed sleeps. Run `php artisan test --group=program-reports-browser --debug` to inspect a failure in the browser.
 
-Related export checks: `php artisan test tests/Feature/ProgramReportExportTest.php` covers permissions and PLO scope; `node --test tests/JavaScript/report-download.test.js` covers download errors, timeouts and file cleanup.
+Related export check: `php artisan test tests/Feature/ProgramReportExportTest.php` covers permissions and PLO scope.

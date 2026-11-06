@@ -2,6 +2,7 @@
         @page { margin: 32px; }
         body { font-family: DejaVu Sans, sans-serif; color: #002145; font-size: 10px; line-height: 1.4; }
         h1 { font-size: 20px; margin-bottom: 4px; }
+        /* Dompdf 2.0.4 needs page-break-* properties; it ignores break-after and break-inside. */
         h2 { font-size: 14px; margin: 18px 0 6px; page-break-after: avoid; }
         h3 { font-size: 11px; margin: 10px 0 4px; page-break-after: avoid; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 12px; table-layout: fixed; }
