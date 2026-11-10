@@ -23,7 +23,8 @@ class ApiKeyStore:
         if not key_id.strip():
             raise ValueError("API key ID must not be blank.")
 
-        # Every item needs both keys, even though each API key has just one record.
+        # This table requires both pk and sk, so the sort key cannot be None.
+        # We use METADATA as a fixed value for each API key's single record.
         return {"pk": f"API_KEY#{key_id}", "sk": "METADATA"}
 
     def create(self, credentials: ApiKeyCredentials) -> dict[str, str]:
