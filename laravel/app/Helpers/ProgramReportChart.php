@@ -123,11 +123,30 @@ class ProgramReportChart
                 'type' => 'image/png', 'width' => 1000, 'options' => json_encode($config, JSON_THROW_ON_ERROR),
             ]);
             $image = $response->body();
-            if (! $response->successful() || strlen($image) > 5 * 1024 * 1024) {
+            if (! $response->successful()) {
+                Log::warning('Highcharts returned an unsuccessful response while generating the report chart. The PDF export will continue without the chart.', [
+                    'http_status' => $response->status(),
+                    'content_type' => $response->header('Content-Type'),
+                ]);
+
+                return null;
+            }
+            if (strlen($image) > 5 * 1024 * 1024) {
+                Log::warning('The report chart image returned by Highcharts exceeded the 5 MB size limit. The PDF export will continue without the chart.', [
+                    'response_bytes' => strlen($image),
+                    'max_bytes' => 5 * 1024 * 1024,
+                ]);
+
                 return null;
             }
             $info = @getimagesizefromstring($image);
             if (! $info || $info[2] !== IMAGETYPE_PNG) {
+                Log::warning('Highcharts did not return a valid PNG image for the report chart. The PDF export will continue without the chart.', [
+                    'http_status' => $response->status(),
+                    'content_type' => $response->header('Content-Type'),
+                    'detected_image_type' => $info['mime'] ?? null,
+                ]);
+
                 return null;
             }
 
@@ -139,6 +158,10 @@ class ProgramReportChart
 
             return null;
         } catch (ConnectionException $exception) {
+            Log::warning('Could not connect to Highcharts or the chart request timed out. The PDF export will continue without the chart.', [
+                'error' => $exception->getMessage(),
+            ]);
+
             return null;
         }
     }
