@@ -6,6 +6,8 @@ use App\Models\Program;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Browser\ProgramReports\ReportDownloads;
 use Tests\Browser\ProgramReports\ReportFixtures;
@@ -30,6 +32,74 @@ class ProgramReportExportTest extends TestCase
     public static function exportFormats(): array
     {
         return ['PDF' => ['pdf'], 'Excel' => ['xlsx']];
+    }
+
+    public function test_pdf_failures_are_reported_once_with_the_export_details(): void
+    {
+        $fixture = ReportFixtures::create();
+        $errors = [];
+        Log::listen(function (MessageLogged $event) use (&$errors) {
+            if ($event->level === 'error') {
+                $errors[] = $event;
+            }
+        });
+        \PDF::shouldReceive('loadView')->once()->andThrow(new \RuntimeException('PDF rendering failed in test.'));
+
+        $this->actingAs($fixture['user'])->postJson(
+            route('programReports.exportGapCoverage', $fixture['program']), ['format' => 'pdf'],
+        )->assertStatus(500);
+
+        $this->assertCount(1, $errors);
+        $this->assertSame('PDF rendering failed in test.', $errors[0]->message);
+        $expectedContext = [
+            'export_report' => 'gap-and-redundancy', 'program_id' => $fixture['program']->program_id,
+            'export_format' => 'pdf', 'plo_id' => null, 'export_stage' => 'render_pdf',
+        ];
+        $this->assertEquals($expectedContext, array_intersect_key($errors[0]->context, $expectedContext));
+    }
+
+    #[DataProvider('exportFormats')]
+    public function test_missing_bloom_reference_is_logged_only_for_a_non_empty_export_scope(string $format): void
+    {
+        $fixture = ReportFixtures::create();
+        // Keep the reference levels but remove their terms so classifications are unavailable.
+        foreach ($fixture['levels'] as $level) {
+            $level->verbs()->delete();
+        }
+        $emptyPlo = $fixture['program']->programLearningOutcomes()->create(['pl_outcome' => 'No mapped CLOs']);
+        $warnings = [];
+        Log::listen(function (MessageLogged $event) use (&$warnings) {
+            if ($event->message === 'The progression report is being exported without Bloom classifications because the cognitive Bloom reference is unavailable.') {
+                $warnings[] = $event;
+            }
+        });
+        $this->actingAs($fixture['user']);
+        $url = route('programReports.exportProgression', $fixture['program']);
+        $response = $this->postJson($url, [
+            'format' => $format, 'plo_id' => $fixture['beta']->pl_outcome_id,
+        ])->assertOk()->assertDownload();
+        if ($format === 'xlsx') {
+            // Execute the real streamed writer too.
+            ReportDownloads::spreadsheetRows($response->streamedContent());
+        }
+
+        $this->assertCount(1, $warnings);
+        $this->assertSame('warning', $warnings[0]->level);
+        $expectedContext = [
+            'export_report' => 'progression', 'program_id' => $fixture['program']->program_id,
+            'export_format' => $format, 'plo_id' => $fixture['beta']->pl_outcome_id,
+            'export_stage' => 'prepare_report', 'clo_count' => 1,
+        ];
+        $this->assertEquals($expectedContext, array_intersect_key($warnings[0]->context, $expectedContext));
+
+        // An empty selected scope should not warn, even though the program has other CLOs.
+        $this->postJson($url, ['format' => $format, 'plo_id' => $emptyPlo->pl_outcome_id])->assertOk();
+        $this->assertCount(1, $warnings);
+
+        // Once the reference is usable again, the same non-empty scope should not warn either.
+        $fixture['levels']['Analyze']->verbs()->create(['term' => 'analyze']);
+        $this->postJson($url, ['format' => $format, 'plo_id' => $fixture['beta']->pl_outcome_id])->assertOk();
+        $this->assertCount(1, $warnings);
     }
 
     #[DataProvider('exportFormats')]
