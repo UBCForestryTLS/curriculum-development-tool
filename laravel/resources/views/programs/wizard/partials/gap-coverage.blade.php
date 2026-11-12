@@ -56,11 +56,12 @@
                 </fieldset>
 
                 @php
+                    $metricLabels = \App\Helpers\GapCoverageReport::METRIC_LABELS;
                     $coverageMetrics = [
-                        'mapped_clo_count' => ['Mapped CLOs', 'Distinct CLOs mapped to each PLO at a level, as a percentage of all CLOs in program courses.'],
-                        'covering_course_count' => ['Covering courses', 'Distinct courses covering each PLO at a level, as a percentage of all program courses.'],
-                        'required_course_count' => ['Required covering courses', 'Distinct required courses covering each PLO at a level, as a percentage of all program courses.'],
-                        'non_required_course_count' => ['Non-required covering courses', 'Distinct non-required courses covering each PLO at a level, as a percentage of all program courses.'],
+                        'mapped_clo_count' => [$metricLabels['mapped_clo_count'], 'Distinct CLOs mapped to each PLO at a level, as a percentage of all CLOs in program courses.'],
+                        'covering_course_count' => [$metricLabels['covering_course_count'], 'Distinct courses covering each PLO at a level, as a percentage of all program courses.'],
+                        'required_course_count' => [$metricLabels['required_course_count'], 'Distinct required courses covering each PLO at a level, as a percentage of all program courses.'],
+                        'non_required_course_count' => [$metricLabels['non_required_course_count'], 'Distinct non-required courses covering each PLO at a level, as a percentage of all program courses.'],
                     ];
                 @endphp
                 @foreach ($coverageMetrics as $key => [$label, $description])
@@ -92,8 +93,20 @@
     <section id="gap-coverage-report" class="d-none" aria-labelledby="gap-coverage-report-heading">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
             <h5 id="gap-coverage-report-heading" class="mb-0" tabindex="-1">View report</h5>
-            <button id="gap-coverage-back" type="button" class="btn btn-outline-primary">Back to expectations</button>
+            <div class="d-flex flex-wrap gap-2">
+                <div class="dropdown">
+                    <button id="gap-coverage-download" type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Download report</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><button type="button" class="dropdown-item" data-gap-export="pdf">Download PDF</button></li>
+                        <li><button type="button" class="dropdown-item" data-gap-export="xlsx">Download Excel</button></li>
+                    </ul>
+                </div>
+                <button id="gap-coverage-back" type="button" class="btn btn-outline-primary">Back to expectations</button>
+            </div>
         </div>
+        <p class="small text-muted">Downloads include all PLOs and metrics using your applied expectations and current program data. The PDF chart uses the selected metric and display values.</p>
+        <p id="gap-coverage-export-status" class="small" role="status" aria-live="polite"></p>
+        <div id="gap-coverage-export-error" class="alert alert-danger d-none" role="alert"></div>
         <div id="gap-coverage-expectations-summary" class="mb-3">
             <p>Showing statistics only. No coverage expectations have been applied.</p>
         </div>
@@ -226,6 +239,7 @@
 </style>
 
 <script type="module">
+    import { downloadReport } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/report-download.js'));
     import { normalizeExpectations } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/coverage-expectations.js'));
     import { evaluateCoverage } from @json(\Illuminate\Support\Facades\Vite::asset('resources/js/programs/coverage-report.js'));
 
@@ -487,6 +501,39 @@
                 if (gapCoverageData !== null) renderGapCoverage(gapCoverageData);
             });
         });
+
+        const downloadButton = document.getElementById('gap-coverage-download');
+        const exportButtons = [...document.querySelectorAll('[data-gap-export]')];
+        const exportStatus = document.getElementById('gap-coverage-export-status');
+        const exportError = document.getElementById('gap-coverage-export-error');
+        let exportInProgress = false;
+        exportButtons.forEach(button => button.addEventListener('click', async function () {
+            if (exportInProgress || gapCoverageData === null) return;
+            const format = button.dataset.gapExport;
+            // Capture applied settings at the click, not any unsubmitted expectation edits.
+            const payload = {
+                format, expectations: appliedExpectations,
+                metric: reportMetricSelect.value, units: reportUnitsSelect.value,
+            };
+            bootstrap.Dropdown.getOrCreateInstance(downloadButton).hide();
+            exportInProgress = true;
+            downloadButton.disabled = true;
+            exportButtons.forEach(control => control.disabled = true);
+            exportError.classList.add('d-none');
+            exportStatus.textContent = `Preparing ${format === 'pdf' ? 'PDF' : 'Excel'} download…`;
+            try {
+                await downloadReport(@json(route('programReports.exportGapCoverage', $program->program_id)), payload, 'gap-and-redundancy');
+                exportStatus.textContent = 'Download started.';
+            } catch (error) {
+                exportStatus.textContent = '';
+                exportError.textContent = error.message || 'The report could not be downloaded. Please try again.';
+                exportError.classList.remove('d-none');
+            } finally {
+                exportInProgress = false;
+                downloadButton.disabled = false;
+                exportButtons.forEach(control => control.disabled = false);
+            }
+        }));
 
         $('#nav-gap-coverage-tab').on('shown.bs.tab', function () {
             loadGapCoverage();
