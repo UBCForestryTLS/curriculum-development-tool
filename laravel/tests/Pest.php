@@ -36,6 +36,15 @@ pest()->extend(TestCase::class)
     })
     ->in('Browser/TextExtractionE2E');
 
+pest()->extend(TestCase::class)
+    ->use(\Illuminate\Foundation\Testing\DatabaseTransactions::class)
+    ->group('program-reports-browser')
+    ->beforeEach(function () {
+        app(\Illuminate\Contracts\Http\Kernel::class)
+            ->prependMiddleware(\Tests\Browser\ProgramReports\LocalChartAssets::class);
+    })
+    ->in('Browser/ProgramReports');
+
 /*
 |--------------------------------------------------------------------------
 | Expectations

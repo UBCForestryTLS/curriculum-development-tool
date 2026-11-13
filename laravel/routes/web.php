@@ -24,6 +24,7 @@ use App\Http\Controllers\OutcomeMapController;
 use App\Http\Controllers\PLOCategoryController;
 use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\ProgramLearningOutcomeController;
+use App\Http\Controllers\ProgramReportExportController;
 use App\Http\Controllers\ProgramUserController;
 use App\Http\Controllers\ProgramWizardController;
 use App\Http\Controllers\StandardsOutcomeMapController;
@@ -208,8 +209,15 @@ Route::get('/programWizard/{program}/step1', [ProgramWizardController::class, 's
 Route::get('/programWizard/{program}/step2', [ProgramWizardController::class, 'step2'])->name('programWizard.step2');
 Route::get('/programWizard/{program}/step3', [ProgramWizardController::class, 'step3'])->name('programWizard.step3');
 Route::get('/programWizard/{program}/step4', [ProgramWizardController::class, 'step4'])->name('programWizard.step4');
+Route::get('/programWizard/{program}/gap-coverage', [ProgramWizardController::class, 'getGapCoverage'])->name('programWizard.gapCoverage');
+Route::get('/programWizard/{program}/progression', [ProgramWizardController::class, 'getProgression'])->name('programWizard.progression');
+Route::post('/programWizard/{program}/gap-coverage/export', [ProgramReportExportController::class, 'gapCoverage'])
+    ->middleware(['auth', 'verified'])->name('programReports.exportGapCoverage');
+Route::post('/programWizard/{program}/progression/export', [ProgramReportExportController::class, 'progression'])
+    ->middleware(['auth', 'verified'])->name('programReports.exportProgression');
 
 // Program step3 add existing courses to a program
+Route::get('/programWizard/{program}/step3/available-courses', [ProgramWizardController::class, 'availableCourses'])->name('programWizard.availableCourses');
 Route::post('/programWizard/{program}/step3/addCoursesToProgram', [CourseProgramController::class, 'addCoursesToProgram'])->name('courseProgram.addCoursesToProgram');
 // Program step3 edit required status
 Route::post('/programWizard/{program}/step3/editCourseRequired', [CourseProgramController::class, 'editCourseRequired'])->name('courseProgram.editCourseRequired');
