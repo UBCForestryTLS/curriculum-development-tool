@@ -171,14 +171,19 @@ class ProgramTest extends TestCase
         ]);
 
         $course = Course::where('course_code', 'Test101')->first();
+        // The user needs access to the course before adding it to the program.
+        $user->courses()->attach($course->course_id, ['permission' => 1]);
         $response = $this->actingAs($user)->post(route('courseProgram.addCoursesToProgram', $program->program_id), [
             'selectedCourses' => [
                 0 => $course->course_id],
             'program_id' => $program->program_id,
         ]);
+        $response->assertRedirect(route('programWizard.step3', $program->program_id))
+            ->assertSessionHas('success');
 
         $this->assertDatabaseHas('course_programs', [
             'course_id' => $course->course_id,
+            'program_id' => $program->program_id,
         ]);
 
     }
@@ -188,14 +193,18 @@ class ProgramTest extends TestCase
         $user = User::where('email', 'test-program@ubc.ca')->first();
         $program = Program::where('program', 'Bachelor of Testing')->orderBy('program_id', 'DESC')->first();
         $course = Course::where('course_code', 'Test101')->first();
+        // Start as required so this checks that the edit actually changes it.
+        $program->courses()->syncWithoutDetaching([$course->course_id => ['course_required' => 1]]);
 
         $response = $this->actingAs($user)->post(route('courseProgram.editCourseRequired', $program->program_id), [
             'required' => '0',
             'note' => null,
             'course_id' => $course->course_id,
             'user_id' => $user->user_id,
-            //  "program_id" => $program->program_id
+            'program_id' => $program->program_id,
         ]);
+        $response->assertRedirect(route('programWizard.step3', $program->program_id))
+            ->assertSessionHas('success');
 
         $this->assertDatabaseHas('course_programs', [
             'course_id' => $course->course_id,
