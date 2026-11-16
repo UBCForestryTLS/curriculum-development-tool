@@ -1,4 +1,5 @@
-from typing import Annotated, Self
+from datetime import datetime
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
@@ -64,3 +65,20 @@ class MappingJobRequest(_JobInput):
             raise ValueError("Mapping scale abbreviations must be unique within a job.")
 
         return self
+
+
+class MappingJobResponse(BaseModel):
+    """Job information returned to Laravel, without DynamoDB keys or the input hash."""
+
+    job_id: UUID
+    course_id: int
+    program_id: int
+    total_clos: int
+    total_plos: int
+    total_pairs: int
+    processed_pairs: int
+    mapped_pairs: int
+    errored_pairs: int
+    status: Literal["pending", "in_progress", "failed", "completed"]
+    created_at: datetime
+    pairs_ready: bool
