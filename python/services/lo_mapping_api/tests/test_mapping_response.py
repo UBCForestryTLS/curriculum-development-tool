@@ -37,6 +37,11 @@ def valid_response():
 
 
 @pytest.mark.parametrize(
+    "response_format",
+    ["{response}", "```json\n{response}\n```", " \n```\r\n{response}\r\n```\t\n"],
+    ids=["plain-json", "json-code-block", "unlabelled-code-block-with-whitespace"],
+)
+@pytest.mark.parametrize(
     ("pair_id", "is_mapped", "labels"),
     [
         ("clo-7__plo-12", True, ["FOUND"]),
@@ -46,7 +51,7 @@ def valid_response():
     ids=["single-level", "multiple-levels", "unmapped"],
 )
 def test_parser_returns_valid_mapping_results(
-    response_context, valid_response, pair_id, is_mapped, labels
+    response_context, valid_response, pair_id, is_mapped, labels, response_format
 ):
     response_context["expected_pair_id"] = pair_id
     valid_response.update(id=pair_id, is_mapped=is_mapped, mapLabels=labels)
@@ -54,7 +59,8 @@ def test_parser_returns_valid_mapping_results(
         # No alignment is a valid result, not a processing error.
         valid_response["explanation"] = "The CLO concerns a different subject from the PLO."
 
-    result = parse_mapping_response(json.dumps(valid_response), **response_context)
+    response_text = response_format.format(response=json.dumps(valid_response))
+    result = parse_mapping_response(response_text, **response_context)
 
     assert result == {
         "id": pair_id,
@@ -80,7 +86,9 @@ def test_parser_rejects_non_text_responses(response_context, response_text):
         parse_mapping_response(response_text, **response_context)
 
 
-@pytest.mark.parametrize("response_text", ["", " \t\n", '{"id":', '{"id": "value",}'])
+@pytest.mark.parametrize(
+    "response_text", ["", " \t\n", '{"id":', '{"id": "value",}', '```json\n{"id":\n```']
+)
 def test_parser_rejects_malformed_json(response_context, response_text):
     with pytest.raises(MappingResponseError, match="must be valid JSON"):
         parse_mapping_response(response_text, **response_context)
@@ -89,13 +97,18 @@ def test_parser_rejects_malformed_json(response_context, response_text):
 @pytest.mark.parametrize(
     "response_format",
     [
-        "```json\n{response}\n```",
+        "```json\n{response}",
+        "{response}\n```",
+        "```python\n{response}\n```",
         "Here is the result: {response}",
         "{response} extra text",
         "{response}{response}",
+        "Here is the result:\n```json\n{response}\n```",
+        "```json\n{response}\n```\nextra text",
+        "```json\n{response}\n```\n```json\n{response}\n```",
     ],
 )
-def test_parser_requires_one_json_result_without_wrapping_or_extra_text(
+def test_parser_rejects_invalid_wrapping_or_extra_text(
     response_context, valid_response, response_format
 ):
     response_text = response_format.format(response=json.dumps(valid_response))
@@ -165,6 +178,7 @@ def test_parser_rejects_labels_that_are_not_an_array_of_strings(response_context
         parse_mapping_response(json.dumps(valid_response), **response_context)
 
 
+@pytest.mark.parametrize("response_format", ["{response}", "```json\n{response}\n```"])
 @pytest.mark.parametrize(
     ("label", "message"),
     [
@@ -175,11 +189,14 @@ def test_parser_rejects_labels_that_are_not_an_array_of_strings(response_context
         ("", "unknown mapping label"),
     ],
 )
-def test_parser_rejects_duplicate_or_unknown_labels(response_context, valid_response, label, message):
+def test_parser_rejects_duplicate_or_unknown_labels(
+    response_context, valid_response, label, message, response_format
+):
     valid_response["mapLabels"] = ["FOUND", label]
+    response_text = response_format.format(response=json.dumps(valid_response))
 
     with pytest.raises(MappingResponseError, match=message):
-        parse_mapping_response(json.dumps(valid_response), **response_context)
+        parse_mapping_response(response_text, **response_context)
 
 
 def test_parser_only_accepts_levels_available_in_the_current_request(response_context, valid_response):

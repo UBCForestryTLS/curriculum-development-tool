@@ -35,6 +35,12 @@ def parse_mapping_response(
     if not isinstance(response_text, str):
         raise MappingResponseError("Mapping response must be JSON text.")
 
+    # Qwen sometimes wraps valid JSON in a code block. Only remove one complete outer block.
+    response_text = response_text.strip()
+    lines = response_text.split("\n")
+    if len(lines) >= 3 and lines[0].strip() in ("```json", "```") and lines[-1].strip() == "```":
+        response_text = "\n".join(lines[1:-1])
+
     try:
         response = json.loads(response_text, object_pairs_hook=_read_json_object)
     except json.JSONDecodeError:
