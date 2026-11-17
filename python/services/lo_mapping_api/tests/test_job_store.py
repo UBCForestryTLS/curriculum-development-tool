@@ -210,6 +210,179 @@ def test_get_pairs_reads_every_page(store, table, job_request):
     assert all(call.kwargs["ConsistentRead"] is True for call in query.call_args_list)
 
 
+def test_pair_outcomes_save_results_and_update_the_right_counts(store, job_request):
+    job_id = job_request.job_id
+    original_job = store.create(job_request)
+    original_pairs = store.get_pairs(job_id)
+
+    # Two matching levels still count as one mapped pair. A no-match is also a successful check.
+    assert store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3, 8], explanation="Both levels match.")
+    assert store.save_pair_result(job_id, 21, 35, mapping_scale_ids=[], explanation="No alignment.")
+    assert store.save_pair_error(job_id, 21, 36, error="Invalid model response.")
+
+    assert store.get(job_id) == {
+        **original_job,
+        "status": "in_progress",
+        "processed_pairs": 2,
+        "mapped_pairs": 1,
+        "errored_pairs": 1,
+    }
+    pairs = store.get_pairs(job_id)
+    assert pairs[0] == {
+        **original_pairs[0],
+        "processed": True,
+        "mapping_scales": [3, 8],
+        "explanation": "Both levels match.",
+    }
+    assert pairs[1] == {**original_pairs[1], "processed": True, "explanation": "No alignment."}
+    assert pairs[2] == {**original_pairs[2], "error": "Invalid model response."}
+    assert pairs[3:] == original_pairs[3:]
+
+
+@pytest.mark.parametrize("outcome", ["mapped", "unmapped", "error"])
+def test_repeated_pair_saves_preserve_the_first_outcome_and_counts(store, job_request, outcome):
+    job_id = job_request.job_id
+    store.create(job_request)
+    if outcome == "error":
+        store.save_pair_error(job_id, 21, 34, error="First failure.")
+    else:
+        levels = [3] if outcome == "mapped" else []
+        store.save_pair_result(job_id, 21, 34, mapping_scale_ids=levels, explanation="First answer.")
+    saved_job = store.get(job_id)
+    saved_pairs = store.get_pairs(job_id)
+
+    # A later result or error must not overwrite the first outcome, even when it disagrees.
+    assert store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[8], explanation="Later answer.") is False
+    assert store.save_pair_error(job_id, 21, 34, error="Later failure.") is False
+    assert store.get(job_id) == saved_job
+    assert store.get_pairs(job_id) == saved_pairs
+
+
+@pytest.mark.parametrize(
+    ("levels", "explanation"),
+    [
+        ([99], "Unknown level."),
+        ([3, 3], "Duplicate level."),
+        ([True], "Invalid ID."),
+        ([3], " "),
+    ],
+)
+def test_invalid_pair_results_leave_storage_unchanged(store, table, job_request, levels, explanation):
+    store.create(job_request)
+    original_records = table.scan()["Items"]
+
+    with pytest.raises(ValueError):
+        store.save_pair_result(job_request.job_id, 21, 34, mapping_scale_ids=levels, explanation=explanation)
+
+    assert table.scan()["Items"] == original_records
+
+
+def test_blank_pair_errors_leave_storage_unchanged(store, table, job_request):
+    store.create(job_request)
+    original_records = table.scan()["Items"]
+
+    with pytest.raises(ValueError, match="nonblank text"):
+        store.save_pair_error(job_request.job_id, 21, 34, error=" \n ")
+
+    assert table.scan()["Items"] == original_records
+
+
+@pytest.mark.parametrize("state", ["missing_job", "missing_pair", "not_ready", "completed", "failed"])
+def test_pair_saves_reject_missing_or_unavailable_work(store, table, job_request, state):
+    record = store.create(job_request)
+    if state == "not_ready":
+        record["pairs_ready"] = False
+    elif state in ("completed", "failed"):
+        record["status"] = state
+    table.put_item(Item=record)
+    original_records = table.scan()["Items"]
+    job_id = uuid4() if state == "missing_job" else job_request.job_id
+    clo_id = 99 if state == "missing_pair" else 21
+    error_type = ValueError if state in ("missing_job", "not_ready") else ClientError
+
+    with pytest.raises(error_type):
+        store.save_pair_result(job_id, clo_id, 34, mapping_scale_ids=[3], explanation="Attempted result.")
+
+    # A rejected pair write must not update counts, and a rejected job update must not save the pair.
+    assert table.scan()["Items"] == original_records
+
+
+@pytest.mark.parametrize("clo_id", [21, 22], ids=["same-pair", "different-pair"])
+def test_overlapping_pair_saves_preserve_results_and_progress(store, table, job_request, clo_id):
+    job_id = job_request.job_id
+    original_job = store.create(job_request)
+    original_write = table.meta.client.transact_write_items
+
+    def overlapping_write(**kwargs):
+        # Another save finishes after this attempt reads the job, but before its transaction runs.
+        with patch.object(table.meta.client, "transact_write_items", side_effect=original_write):
+            store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3], explanation="First answer.")
+        return original_write(**kwargs)
+
+    with patch.object(table.meta.client, "transact_write_items", side_effect=overlapping_write):
+        saved = store.save_pair_error(job_id, clo_id, 34, error="Later failure.")
+
+    assert saved is (clo_id == 22)
+    assert store.get(job_id) == {
+        **original_job,
+        "status": "in_progress",
+        "processed_pairs": 1,
+        "mapped_pairs": 1,
+        "errored_pairs": 1 if clo_id == 22 else 0,
+    }
+    assert store.get_pairs(job_id)[0]["explanation"] == "First answer."
+
+
+@pytest.mark.parametrize("failure_type", ["connection", "transaction_conflict"])
+def test_pair_storage_failures_reach_the_caller_without_changes(store, table, job_request, failure_type):
+    job_id = job_request.job_id
+    store.create(job_request)
+    store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3], explanation="Saved answer.")
+    original_records = table.scan()["Items"]
+    failure = EndpointConnectionError(endpoint_url="https://dynamodb.invalid")
+    if failure_type == "transaction_conflict":
+        failure = table.meta.client.exceptions.TransactionCanceledException(
+            {
+                "Error": {"Code": "TransactionCanceledException", "Message": "Transaction conflict."},
+                "CancellationReasons": [{"Code": "None"}, {"Code": "TransactionConflict"}],
+            },
+            "TransactWriteItems",
+        )
+
+    # An existing outcome must not cause unrelated AWS failures to be treated as a harmless retry.
+    with patch.object(table.meta.client, "transact_write_items", side_effect=failure):
+        with pytest.raises(type(failure)) as error:
+            store.save_pair_error(job_id, 21, 34, error="Later failure.")
+
+    assert error.value is failure
+    assert table.scan()["Items"] == original_records
+
+
+def test_retry_after_losing_the_save_response_does_not_count_the_pair_twice(store, table, job_request):
+    job_id = job_request.job_id
+    original_job = store.create(job_request)
+    original_write = table.meta.client.transact_write_items
+
+    def save_then_disconnect(**kwargs):
+        # DynamoDB saves both updates, but the caller never receives the success response.
+        original_write(**kwargs)
+        raise EndpointConnectionError(endpoint_url="https://dynamodb.invalid")
+
+    with patch.object(table.meta.client, "transact_write_items", side_effect=save_then_disconnect):
+        with pytest.raises(EndpointConnectionError):
+            store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3], explanation="Saved answer.")
+    saved_pairs = store.get_pairs(job_id)
+
+    assert store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3], explanation="Saved answer.") is False
+    assert store.get(job_id) == {
+        **original_job,
+        "status": "in_progress",
+        "processed_pairs": 1,
+        "mapped_pairs": 1,
+    }
+    assert store.get_pairs(job_id) == saved_pairs
+
+
 @pytest.mark.parametrize("operation", ["create", "get", "get_pairs"])
 def test_missing_table_errors_reach_the_caller(store, table, job_request, operation):
     table.delete()
