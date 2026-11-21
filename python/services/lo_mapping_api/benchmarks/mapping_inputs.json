@@ -1,0 +1,107 @@
+[
+  {
+    "name": "short-outcomes",
+    "course_learning_outcomes": [
+      {
+        "l_outcome_id": 21,
+        "l_outcome": "Explain how photosynthesis supports plant growth."
+      }
+    ],
+    "program_learning_outcomes": [
+      {
+        "pl_outcome_id": 31,
+        "pl_outcome": "Explain the biological processes that support plant growth and survival."
+      },
+      {
+        "pl_outcome_id": 32,
+        "pl_outcome": "Prepare financial statements using accepted accounting practices."
+      }
+    ],
+    "mapping_scales": [
+      {
+        "map_scale_id": 3,
+        "title": "Foundation",
+        "abbreviation": "FOUND",
+        "description": "Explain foundational concepts and relationships."
+      },
+      {
+        "map_scale_id": 8,
+        "title": "Application",
+        "abbreviation": "APPLY",
+        "description": "Apply concepts to practical situations."
+      }
+    ]
+  },
+  {
+    "name": "longer-outcomes",
+    "course_learning_outcomes": [
+      {
+        "l_outcome_id": 22,
+        "l_outcome": "Evaluate alternative riparian restoration plans using field measurements of canopy cover, stream temperature and native plant diversity. Explain how the evidence supports the selected plan, identify uncertainty in the measurements, and justify trade-offs between habitat recovery, implementation costs and long-term monitoring requirements."
+      }
+    ],
+    "program_learning_outcomes": [
+      {
+        "pl_outcome_id": 33,
+        "pl_outcome": "Develop and justify ecosystem management recommendations by integrating ecological field data with environmental and economic constraints. Compare available interventions, communicate the limitations of the supporting evidence, and propose monitoring approaches to assess whether management objectives are being met."
+      },
+      {
+        "pl_outcome_id": 34,
+        "pl_outcome": "Develop public engagement strategies for environmental decision-making that account for different community priorities, assess barriers to participation, and use appropriate communication methods to support collaborative decisions."
+      }
+    ],
+    "mapping_scales": [
+      {
+        "map_scale_id": 3,
+        "title": "Foundation",
+        "abbreviation": "FOUND",
+        "description": "Explain the concepts, evidence and relationships needed to understand an environmental problem, including relevant terminology and assumptions."
+      },
+      {
+        "map_scale_id": 8,
+        "title": "Application",
+        "abbreviation": "APPLY",
+        "description": "Select and apply established concepts or methods to a practical environmental problem, using appropriate observations and data."
+      },
+      {
+        "map_scale_id": 12,
+        "title": "Evaluation",
+        "abbreviation": "EVAL",
+        "description": "Critically compare alternatives, assess uncertainty and competing constraints, and defend a recommendation using evidence and explicit criteria."
+      }
+    ]
+  },
+  {
+    "name": "custom-scales",
+    "course_learning_outcomes": [
+      {
+        "l_outcome_id": 23,
+        "l_outcome": "Design a forest management plan using ecological principles to select suitable harvesting practices."
+      }
+    ],
+    "program_learning_outcomes": [
+      {
+        "pl_outcome_id": 35,
+        "pl_outcome": "Apply ecological principles to forest management decisions."
+      },
+      {
+        "pl_outcome_id": 36,
+        "pl_outcome": "Analyze the use of metaphor and narrative structure in historical novels."
+      }
+    ],
+    "mapping_scales": [
+      {
+        "map_scale_id": 15,
+        "title": "Recognize",
+        "abbreviation": "NOTICE",
+        "description": "Identify relevant ideas and describe their meaning."
+      },
+      {
+        "map_scale_id": 16,
+        "title": "Put into practice",
+        "abbreviation": "USE",
+        "description": "Use relevant principles to make a practical decision or develop a plan."
+      }
+    ]
+  }
+]

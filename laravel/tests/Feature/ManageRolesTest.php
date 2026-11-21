@@ -360,11 +360,14 @@ class ManageRolesTest extends TestCase
         $department = Department::where(['department'=> 'Department of Forest Resources Management',
             'faculty_id' => $faculty->faculty_id])->first();
 
-        $response = $this->actingAs($user)->post(route('courseProgram.addCoursesToProgram', $program->program_id), [
+        // The admin adds the course, then we check the department head gets access.
+        $response = $this->actingAs($adminUser)->post(route('courseProgram.addCoursesToProgram', $program->program_id), [
             'selectedCourses' => [
                 0 => $course->course_id],
             'program_id' => $program->program_id,
         ]);
+        $response->assertRedirect(route('programWizard.step3', $program->program_id))
+            ->assertSessionHas('success');
 
         $this->assertDatabaseHas('course_programs', [
             'course_id' => $course->course_id,
@@ -777,11 +780,14 @@ class ManageRolesTest extends TestCase
 
         $course = Course::where('course_title', 'Intro to Unit Testing')->orderBy('course_id', 'DESC')->first();
 
-        $response = $this->actingAs($user)->post(route('courseProgram.addCoursesToProgram', $program->program_id), [
+        // The admin adds the course, then we check the director gets access.
+        $response = $this->actingAs($adminUser)->post(route('courseProgram.addCoursesToProgram', $program->program_id), [
             'selectedCourses' => [
                 0 => $course->course_id],
             'program_id' => $program->program_id,
         ]);
+        $response->assertRedirect(route('programWizard.step3', $program->program_id))
+            ->assertSessionHas('success');
 
         $this->assertDatabaseHas('course_programs', [
             'course_id' => $course->course_id,

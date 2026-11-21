@@ -1,0 +1,69 @@
+[
+  {
+    "name": "synthetic-forest-restoration",
+    "course_learning_outcomes": [
+      {
+        "l_outcome_id": 101,
+        "l_outcome": "Explain how forest succession, nutrient cycling and species interactions influence biodiversity and the recovery of disturbed forest ecosystems."
+      },
+      {
+        "l_outcome_id": 102,
+        "l_outcome": "Apply standard field sampling methods to measure canopy cover, native plant diversity and tree regeneration at a disturbed forest site. Calculate indicators of ecosystem condition from the observations, interpret differences between sampling plots, and explain how sampling design and measurement uncertainty affect the conclusions."
+      },
+      {
+        "l_outcome_id": 103,
+        "l_outcome": "Evaluate alternative restoration plans for a disturbed watershed using ecological survey data and published evidence. Compare expected effects on habitat connectivity, water quality and resilience to climate change, weigh implementation costs against ecological benefits, and justify a recommended plan with measurable objectives and an adaptive monitoring strategy."
+      },
+      {
+        "l_outcome_id": 104,
+        "l_outcome": "Prepare a technical report and a plain-language summary explaining a forest restoration recommendation. Use appropriate figures and references to present the supporting evidence, explain uncertainty and trade-offs, and communicate the proposed monitoring approach to professional and public audiences."
+      }
+    ],
+    "program_learning_outcomes": [
+      {
+        "pl_outcome_id": 201,
+        "pl_outcome": "Explain the ecological processes that shape forest ecosystems, including succession, nutrient cycling, species interactions and responses to disturbance, and relate these processes to biodiversity and ecosystem function."
+      },
+      {
+        "pl_outcome_id": 202,
+        "pl_outcome": "Collect and analyze forest inventory and environmental monitoring data using appropriate sampling and analytical methods. Assess data quality and uncertainty, interpret patterns, and use the findings to support evidence-based management decisions."
+      },
+      {
+        "pl_outcome_id": 203,
+        "pl_outcome": "Develop and critically evaluate forest management strategies that integrate ecological evidence, economic constraints and climate adaptation. Compare alternatives, justify management objectives and recommendations, and design monitoring approaches that support adaptive management."
+      },
+      {
+        "pl_outcome_id": 204,
+        "pl_outcome": "Communicate forestry evidence and recommendations clearly to specialist and non-specialist audiences through written reports, visual summaries and presentations. Explain the reasoning, limitations and implications of proposed management actions."
+      },
+      {
+        "pl_outcome_id": 205,
+        "pl_outcome": "Design and facilitate collaborative forest planning processes with community participants. Identify barriers to participation, elicit differing priorities, manage disagreement, and incorporate the outcomes of consultation into shared management objectives."
+      },
+      {
+        "pl_outcome_id": 206,
+        "pl_outcome": "Prepare operating budgets and cash-flow forecasts for forestry enterprises. Evaluate investment options using discounted cash-flow analysis and financial risk assessment, and interpret financial statements to support business decisions."
+      }
+    ],
+    "mapping_scales": [
+      {
+        "map_scale_id": 3,
+        "title": "Foundation",
+        "abbreviation": "FOUND",
+        "description": "Explain the concepts, evidence and relationships needed to understand an environmental problem, including relevant terminology and assumptions."
+      },
+      {
+        "map_scale_id": 8,
+        "title": "Application",
+        "abbreviation": "APPLY",
+        "description": "Select and apply established concepts or methods to a practical environmental problem, using appropriate observations and data."
+      },
+      {
+        "map_scale_id": 12,
+        "title": "Evaluation",
+        "abbreviation": "EVAL",
+        "description": "Critically compare alternatives, assess uncertainty and competing constraints, and defend a recommendation using evidence and explicit criteria."
+      }
+    ]
+  }
+]
