@@ -5,6 +5,7 @@ from uuid import UUID
 
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
+from botocore.config import Config
 
 from app.config import get_settings
 from app.job_models import MappingJobRequest
@@ -17,12 +18,12 @@ class MappingJobConflictError(ValueError):
 class MappingJobStore:
     """Store job summaries and individual CLO-PLO pairs in the same DynamoDB table."""
 
-    def __init__(self, table=None):
+    def __init__(self, table=None, *, config: Config | None = None):
         """Use the configured DynamoDB table, or a supplied table for tests."""
         if table is None:
             settings = get_settings()
             # This points to an existing table; it does not create one.
-            table = boto3.resource("dynamodb", region_name=settings.aws_region).Table(
+            table = boto3.resource("dynamodb", region_name=settings.aws_region, config=config).Table(
                 settings.dynamodb_table_name
             )
         self.table = table
@@ -177,6 +178,41 @@ class MappingJobStore:
         if not isinstance(error, str) or not error.strip():
             raise ValueError("Mapping error must be nonblank text.")
         return self._save_pair_outcome(job_id, clo_id, plo_id, [], None, error)
+
+    def finish_if_complete(self, job_id: UUID | str) -> dict[str, object]:
+        """Finish a job only when every pair has a saved result or error, and return its progress."""
+        job = self.get(job_id)
+        if job is None or not job["pairs_ready"]:
+            raise ValueError("Mapping job does not exist or is not ready.")
+        if job["status"] not in ("pending", "in_progress"):
+            return job
+        if job["processed_pairs"] + job["errored_pairs"] != job["total_pairs"]:
+            return job
+
+        final_status = "completed"
+        if job["errored_pairs"]:
+            final_status = "failed"
+        try:
+            response = self.table.update_item(
+                Key=self._key(job_id),
+                UpdateExpression="SET #status = :status",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={":status": final_status},
+                # Recheck the progress we read before marking the job finished.
+                ConditionExpression=Attr("pairs_ready").eq(True)
+                & Attr("input_hash").eq(job["input_hash"])
+                & Attr("status").is_in(["pending", "in_progress"])
+                & Attr("processed_pairs").eq(job["processed_pairs"])
+                & Attr("errored_pairs").eq(job["errored_pairs"]),
+                ReturnValues="ALL_NEW",
+            )
+        except self.table.meta.client.exceptions.ConditionalCheckFailedException:
+            # Another attempt may have already finished the job.
+            current = self.get(job_id)
+            if current is None:
+                raise
+            return current
+        return response["Attributes"]
 
     def _save_pair_outcome(
         self,

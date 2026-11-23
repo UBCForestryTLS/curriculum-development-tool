@@ -11,7 +11,7 @@ class BedrockResponseError(RuntimeError):
 class BedrockClient:
     """Send prompts to Qwen through Bedrock. AWS errors are left for the caller to handle."""
 
-    def __init__(self, client=None):
+    def __init__(self, client=None, *, config: Config | None = None):
         settings = get_bedrock_settings()
         self.model_id = settings.model_id
         if client is None:
@@ -20,7 +20,9 @@ class BedrockClient:
                 "bedrock-runtime",
                 region_name=settings.region,
                 # Leave retries to the job runner so one call does not silently run again.
-                config=Config(retries={"mode": "standard", "total_max_attempts": 1}),
+                config=(config or Config()).merge(
+                    Config(retries={"mode": "standard", "total_max_attempts": 1})
+                ),
             )
         self.client = client
 
