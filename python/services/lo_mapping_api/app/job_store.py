@@ -130,6 +130,28 @@ class MappingJobStore:
         )
         return [record for page in pages for record in page["Items"]]
 
+    def get_pending_pairs(self, job_id: UUID | str, *, limit: int) -> list[dict[str, object]]:
+        """Return up to limit pairs without a saved result or error, from a ready job."""
+        if type(limit) is not int or limit < 1:
+            raise ValueError("Pair limit must be a positive integer.")
+        job = self.get(job_id)
+        if job is None or not job["pairs_ready"]:
+            raise ValueError("Mapping job does not exist or is not ready.")
+        if job["status"] not in ("pending", "in_progress"):
+            return []
+
+        paginator = self.table.meta.client.get_paginator("query")
+        pages = paginator.paginate(
+            TableName=self.table.name,
+            KeyConditionExpression=Key("pk").eq(job["pk"]) & Key("sk").begins_with("LO_PAIR#"),
+            # Failed checks have processed=False too, but should not be retried automatically.
+            FilterExpression=Attr("processed").eq(False) & Attr("error").eq(None),
+            ConsistentRead=True,
+            # Filtering can leave empty pages. Keep looking until we have enough pending pairs.
+            PaginationConfig={"PageSize": limit, "MaxItems": limit},
+        )
+        return [record for page in pages for record in page["Items"]]
+
     def save_pair_result(
         self,
         job_id: UUID | str,
