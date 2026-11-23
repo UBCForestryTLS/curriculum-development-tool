@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.config import get_bedrock_settings, get_settings
+from app.config import get_batch_settings, get_bedrock_settings, get_settings
 
 
 @pytest.fixture(autouse=True)
@@ -11,6 +11,8 @@ def isolate_configuration(monkeypatch, tmp_path):
     monkeypatch.delenv("LO_MAPPING_DYNAMODB_TABLE", raising=False)
     monkeypatch.delenv("LO_MAPPING_BEDROCK_REGION", raising=False)
     monkeypatch.delenv("LO_MAPPING_BEDROCK_MODEL_ID", raising=False)
+    monkeypatch.delenv("LO_MAPPING_BATCH_SIZE", raising=False)
+    monkeypatch.delenv("LO_MAPPING_CONCURRENCY", raising=False)
     monkeypatch.chdir(tmp_path)
 
 
@@ -164,3 +166,30 @@ def test_invalid_bedrock_settings_do_not_block_dynamodb_configuration(monkeypatc
 
     assert settings.aws_region == "ca-central-1"
     assert settings.dynamodb_table_name == "lo-mapping-test"
+
+
+def test_batch_settings_use_defaults_without_aws_configuration():
+    # We can load the batch limits before setting up either AWS connection.
+    assert get_batch_settings().model_dump() == {"batch_size": 12, "concurrency": 2}
+
+
+def test_batch_settings_load_from_env_file_and_allow_shell_overrides(tmp_path, monkeypatch):
+    (tmp_path / ".env").write_text(
+        "LO_MAPPING_BATCH_SIZE=6\nLO_MAPPING_CONCURRENCY=1\n", encoding="utf-8"
+    )
+    assert get_batch_settings().model_dump() == {"batch_size": 6, "concurrency": 1}
+
+    # The shell settings should take priority when we try different limits.
+    monkeypatch.setenv("LO_MAPPING_BATCH_SIZE", "8")
+    monkeypatch.setenv("LO_MAPPING_CONCURRENCY", "3")
+    assert get_batch_settings().model_dump() == {"batch_size": 8, "concurrency": 3}
+
+
+@pytest.mark.parametrize("name", ["LO_MAPPING_BATCH_SIZE", "LO_MAPPING_CONCURRENCY"])
+@pytest.mark.parametrize("value", ["0", "-1", "1.5", ""])
+def test_batch_settings_reject_invalid_limits(monkeypatch, name, value):
+    # Both limits need positive whole numbers to describe actual pairs or workers.
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ValidationError) as error:
+        get_batch_settings()
+    assert error.value.errors()[0]["loc"] == (name,)

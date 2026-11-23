@@ -84,6 +84,7 @@ def test_reads_keep_jobs_and_api_keys_separate(store, table, job_request, job_pa
         pairs = store.get_pairs(request.job_id)
         assert len(pairs) == 6
         assert {pair["job_id"] for pair in pairs} == {str(request.job_id)}
+        assert store.get_pending_pairs(request.job_id, limit=2) == pairs[:2]
     assert ApiKeyStore(table).get(credentials.key_id) == key_record
     missing_id = uuid4()
     assert store.get(missing_id) is None
@@ -208,6 +209,71 @@ def test_get_pairs_reads_every_page(store, table, job_request):
     assert query.call_count > 1
     assert all("ExclusiveStartKey" in call.kwargs for call in query.call_args_list[1:])
     assert all(call.kwargs["ConsistentRead"] is True for call in query.call_args_list)
+
+
+def test_pending_pairs_skip_saved_outcomes_and_continue_past_empty_pages(store, table, job_request):
+    store.create(job_request)
+    store.save_pair_result(job_request.job_id, 21, 34, mapping_scale_ids=[3], explanation="Matched.")
+    store.save_pair_result(job_request.job_id, 21, 35, mapping_scale_ids=[], explanation="No match.")
+    store.save_pair_error(job_request.job_id, 21, 36, error="Invalid response.")
+    remaining = store.get_pairs(job_request.job_id)[3:]
+
+    # The first page contains only saved outcomes. We still need to find the pending pairs after it.
+    with patch.object(table.meta.client, "query", wraps=table.meta.client.query) as query:
+        assert store.get_pending_pairs(job_request.job_id, limit=2) == remaining[:2]
+    assert query.call_count > 1
+    assert all(call.kwargs["ConsistentRead"] for call in query.call_args_list)
+    # Return fewer than the limit when the job only has three pairs left.
+    assert store.get_pending_pairs(job_request.job_id, limit=12) == remaining
+
+
+@pytest.mark.parametrize("limit", [0, -1, 1.5, True])
+def test_pending_pairs_reject_invalid_limits(store, job_request, limit):
+    # True counts as an int in Python, but shouldn't be accepted as a pair limit.
+    with pytest.raises(ValueError, match="positive integer"):
+        store.get_pending_pairs(job_request.job_id, limit=limit)
+
+
+@pytest.mark.parametrize("state", ["missing", "not_ready", "completed", "failed"])
+def test_pending_pairs_require_a_ready_unfinished_job(store, table, job_request, state):
+    job = store.create(job_request)
+    if state == "missing":
+        table.delete_item(Key={"pk": job["pk"], "sk": "METADATA"})
+    else:
+        job["pairs_ready"] = state != "not_ready"
+        if state in ("completed", "failed"):
+            job["status"] = state
+        table.put_item(Item=job)
+
+    # Pair records alone aren't enough to start processing; the job also needs to allow it.
+    if state in ("missing", "not_ready"):
+        with pytest.raises(ValueError, match="does not exist or is not ready"):
+            store.get_pending_pairs(job_request.job_id, limit=2)
+    else:
+        assert store.get_pending_pairs(job_request.job_id, limit=2) == []
+
+
+def test_finishing_a_job_handles_another_attempt_finishing_first(store, table, job_request):
+    job = store.create(job_request)
+    assert store.finish_if_complete(job_request.job_id) == job
+    for pair in store.get_pairs(job_request.job_id):
+        store.save_pair_result(
+            job_request.job_id, pair["clo_id"], pair["plo_id"],
+            mapping_scale_ids=[], explanation="No match.",
+        )
+    original_update = table.update_item
+
+    def finish_first(**kwargs):
+        # Another attempt finishes after we read the counts but before our update reaches DynamoDB.
+        with patch.object(table, "update_item", side_effect=original_update):
+            store.finish_if_complete(job_request.job_id)
+        return original_update(**kwargs)
+
+    with patch.object(table, "update_item", side_effect=finish_first):
+        finished = store.finish_if_complete(job_request.job_id)
+    assert finished["status"] == "completed"
+    assert finished["processed_pairs"] == 6
+    assert store.get(job_request.job_id) == finished
 
 
 def test_pair_outcomes_save_results_and_update_the_right_counts(store, job_request):
