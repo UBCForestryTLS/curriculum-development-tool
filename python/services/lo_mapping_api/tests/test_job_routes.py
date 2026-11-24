@@ -1,6 +1,8 @@
+import base64
 import json
 from datetime import UTC, datetime
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 from botocore.exceptions import ClientError, EndpointConnectionError, ReadTimeoutError
@@ -122,7 +124,7 @@ def test_conflicting_creation_returns_409_without_changing_the_job(client, job_p
     assert client.get(f"/jobs/{job_payload['job_id']}").json() == first.json()
 
 
-@pytest.mark.parametrize("method", ["post", "get", "run"])
+@pytest.mark.parametrize("method", ["post", "get", "run", "results"])
 @pytest.mark.parametrize("credentials", ["missing", "incorrect"])
 def test_job_routes_reject_invalid_credentials_before_accessing_jobs(
     client, job_payload, monkeypatch, method, credentials
@@ -140,6 +142,8 @@ def test_job_routes_reject_invalid_credentials_before_accessing_jobs(
         response = client.post("/jobs", json=job_payload)
     elif method == "run":
         response = client.post(f"/jobs/{job_payload['job_id']}/run")
+    elif method == "results":
+        response = client.get(f"/jobs/{job_payload['job_id']}/results")
     else:
         response = client.get(f"/jobs/{job_payload['job_id']}")
 
@@ -173,15 +177,14 @@ def test_get_returns_404_for_a_missing_job(client, job_payload):
     assert response.json() == {"detail": "Mapping job not found."}
 
 
-@pytest.mark.parametrize("method", ["get", "post"])
-def test_job_routes_reject_invalid_job_ids_before_accessing_storage(client, monkeypatch, method):
+@pytest.mark.parametrize(("method", "suffix"), [("get", ""), ("post", "/run"), ("get", "/results")])
+def test_job_routes_reject_invalid_job_ids_before_accessing_storage(client, monkeypatch, method, suffix):
     store_constructor = Mock(side_effect=AssertionError("An invalid job ID reached storage."))
     monkeypatch.setattr(job_routes, "MappingJobStore", store_constructor)
     batch_runner = Mock(side_effect=AssertionError("An invalid job ID started processing."))
     monkeypatch.setattr(job_routes, "run_batch", batch_runner)
 
-    path = "/jobs/not-a-uuid/run" if method == "post" else "/jobs/not-a-uuid"
-    response = client.request(method, path)
+    response = client.request(method, f"/jobs/not-a-uuid{suffix}")
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["path", "job_id"]
@@ -189,7 +192,7 @@ def test_job_routes_reject_invalid_job_ids_before_accessing_storage(client, monk
     batch_runner.assert_not_called()
 
 
-@pytest.mark.parametrize("operation", ["create", "get", "run"])
+@pytest.mark.parametrize("operation", ["create", "get", "run", "get_results_page"])
 @pytest.mark.parametrize(
     "storage_error",
     [
@@ -208,12 +211,16 @@ def test_storage_failures_return_503_without_exposing_details(
     if operation == "run":
         monkeypatch.setattr(job_routes, "run_batch", Mock(side_effect=storage_error))
     else:
+        if operation == "get_results_page":
+            client.post("/jobs", json=job_payload)
         monkeypatch.setattr(MappingJobStore, operation, Mock(side_effect=storage_error))
 
     if operation == "create":
         response = client.post("/jobs", json=job_payload)
     elif operation == "run":
         response = client.post(f"/jobs/{job_payload['job_id']}/run")
+    elif operation == "get_results_page":
+        response = client.get(f"/jobs/{job_payload['job_id']}/results")
     else:
         response = client.get(f"/jobs/{job_payload['job_id']}")
 
@@ -245,6 +252,15 @@ def test_run_resumes_batches_and_keeps_finished_jobs_unchanged(client, job_paylo
         assert response.status_code == 200
         assert response.json() == expected
         assert client.get(f"/jobs/{job_payload['job_id']}").json() == expected
+        # Results are readable between batches and after completion, including saved errors.
+        results = client.get(f"/jobs/{job_payload['job_id']}/results")
+        assert results.status_code == 200
+        page = results.json()
+        assert page["status"] == expected_status
+        assert len(page["results"]) == count
+        assert page["next_cursor"] is None
+        assert all(pair["processed"] is not invalid_response for pair in page["results"])
+        assert all((pair["error"] is not None) == invalid_response for pair in page["results"])
         assert model_calls.call_count == count
 
     # Completed and failed jobs both keep their outcomes without sending more model calls.
@@ -316,3 +332,131 @@ def test_run_returns_503_for_invalid_service_configuration(client, job_payload, 
     assert response.json() == {"detail": "Job processing is unavailable."}
     model_calls.assert_not_called()
     assert client.get(f"/jobs/{job_payload['job_id']}").json()["processed_pairs"] == 0
+
+
+def test_results_return_only_saved_outcomes_for_the_requested_job(client, table, job_request):
+    store = MappingJobStore(table)
+    job_id = job_request.job_id
+    store.create(job_request)
+    path = f"/jobs/{job_id}/results"
+    progress = client.get(f"/jobs/{job_id}").json()
+    # No results yet does not mean the job is finished.
+    assert client.get(path).json() == {**progress, "results": [], "next_cursor": None}
+
+    store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3, 8], explanation="Both levels apply.")
+    store.save_pair_result(job_id, 21, 35, mapping_scale_ids=[], explanation="No match.")
+    store.save_pair_error(job_id, 21, 36, error="Invalid model response.")
+    other_id = uuid4()
+    store.create(job_request.model_copy(update={"job_id": other_id}))
+    store.save_pair_result(other_id, 21, 34, mapping_scale_ids=[8], explanation="Other job.")
+    saved_pairs = store.get_pairs(job_id)
+    progress = client.get(f"/jobs/{job_id}").json()
+
+    response = client.get(path)
+
+    assert response.status_code == 200
+    # Check public fields too, so original text and internal storage fields stay out of the API.
+    assert response.json() == {
+        **progress,
+        "results": [
+            {
+                "clo_id": 21, "plo_id": 34, "processed": True,
+                "mapping_scales": [3, 8], "explanation": "Both levels apply.", "error": None,
+            },
+            {
+                "clo_id": 21, "plo_id": 35, "processed": True,
+                "mapping_scales": [], "explanation": "No match.", "error": None,
+            },
+            {
+                "clo_id": 21, "plo_id": 36, "processed": False,
+                "mapping_scales": [], "explanation": None, "error": "Invalid model response.",
+            },
+        ],
+        "next_cursor": None,
+    }
+    assert store.get_pairs(job_id) == saved_pairs
+    assert client.get(f"/jobs/{job_id}").json() == progress
+
+
+def test_results_follow_empty_pages_and_pick_up_later_outcomes_on_refresh(client, table, job_request, monkeypatch):
+    store = MappingJobStore(table)
+    job_id = job_request.job_id
+    store.create(job_request)
+    store.save_pair_result(job_id, 22, 36, mapping_scale_ids=[8], explanation="Last pair.")
+    monkeypatch.setattr(job_routes, "MappingJobStore", lambda: store)
+    query = Mock(wraps=table.query)
+    monkeypatch.setattr(table, "query", query)
+    path = f"/jobs/{job_id}/results"
+
+    page = client.get(path, params={"limit": 2}).json()
+    assert page["results"] == [] and page["next_cursor"] is not None
+    # This earlier pair finishes after the cursor has passed it.
+    store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[], explanation="Finished later.")
+    results = []
+    page_requests = 1
+    # Even the last full page can have a cursor. Follow it until DynamoDB says we're done.
+    while page["next_cursor"] is not None:
+        assert page_requests < 5
+        response = client.get(path, params={"limit": 2, "cursor": page["next_cursor"]})
+        assert response.status_code == 200
+        page = response.json()
+        results.extend(page["results"])
+        page_requests += 1
+    assert [(pair["clo_id"], pair["plo_id"]) for pair in results] == [(22, 36)]
+    assert query.call_count == page_requests  # One bounded storage read per API page, even when empty.
+    assert all(call.kwargs["Limit"] == 2 and call.kwargs["ConsistentRead"] for call in query.call_args_list)
+
+    # Laravel's next refresh starts from the beginning, so the earlier result isn't lost.
+    refreshed = client.get(path).json()
+    assert [(pair["clo_id"], pair["plo_id"]) for pair in refreshed["results"]] == [(21, 34), (22, 36)]
+    assert refreshed["status"] == "in_progress"
+
+
+@pytest.mark.parametrize("state", ["missing", "not_ready"])
+def test_results_reject_unavailable_jobs_without_reading_pairs(client, table, job_request, monkeypatch, state):
+    if state == "not_ready":
+        job = MappingJobStore(table).create(job_request)
+        table.put_item(Item={**job, "pairs_ready": False})
+    read_page = Mock(side_effect=AssertionError("Unavailable job reached pair storage."))
+    monkeypatch.setattr(MappingJobStore, "get_results_page", read_page)
+
+    response = client.get(f"/jobs/{job_request.job_id}/results")
+
+    assert response.status_code == (404 if state == "missing" else 409)
+    read_page.assert_not_called()
+
+
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"limit": "invalid"}, {"cursor": ""}])
+def test_results_reject_invalid_query_parameters(client, job_request, monkeypatch, params):
+    store = Mock(side_effect=AssertionError("Invalid query reached job storage."))
+    monkeypatch.setattr(job_routes, "MappingJobStore", store)
+
+    response = client.get(f"/jobs/{job_request.job_id}/results", params=params)
+
+    assert response.status_code == 422
+    store.assert_not_called()
+
+
+@pytest.mark.parametrize("cursor_case", ["not-base64", "not-json", "wrong-shape", "metadata-key", "other-job"])
+def test_results_reject_invalid_or_cross_job_cursors(client, table, job_request, monkeypatch, cursor_case):
+    store = MappingJobStore(table)
+    job = store.create(job_request)
+    # A cursor can only point to a pair within the job being requested.
+    cursors = {
+        "not-base64": "invalid!",
+        "not-json": base64.urlsafe_b64encode(b"not JSON").decode(),
+        "wrong-shape": base64.urlsafe_b64encode(b"[]").decode(),
+        "metadata-key": base64.urlsafe_b64encode(json.dumps(store._key(job_request.job_id)).encode()).decode(),
+        "other-job": base64.urlsafe_b64encode(json.dumps({
+            "pk": f"JOB#{uuid4()}", "sk": "LO_PAIR#21-34",
+        }).encode()).decode(),
+    }
+    monkeypatch.setattr(job_routes, "MappingJobStore", lambda: store)
+    query = Mock(side_effect=AssertionError("Invalid cursor reached the pair query."))
+    monkeypatch.setattr(table, "query", query)
+
+    response = client.get(f"/jobs/{job['job_id']}/results", params={"cursor": cursors[cursor_case]})
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Invalid results cursor for this job."}
+    query.assert_not_called()
