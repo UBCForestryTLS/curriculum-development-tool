@@ -21,6 +21,14 @@ MODEL_READ_TIMEOUT_SECONDS = 8
 SAVE_RESERVE_SECONDS = 2
 
 
+class MappingJobNotFoundError(ValueError):
+    """There is no saved job to process."""
+
+
+class MappingJobNotReadyError(ValueError):
+    """The job's pairs have not all been saved yet."""
+
+
 def run_batch(
     job_id: UUID | str,
     *,
@@ -41,14 +49,16 @@ def run_batch(
                 retries={"mode": "standard", "total_max_attempts": 1},
             )
         )
+    job = store.get(job_id)
+    if job is None:
+        raise MappingJobNotFoundError("Mapping job not found.")
+    if not job["pairs_ready"]:
+        raise MappingJobNotReadyError("Mapping job is not ready for processing.")
+    if job["status"] not in ("pending", "in_progress"):
+        return job
     pairs = store.get_pending_pairs(job_id, limit=settings.batch_size)
     if not pairs:
         return store.finish_if_complete(job_id)
-    job = store.get(job_id)
-    if job is None:
-        raise ValueError("Mapping job does not exist.")
-    if job["status"] not in ("pending", "in_progress"):
-        return job
 
     # With these defaults, stop starting calls 8 seconds after run_batch begins:
     # 20 seconds - 2 for connecting - 8 for reading the response - 2 for saving.
