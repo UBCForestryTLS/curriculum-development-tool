@@ -1,5 +1,7 @@
+import base64
 import hashlib
 import json
+import re
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -13,6 +15,10 @@ from app.job_models import MappingJobRequest
 
 class MappingJobConflictError(ValueError):
     """The job ID is already being used for different mapping inputs."""
+
+
+class InvalidResultsCursorError(ValueError):
+    """The results cursor is malformed or belongs to a different job."""
 
 
 class MappingJobStore:
@@ -130,6 +136,47 @@ class MappingJobStore:
             ConsistentRead=True,
         )
         return [record for page in pages for record in page["Items"]]
+
+    def get_results_page(
+        self, job_id: UUID | str, *, limit: int = 50, cursor: str | None = None,
+    ) -> dict[str, object]:
+        """Read one page of saved results and errors, leaving pending pairs out."""
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("Results limit must be an integer between 1 and 100.")
+        job_key = self._key(job_id)
+        query = {
+            "KeyConditionExpression": Key("pk").eq(job_key["pk"])
+            & Key("sk").begins_with("LO_PAIR#"),
+            # Saved errors still have processed=False, but they are outcomes too.
+            "FilterExpression": Attr("processed").eq(True) | Attr("error").ne(None),
+            "ConsistentRead": True,
+            "Limit": limit,
+        }
+        if cursor is not None:
+            # Keep the cursor tied to this job and reject keys outside its pair records.
+            try:
+                start_key = json.loads(base64.b64decode(cursor, altchars=b"-_", validate=True))
+                if (
+                    not isinstance(start_key, dict)
+                    or set(start_key) != {"pk", "sk"}
+                    or start_key["pk"] != job_key["pk"]
+                    or not isinstance(start_key["sk"], str)
+                    or not re.fullmatch(r"LO_PAIR#[1-9][0-9]*-[1-9][0-9]*", start_key["sk"])
+                ):
+                    raise ValueError
+            except ValueError:
+                raise InvalidResultsCursorError("Invalid results cursor for this job.") from None
+            query["ExclusiveStartKey"] = start_key
+
+        # Read just one DynamoDB page. The limit is applied before filtering, so even
+        # an empty results page can have a cursor that Laravel needs to follow.
+        page = self.table.query(**query)
+        next_cursor = None
+        if page.get("LastEvaluatedKey"):
+            next_cursor = base64.urlsafe_b64encode(
+                json.dumps(page["LastEvaluatedKey"]).encode("utf-8")
+            ).decode("ascii")
+        return {"results": page["Items"], "next_cursor": next_cursor}
 
     def get_pending_pairs(self, job_id: UUID | str, *, limit: int) -> list[dict[str, object]]:
         """Return up to limit pairs without a saved result or error, from a ready job."""

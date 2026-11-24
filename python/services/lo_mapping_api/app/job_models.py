@@ -82,3 +82,23 @@ class MappingJobResponse(BaseModel):
     status: Literal["pending", "in_progress", "failed", "completed"]
     created_at: datetime
     pairs_ready: bool
+
+
+class MappingPairResult(BaseModel):
+    """A saved pair outcome, without internal keys or the original outcome text."""
+
+    clo_id: int
+    plo_id: int
+    # A saved error has processed=False; a successful no-match has True and no levels.
+    processed: bool
+    mapping_scales: list[int]
+    explanation: str | None
+    error: str | None
+
+
+class MappingJobResultsResponse(MappingJobResponse):
+    """Saved outcomes for one page, alongside the job's progress when it was read."""
+
+    results: list[MappingPairResult]
+    # None ends this read, not necessarily the job. Check status separately.
+    next_cursor: str | None
