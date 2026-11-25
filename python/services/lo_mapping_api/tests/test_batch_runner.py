@@ -83,11 +83,14 @@ def test_batches_respect_limits_and_resume_saved_progress(store, job_request, se
         first = runner.run_batch(job_request.job_id, store=store, bedrock_client=bedrock, settings=settings)
         assert first["processed_pairs"] == 4 and first["status"] == "in_progress"
         assert bedrock.generate_text.call_count == 4
+        # Release after each batch so the next request can pick up the remaining work.
+        assert "batch_lock_token" not in store.get(job_request.job_id)
         # The second batch should only send the two remaining pairs.
         finished = runner.run_batch(job_request.job_id, store=store, bedrock_client=bedrock, settings=settings)
     assert peak == concurrency
     assert finished["status"] == "completed"
     assert finished["processed_pairs"] == finished["mapped_pairs"] == 6
+    assert "batch_lock_token" not in store.get(job_request.job_id)
     for pair in store.get_pairs(job_request.job_id):
         assert pair["mapping_scales"] == [3, 8]
         assert pair["explanation"] == f"Alignment for clo-{pair['clo_id']}__plo-{pair['plo_id']}."
@@ -134,6 +137,18 @@ def test_aws_failure_stops_requests_and_leaves_unsaved_pairs_pending(store, job_
     assert bedrock.generate_text.call_count == 1
     assert store.get(job_request.job_id)["errored_pairs"] == 0
     assert len(store.get_pending_pairs(job_request.job_id, limit=6)) == 6
+    assert "batch_lock_token" not in store.get(job_request.job_id)
+
+
+def test_setup_failure_releases_lock_before_any_model_calls(store, job_request, settings, bedrock):
+    failure = EndpointConnectionError(endpoint_url="https://dynamodb.invalid")
+    # The lock is already held when fetching pairs fails. It must still be released.
+    with patch.object(store, "get_pending_pairs", side_effect=failure):
+        with pytest.raises(EndpointConnectionError):
+            runner.run_batch(job_request.job_id, store=store, bedrock_client=bedrock, settings=settings)
+
+    bedrock.generate_text.assert_not_called()
+    assert "batch_lock_token" not in store.get(job_request.job_id)
 
 
 def test_storage_failure_collects_active_calls_and_can_resume(store, job_request, settings, bedrock):
@@ -161,6 +176,7 @@ def test_storage_failure_collects_active_calls_and_can_resume(store, job_request
     assert error.value is failure
     assert bedrock.generate_text.call_count == len(attempts) == 2
     assert store.get(job_request.job_id)["processed_pairs"] == 1
+    assert "batch_lock_token" not in store.get(job_request.job_id)
 
     # After storage recovers, only the five unsaved pairs should need another attempt.
     bedrock.generate_text.side_effect = model_reply

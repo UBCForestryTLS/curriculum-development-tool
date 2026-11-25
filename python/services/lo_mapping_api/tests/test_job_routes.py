@@ -270,6 +270,32 @@ def test_run_resumes_batches_and_keeps_finished_jobs_unchanged(client, job_paylo
     assert model_calls.call_count == 6
 
 
+def test_locked_job_rejects_another_batch_but_still_allows_reads(client, table, job_payload, model_calls):
+    job_id = job_payload["job_id"]
+    client.post("/jobs", json=job_payload)
+    store = MappingJobStore(table)
+    store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3], explanation="Already saved.")
+    progress = client.get(f"/jobs/{job_id}").json()
+    results = client.get(f"/jobs/{job_id}/results").json()
+    token = store.acquire_batch_lock(job_id)
+
+    # Stand in for an active batch while another processing request reaches the API.
+    response = client.post(f"/jobs/{job_id}/run")
+    assert response.status_code == 409
+    model_calls.assert_not_called()
+    assert store.get(job_id)["batch_lock_token"] == token
+
+    # Reads stay available and must not expose the internal lock fields.
+    assert client.get(f"/jobs/{job_id}").json() == progress
+    assert client.get(f"/jobs/{job_id}/results").json() == results
+
+    assert store.release_batch_lock(job_id, token)
+    resumed = client.post(f"/jobs/{job_id}/run")
+    assert resumed.status_code == 200
+    assert resumed.json()["processed_pairs"] == 5
+    assert model_calls.call_count == 4
+
+
 @pytest.mark.parametrize(
     ("state", "status_code", "detail"),
     [

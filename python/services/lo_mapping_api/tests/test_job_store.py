@@ -8,7 +8,7 @@ from botocore.exceptions import ClientError, EndpointConnectionError
 from app.api_key_store import ApiKeyStore
 from app.api_keys import generate_api_key
 from app.job_models import MappingJobRequest
-from app.job_store import MappingJobConflictError, MappingJobStore
+from app.job_store import MappingJobConflictError, MappingJobLockError, MappingJobStore
 
 
 @pytest.fixture
@@ -193,6 +193,68 @@ def test_creation_can_retry_when_the_final_readiness_update_fails(store, table, 
     assert len(saved_pairs) == 6
     assert store.create(job_request)["pairs_ready"] is True
     assert store.get_pairs(job_request.job_id) == saved_pairs
+
+
+@pytest.mark.parametrize("save_error", [False, True], ids=["result", "error"])
+def test_expired_lock_can_be_replaced_without_allowing_old_writes(store, job_request, save_error):
+    job_id = job_request.job_id
+    store.create(job_request)
+    save = store.save_pair_error if save_error else store.save_pair_result
+    fields = {"error": "Invalid response."} if save_error else {
+        "mapping_scale_ids": [3], "explanation": "Matched.",
+    }
+
+    with patch("app.job_store.time", return_value=1000) as clock:
+        old_token = store.acquire_batch_lock(job_id)
+        # Reach the exact expiry without sleeping. The old batch can no longer save.
+        clock.return_value = int(store.get(job_id)["batch_lock_expires_at"])
+        with pytest.raises(MappingJobLockError):
+            save(job_id, 21, 34, lock_token=old_token, **fields)
+
+        new_token = store.acquire_batch_lock(job_id)
+        assert new_token != old_token
+        saved_job, saved_pairs = store.get(job_id), store.get_pairs(job_id)
+        # Omitting the token must not bypass the new owner's lock either.
+        with pytest.raises(MappingJobLockError):
+            save(job_id, 21, 34, **fields)
+        with pytest.raises(MappingJobLockError):
+            store.finish_if_complete(job_id, lock_token=old_token)
+        assert store.release_batch_lock(job_id, old_token) is False
+        assert store.get(job_id) == saved_job
+        assert store.get_pairs(job_id) == saved_pairs
+
+        assert save(job_id, 21, 34, lock_token=new_token, **fields)
+        count = "errored_pairs" if save_error else "processed_pairs"
+        assert store.get(job_id)[count] == 1
+        assert store.release_batch_lock(job_id, new_token)
+
+
+def test_lock_takeover_during_save_rejects_both_pair_and_count_updates(store, table, job_request):
+    job_id = job_request.job_id
+    store.create(job_request)
+    saved_pairs = store.get_pairs(job_id)
+    original_write = table.meta.client.transact_write_items
+
+    with patch("app.job_store.time", return_value=1000) as clock:
+        old_token = store.acquire_batch_lock(job_id)
+        expires_at = int(store.get(job_id)["batch_lock_expires_at"])
+
+        def take_over_before_write(**kwargs):
+            # The first ownership check passed, but another batch takes over before the save.
+            clock.return_value = expires_at
+            store.acquire_batch_lock(job_id)
+            return original_write(**kwargs)
+
+        with patch.object(table.meta.client, "transact_write_items", side_effect=take_over_before_write):
+            with pytest.raises(MappingJobLockError):
+                store.save_pair_result(
+                    job_id, 21, 34, mapping_scale_ids=[3], explanation="Late answer.", lock_token=old_token,
+                )
+
+    progress = store.get(job_id)
+    assert progress["batch_lock_token"] != old_token
+    assert progress["processed_pairs"] == progress["mapped_pairs"] == 0
+    assert store.get_pairs(job_id) == saved_pairs
 
 
 def test_get_pairs_reads_every_page(store, table, job_request):
