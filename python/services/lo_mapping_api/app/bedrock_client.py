@@ -41,8 +41,8 @@ class BedrockClient:
                     "content": [{"text": f"{prompt}\n\n/no_think"}],
                 }
             ],
-            # Keep the existing per-pair output limit while we test the new model.
-            inferenceConfig={"maxTokens": 1500},
+            # Use temperature 0 for more consistent mapping answers; keep the same output limit.
+            inferenceConfig={"maxTokens": 1500, "temperature": 0},
             
         )
 

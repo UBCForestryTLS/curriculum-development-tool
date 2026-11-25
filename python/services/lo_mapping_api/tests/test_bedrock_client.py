@@ -75,7 +75,7 @@ def test_generate_text_sends_the_expected_request_and_returns_only_the_answer(be
                 "content": [{"text": "Compare these learning outcomes.\n\n/no_think"}],
             }
         ],
-        "inferenceConfig": {"maxTokens": 1500},
+        "inferenceConfig": {"maxTokens": 1500, "temperature": 0},
     }
     response = bedrock_response([
         {"reasoningContent": {"reasoningText": {"text": "Separate reasoning content."}}},
