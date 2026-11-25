@@ -8,7 +8,12 @@ from pydantic import ValidationError
 from app.auth import require_api_key
 from app.batch_runner import MappingJobNotFoundError, MappingJobNotReadyError, run_batch
 from app.job_models import MappingJobRequest, MappingJobResponse, MappingJobResultsResponse
-from app.job_store import InvalidResultsCursorError, MappingJobConflictError, MappingJobStore
+from app.job_store import (
+    InvalidResultsCursorError,
+    MappingJobConflictError,
+    MappingJobLockError,
+    MappingJobStore,
+)
 
 
 # Every job route needs the API key headers; /health stays public.
@@ -117,6 +122,9 @@ def run_job_batch(job_id: UUID) -> dict[str, object]:
             status_code=status.HTTP_409_CONFLICT,
             detail="Mapping job is not ready for processing.",
         ) from None
+    except MappingJobLockError as error:
+        # Laravel can check saved progress and retry later; don't start overlapping work.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
     except (ValidationError, BotoCoreError, ClientError):
         # Results already saved stay recorded. Laravel can check progress before trying again.
         raise HTTPException(

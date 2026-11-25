@@ -6,7 +6,7 @@ from botocore.config import Config
 
 from app.bedrock_client import BedrockClient, BedrockResponseError
 from app.config import BatchSettings, get_batch_settings
-from app.job_store import MappingJobStore
+from app.job_store import MappingJobLockError, MappingJobStore
 from app.mapping_response import MappingResponseError
 from app.mapping_service import map_pair
 
@@ -36,7 +36,7 @@ def run_batch(
     bedrock_client: BedrockClient | None = None,
     settings: BatchSettings | None = None,
 ) -> dict[str, object]:
-    """Process one limited batch and return saved progress. Call batches sequentially per job."""
+    """Process one limited batch under a per-job lock and return saved progress."""
     # Start timing before setup so fetching the job also uses part of the budget.
     # monotonic() keeps measuring elapsed time even if the system clock is adjusted.
     deadline = monotonic() + BATCH_TIME_BUDGET_SECONDS
@@ -56,16 +56,38 @@ def run_batch(
         raise MappingJobNotReadyError("Mapping job is not ready for processing.")
     if job["status"] not in ("pending", "in_progress"):
         return job
+    try:
+        lock_token = store.acquire_batch_lock(job_id)
+    except MappingJobLockError:
+        # Another batch may have finished between our first read and claiming the lock.
+        current = store.get(job_id)
+        if current is not None and current["status"] in ("completed", "failed"):
+            return current
+        raise
+    try:
+        progress = _run_locked_batch(job_id, job, store, bedrock_client, settings, deadline, lock_token)
+    finally:
+        # The runner collects active calls before reaching here. On failure, release too;
+        # if the process dies or storage is unavailable, the expiry allows a later retry.
+        store.release_batch_lock(job_id, lock_token)
+    # These fields are internal coordination details, not part of the returned progress.
+    progress.pop("batch_lock_token", None)
+    progress.pop("batch_lock_expires_at", None)
+    return progress
+
+
+def _run_locked_batch(job_id, job, store, bedrock_client, settings, deadline, lock_token):
+    """Select pending pairs only after the job lock is held, then process and save them."""
     pairs = store.get_pending_pairs(job_id, limit=settings.batch_size)
     if not pairs:
-        return store.finish_if_complete(job_id)
+        return store.finish_if_complete(job_id, lock_token=lock_token)
 
     # With these defaults, stop starting calls 8 seconds after run_batch begins:
     # 20 seconds - 2 for connecting - 8 for reading the response - 2 for saving.
     # This leaves time for the last calls to finish and have their outcomes saved.
     stop_starting_at = deadline - CONNECT_TIMEOUT_SECONDS - MODEL_READ_TIMEOUT_SECONDS - SAVE_RESERVE_SECONDS
     if monotonic() >= stop_starting_at:
-        return store.finish_if_complete(job_id)
+        return store.finish_if_complete(job_id, lock_token=lock_token)
 
     # DynamoDB returns numbers as Decimal; the prompt needs normal integer IDs for JSON.
     mapping_scales = [
@@ -120,7 +142,7 @@ def run_batch(
                 pair = in_flight.pop(future)
                 try:
                     # Keep DynamoDB writes on this thread; only model calls run concurrently.
-                    _save_outcome(store, job_id, pair, future, level_ids)
+                    _save_outcome(store, job_id, pair, future, level_ids, lock_token)
                 except Exception as error:
                     # Stop submitting, but collect other calls already sent before raising the failure.
                     if failure is None:
@@ -128,15 +150,15 @@ def run_batch(
 
     if failure is not None:
         raise failure
-    return store.finish_if_complete(job_id)
+    return store.finish_if_complete(job_id, lock_token=lock_token)
 
 
-def _save_outcome(store, job_id, pair, future, level_ids) -> None:
+def _save_outcome(store, job_id, pair, future, level_ids, lock_token) -> None:
     """Save a validated answer or model-response error; let AWS and storage failures reach the caller."""
     try:
         result = future.result()
     except (BedrockResponseError, MappingResponseError) as error:
-        store.save_pair_error(job_id, pair["clo_id"], pair["plo_id"], error=str(error))
+        store.save_pair_error(job_id, pair["clo_id"], pair["plo_id"], error=str(error), lock_token=lock_token)
         return
     if result is None:
         return
@@ -147,4 +169,5 @@ def _save_outcome(store, job_id, pair, future, level_ids) -> None:
         pair["plo_id"],
         mapping_scale_ids=[level_ids[label] for label in result["map_labels"]],
         explanation=result["explanation"],
+        lock_token=lock_token,
     )

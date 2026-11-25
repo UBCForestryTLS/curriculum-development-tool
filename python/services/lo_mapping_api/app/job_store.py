@@ -3,14 +3,20 @@ import hashlib
 import json
 import re
 from datetime import UTC, datetime
-from uuid import UUID
+from time import time
+from uuid import UUID, uuid4
 
 import boto3
-from boto3.dynamodb.conditions import Attr, Key
+from boto3.dynamodb.conditions import Attr, ConditionExpressionBuilder, Key
 from botocore.config import Config
 
 from app.config import get_settings
 from app.job_models import MappingJobRequest
+
+
+# Batches aim to finish within 20 seconds. Leave extra time for active calls and cleanup.
+# An interrupted batch can be replaced after this expires, without deleting the job.
+BATCH_LOCK_SECONDS = 60
 
 
 class MappingJobConflictError(ValueError):
@@ -19,6 +25,10 @@ class MappingJobConflictError(ValueError):
 
 class InvalidResultsCursorError(ValueError):
     """The results cursor is malformed or belongs to a different job."""
+
+
+class MappingJobLockError(ValueError):
+    """Another batch holds the job lock, or this batch no longer owns it."""
 
 
 class MappingJobStore:
@@ -125,6 +135,58 @@ class MappingJobStore:
         response = self.table.get_item(Key=self._key(job_id), ConsistentRead=True)
         return response.get("Item")
 
+    def acquire_batch_lock(self, job_id: UUID | str) -> str:
+        """Claim an available job lock and return this batch's unique ownership token."""
+        lock_token = str(uuid4())
+        now = int(time())
+        try:
+            # DynamoDB checks and writes together, so two requests cannot both claim the lock.
+            self.table.update_item(
+                Key=self._key(job_id),
+                UpdateExpression="SET batch_lock_token = :token, batch_lock_expires_at = :expires",
+                ExpressionAttributeValues={":token": lock_token, ":expires": now + BATCH_LOCK_SECONDS},
+                ConditionExpression=Attr("pairs_ready").eq(True)
+                & Attr("status").is_in(["pending", "in_progress"])
+                & (Attr("batch_lock_token").not_exists() | Attr("batch_lock_expires_at").lte(now)),
+            )
+        except self.table.meta.client.exceptions.ConditionalCheckFailedException:
+            raise MappingJobLockError(
+                "Mapping job is already processing or no longer available for a batch."
+            ) from None
+        return lock_token
+
+    def release_batch_lock(self, job_id: UUID | str, lock_token: str) -> bool:
+        """Release only this batch's lock; leave a newer batch's lock alone."""
+        try:
+            self.table.update_item(
+                Key=self._key(job_id),
+                UpdateExpression="REMOVE batch_lock_token, batch_lock_expires_at",
+                ConditionExpression=Attr("batch_lock_token").eq(lock_token),
+            )
+        except self.table.meta.client.exceptions.ConditionalCheckFailedException:
+            return False
+        return True
+
+    @staticmethod
+    def _batch_lock_condition(lock_token: str | None):
+        """Require a live owned lock, or no lock for direct storage calls outside a batch."""
+        if lock_token is None:
+            return Attr("batch_lock_token").not_exists()
+        return Attr("batch_lock_token").eq(lock_token) & Attr("batch_lock_expires_at").gt(int(time()))
+
+    @staticmethod
+    def _check_batch_lock(job: dict[str, object], lock_token: str | None) -> None:
+        """Explain a lost lock; write conditions still enforce ownership atomically."""
+        if lock_token is None and "batch_lock_token" not in job:
+            return
+        if (
+            lock_token is not None
+            and job.get("batch_lock_token") == lock_token
+            and job.get("batch_lock_expires_at", 0) > int(time())
+        ):
+            return
+        raise MappingJobLockError("Mapping job processing lock is no longer held by this batch.")
+
     def get_pairs(self, job_id: UUID | str) -> list[dict[str, object]]:
         """Return all pairs for this job, including results once they have been saved."""
         # Query only this job's pair records and let the SDK fetch every page.
@@ -208,6 +270,7 @@ class MappingJobStore:
         *,
         mapping_scale_ids: list[int],
         explanation: str,
+        lock_token: str | None = None,
     ) -> bool:
         """Save the chosen level IDs and explanation. An empty list means a valid no-match."""
         if not isinstance(mapping_scale_ids, list) or any(
@@ -218,21 +281,24 @@ class MappingJobStore:
             raise ValueError("Mapping scale IDs must be unique.")
         if not isinstance(explanation, str) or not explanation.strip():
             raise ValueError("Mapping explanation must be nonblank text.")
-        return self._save_pair_outcome(job_id, clo_id, plo_id, mapping_scale_ids, explanation, None)
+        return self._save_pair_outcome(job_id, clo_id, plo_id, mapping_scale_ids, explanation, None, lock_token)
 
-    def save_pair_error(self, job_id: UUID | str, clo_id: int, plo_id: int, *, error: str) -> bool:
+    def save_pair_error(
+        self, job_id: UUID | str, clo_id: int, plo_id: int, *, error: str, lock_token: str | None = None,
+    ) -> bool:
         """Record a failed check separately from a valid no-match result."""
         if not isinstance(error, str) or not error.strip():
             raise ValueError("Mapping error must be nonblank text.")
-        return self._save_pair_outcome(job_id, clo_id, plo_id, [], None, error)
+        return self._save_pair_outcome(job_id, clo_id, plo_id, [], None, error, lock_token)
 
-    def finish_if_complete(self, job_id: UUID | str) -> dict[str, object]:
+    def finish_if_complete(self, job_id: UUID | str, *, lock_token: str | None = None) -> dict[str, object]:
         """Finish a job only when every pair has a saved result or error, and return its progress."""
         job = self.get(job_id)
         if job is None or not job["pairs_ready"]:
             raise ValueError("Mapping job does not exist or is not ready.")
         if job["status"] not in ("pending", "in_progress"):
             return job
+        self._check_batch_lock(job, lock_token)
         if job["processed_pairs"] + job["errored_pairs"] != job["total_pairs"]:
             return job
 
@@ -250,7 +316,8 @@ class MappingJobStore:
                 & Attr("input_hash").eq(job["input_hash"])
                 & Attr("status").is_in(["pending", "in_progress"])
                 & Attr("processed_pairs").eq(job["processed_pairs"])
-                & Attr("errored_pairs").eq(job["errored_pairs"]),
+                & Attr("errored_pairs").eq(job["errored_pairs"])
+                & self._batch_lock_condition(lock_token),
                 ReturnValues="ALL_NEW",
             )
         except self.table.meta.client.exceptions.ConditionalCheckFailedException:
@@ -258,6 +325,7 @@ class MappingJobStore:
             current = self.get(job_id)
             if current is None:
                 raise
+            self._check_batch_lock(current, lock_token)
             return current
         return response["Attributes"]
 
@@ -269,11 +337,13 @@ class MappingJobStore:
         mapping_scale_ids: list[int],
         explanation: str | None,
         error: str | None,
+        lock_token: str | None,
     ) -> bool:
         """Return True when saved, or False if an active job already has this pair's outcome."""
         job = self.get(job_id)
         if job is None or not job["pairs_ready"]:
             raise ValueError("Mapping job does not exist or is not ready.")
+        self._check_batch_lock(job, lock_token)
         allowed_ids = {scale["map_scale_id"] for scale in job["mapping_scale_options"]}
         if not set(mapping_scale_ids).issubset(allowed_ids):
             raise ValueError("Mapping scale IDs must belong to the job's original levels.")
@@ -283,6 +353,9 @@ class MappingJobStore:
         successful = error is None
         # Save the outcome and counts together. A failed write must not leave only one updated.
         # Transaction conditions use strings because Boto3's Attr placeholders are added at the top level.
+        # Build the lock condition explicitly for the nested job update. A stale batch
+        # cannot save either the pair or its counts after another batch takes ownership.
+        lock_condition = ConditionExpressionBuilder().build_expression(self._batch_lock_condition(lock_token))
         try:
             self.table.meta.client.transact_write_items(
                 TransactItems=[
@@ -319,10 +392,13 @@ class MappingJobStore:
                             # Recheck readiness and inputs, and block writes to finished jobs.
                             "ConditionExpression": (
                                 "pairs_ready = :ready AND input_hash = :input_hash "
-                                "AND #status IN (:pending, :running)"
+                                f"AND #status IN (:pending, :running) AND {lock_condition.condition_expression}"
                             ),
-                            "ExpressionAttributeNames": {"#status": "status"},
+                            "ExpressionAttributeNames": {
+                                "#status": "status", **lock_condition.attribute_name_placeholders,
+                            },
                             "ExpressionAttributeValues": {
+                                **lock_condition.attribute_value_placeholders,
                                 ":processed": int(successful),
                                 ":mapped": int(bool(mapping_scale_ids)),
                                 ":errored": int(not successful),
@@ -338,6 +414,10 @@ class MappingJobStore:
         except self.table.meta.client.exceptions.TransactionCanceledException as exc:
             # Cancellation reasons follow the update order above: pair first, job second.
             reasons = [reason.get("Code") for reason in exc.response.get("CancellationReasons", [])]
+            if len(reasons) == 2 and reasons[1] == "ConditionalCheckFailed":
+                current = self.get(job_id)
+                if current is not None:
+                    self._check_batch_lock(current, lock_token)
             if reasons == ["ConditionalCheckFailed", "None"]:
                 pair = self.table.get_item(Key=pair_key, ConsistentRead=True).get("Item")
                 # Keep the first saved outcome, even if a later attempt got a different answer.
