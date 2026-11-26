@@ -16,6 +16,73 @@ def store(table):
     return MappingJobStore(table)
 
 
+@pytest.fixture
+def finished_job(store, job_request):
+    store.create(job_request)
+    # Two failures with different CLOs and PLOs would wrongly become four pairs if recombined.
+    for pair in store.get_pairs(job_request.job_id):
+        ids = (pair["clo_id"], pair["plo_id"])
+        if ids in {(21, 34), (22, 35)}:
+            store.save_pair_error(job_request.job_id, *ids, error="Invalid model response.")
+        else:
+            levels = [] if pair["plo_id"] == 36 else [3]
+            store.save_pair_result(job_request.job_id, *ids, mapping_scale_ids=levels, explanation="Saved result.")
+    return store.finish_if_complete(job_request.job_id)
+
+
+def test_retry_copies_only_failed_pairs_and_preserves_existing_results(store, finished_job):
+    original_pairs = store.get_pairs(finished_job["job_id"])
+    retry_id = uuid4()
+    retry = store.create_retry(finished_job["job_id"], retry_id)
+    pairs = store.get_pairs(retry_id)
+
+    assert len(pairs) == 2
+    assert {(pair["clo_id"], pair["plo_id"]) for pair in pairs} == {(21, 34), (22, 35)}
+    assert (retry["total_clos"], retry["total_plos"], retry["total_pairs"]) == (2, 2, 2)
+    assert retry["retry_of_job_id"] == finished_job["job_id"]
+    assert retry["status"] == "pending" and retry["pairs_ready"] is True
+    assert (retry["processed_pairs"], retry["mapped_pairs"], retry["errored_pairs"]) == (0, 0, 0)
+    for field in ("course_id", "program_id", "mapping_scale_options"):
+        assert retry[field] == finished_job[field]
+    for pair in pairs:
+        original = next(item for item in original_pairs if item["sk"] == pair["sk"])
+        assert (pair["clo_text"], pair["plo_text"]) == (original["clo_text"], original["plo_text"])
+        assert (pair["processed"], pair["error"], pair["mapping_scales"], pair["explanation"]) == (False, None, [], None)
+
+    # Repeating creation must keep both the original outcomes and any new retry progress.
+    assert store.create_retry(finished_job["job_id"], retry_id) == retry
+    store.save_pair_result(retry_id, 21, 34, mapping_scale_ids=[8], explanation="Retried successfully.")
+    progress, saved_pairs = store.get(retry_id), store.get_pairs(retry_id)
+    assert store.create_retry(finished_job["job_id"], retry_id) == progress
+    assert store.get_pairs(retry_id) == saved_pairs
+    assert store.get(finished_job["job_id"]) == finished_job
+    assert store.get_pairs(finished_job["job_id"]) == original_pairs
+
+
+def test_retry_creation_resumes_after_a_pair_write_fails(store, table, finished_job):
+    retry_id = uuid4()
+    original_put = table.put_item
+
+    def interrupted_put(**kwargs):
+        if kwargs["Item"]["sk"] == "LO_PAIR#22-35":
+            raise EndpointConnectionError(endpoint_url="https://dynamodb.invalid")
+        return original_put(**kwargs)
+
+    # Stop after the first retry pair is saved, then repeat the same creation request.
+    with patch.object(table, "put_item", side_effect=interrupted_put):
+        with pytest.raises(EndpointConnectionError):
+            store.create_retry(finished_job["job_id"], retry_id)
+    partial_job = store.get(retry_id)
+    partial_pairs = store.get_pairs(retry_id)
+    assert partial_job["pairs_ready"] is False and len(partial_pairs) == 1
+
+    resumed = store.create_retry(finished_job["job_id"], retry_id)
+    assert resumed["pairs_ready"] is True
+    assert resumed["created_at"] == partial_job["created_at"]
+    assert len(store.get_pairs(retry_id)) == 2
+    assert partial_pairs[0] in store.get_pairs(retry_id)
+
+
 def test_create_saves_job_metadata_and_initial_progress(store, table, job_request):
     started = datetime.now(UTC)
     record = store.create(job_request)

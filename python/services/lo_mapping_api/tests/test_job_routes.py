@@ -125,7 +125,7 @@ def test_conflicting_creation_returns_409_without_changing_the_job(client, job_p
     assert client.get(f"/jobs/{job_payload['job_id']}").json() == first.json()
 
 
-@pytest.mark.parametrize("method", ["post", "get", "run", "results"])
+@pytest.mark.parametrize("method", ["post", "get", "run", "results", "retry"])
 @pytest.mark.parametrize("credentials", ["missing", "incorrect"])
 def test_job_routes_reject_invalid_credentials_before_accessing_jobs(
     client, job_payload, monkeypatch, method, credentials
@@ -141,6 +141,8 @@ def test_job_routes_reject_invalid_credentials_before_accessing_jobs(
 
     if method == "post":
         response = client.post("/jobs", json=job_payload)
+    elif method == "retry":
+        response = client.post(f"/jobs/{job_payload['job_id']}/retry", json={"job_id": str(uuid4())})
     elif method == "run":
         response = client.post(f"/jobs/{job_payload['job_id']}/run")
     elif method == "results":
@@ -178,14 +180,17 @@ def test_get_returns_404_for_a_missing_job(client, job_payload):
     assert response.json() == {"detail": "Mapping job not found."}
 
 
-@pytest.mark.parametrize(("method", "suffix"), [("get", ""), ("post", "/run"), ("get", "/results")])
+@pytest.mark.parametrize(
+    ("method", "suffix"), [("get", ""), ("post", "/run"), ("get", "/results"), ("post", "/retry")],
+)
 def test_job_routes_reject_invalid_job_ids_before_accessing_storage(client, monkeypatch, method, suffix):
     store_constructor = Mock(side_effect=AssertionError("An invalid job ID reached storage."))
     monkeypatch.setattr(job_routes, "MappingJobStore", store_constructor)
     batch_runner = Mock(side_effect=AssertionError("An invalid job ID started processing."))
     monkeypatch.setattr(job_routes, "run_batch", batch_runner)
 
-    response = client.request(method, f"/jobs/not-a-uuid{suffix}")
+    body = {"job_id": str(uuid4())} if suffix == "/retry" else None
+    response = client.request(method, f"/jobs/not-a-uuid{suffix}", json=body)
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["path", "job_id"]
@@ -193,7 +198,7 @@ def test_job_routes_reject_invalid_job_ids_before_accessing_storage(client, monk
     batch_runner.assert_not_called()
 
 
-@pytest.mark.parametrize("operation", ["create", "get", "run", "get_results_page"])
+@pytest.mark.parametrize("operation", ["create", "get", "run", "get_results_page", "create_retry"])
 @pytest.mark.parametrize(
     ("storage_error", "action"),
     [
@@ -228,6 +233,8 @@ def test_storage_failures_return_503_without_exposing_details(
 
     if operation == "create":
         response = client.post("/jobs", json=job_payload)
+    elif operation == "create_retry":
+        response = client.post(f"/jobs/{job_payload['job_id']}/retry", json={"job_id": str(uuid4())})
     elif operation == "run":
         response = client.post(f"/jobs/{job_payload['job_id']}/run")
     elif operation == "get_results_page":
@@ -238,6 +245,56 @@ def test_storage_failures_return_503_without_exposing_details(
     assert response.status_code == 503
     detail = "Job processing is unavailable." if operation == "run" else "Job storage is unavailable."
     assert response.json() == {"detail": {"message": detail, "action": action}}
+
+
+@pytest.mark.parametrize(
+    ("state", "status_code"),
+    [("failed", 200), ("missing", 404), ("pending", 409), ("completed", 409), ("same-id", 409), ("used-id", 409)],
+)
+def test_retry_route_requires_a_finished_job_with_failures_and_a_new_id(
+    client, table, job_request, state, status_code
+):
+    store = MappingJobStore(table)
+    source_id, retry_id = str(job_request.job_id), str(uuid4())
+    if state != "missing":
+        store.create(job_request)
+        if state != "pending":
+            for pair in store.get_pairs(source_id):
+                ids = (pair["clo_id"], pair["plo_id"])
+                if ids == (21, 34) and state != "completed":
+                    store.save_pair_error(source_id, *ids, error="Invalid response.")
+                else:
+                    store.save_pair_result(source_id, *ids, mapping_scale_ids=[], explanation="No match.")
+            store.finish_if_complete(source_id)
+    if state == "same-id":
+        retry_id = source_id
+    elif state == "used-id":
+        # Use an existing normal job ID to ensure retry creation cannot replace it.
+        existing = store.create(job_request.model_copy(update={"job_id": uuid4()}))
+        retry_id = existing["job_id"]
+    before = table.scan()["Items"]
+
+    response = client.post(f"/jobs/{source_id}/retry", json={"job_id": retry_id})
+
+    assert response.status_code == status_code
+    if status_code == 200:
+        assert response.json()["retry_of_job_id"] == source_id
+        assert response.json()["total_pairs"] == 1
+        assert client.get(f"/jobs/{retry_id}").json() == response.json()
+    else:
+        # Rejected requests must leave both existing jobs and pair outcomes alone.
+        assert table.scan()["Items"] == before
+
+
+@pytest.mark.parametrize("body", [{}, {"job_id": "not-a-uuid"}, {"job_id": str(uuid4()), "status": "completed"}])
+def test_retry_rejects_invalid_inputs_before_accessing_storage(client, job_payload, monkeypatch, body):
+    constructor = Mock(side_effect=AssertionError("Invalid retry inputs reached storage."))
+    monkeypatch.setattr(job_routes, "MappingJobStore", constructor)
+
+    response = client.post(f"/jobs/{job_payload['job_id']}/retry", json=body)
+
+    assert response.status_code == 422
+    constructor.assert_not_called()
 
 
 @pytest.mark.parametrize("invalid_response", [False, True], ids=["mapped", "invalid-model-response"])
