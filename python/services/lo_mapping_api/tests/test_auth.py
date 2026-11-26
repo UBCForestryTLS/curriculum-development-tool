@@ -122,25 +122,28 @@ def test_invalid_stored_credentials_are_rejected(client, api_headers, table, sto
 
 
 @pytest.mark.parametrize(
-    "aws_error",
+    ("aws_error", "action"),
     [
-        ClientError(
-            {"Error": {"Code": "AccessDeniedException", "Message": "sensitive-request-details"}},
-            "GetItem",
+        (
+            ClientError(
+                {"Error": {"Code": "AccessDeniedException", "Message": "sensitive-request-details"}},
+                "GetItem",
+            ),
+            "stop",
         ),
-        EndpointConnectionError(endpoint_url="https://sensitive-request-details.invalid"),
+        (EndpointConnectionError(endpoint_url="https://sensitive-request-details.invalid"), "retry"),
     ],
     ids=["access-denied", "connection-failed"],
 )
 def test_lookup_failures_return_a_service_error_without_aws_details(
-    client, api_headers, monkeypatch, aws_error
+    client, api_headers, monkeypatch, aws_error, action
 ):
     monkeypatch.setattr(ApiKeyStore, "get", Mock(side_effect=aws_error))
 
     response = client.get("/test-auth", headers=api_headers)
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Authentication service is unavailable."}
+    assert response.json() == {"detail": {"message": "Authentication service is unavailable.", "action": action}}
 
 
 def test_missing_aws_credentials_return_a_service_error(client, api_headers, monkeypatch):
@@ -149,7 +152,7 @@ def test_missing_aws_credentials_return_a_service_error(client, api_headers, mon
     response = client.get("/test-auth", headers=api_headers)
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Authentication service is unavailable."}
+    assert response.json() == {"detail": {"message": "Authentication service is unavailable.", "action": "stop"}}
 
 
 def test_missing_table_is_not_treated_as_an_unknown_key(client, api_headers, table):
@@ -158,7 +161,7 @@ def test_missing_table_is_not_treated_as_an_unknown_key(client, api_headers, tab
     response = client.get("/test-auth", headers=api_headers)
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Authentication service is unavailable."}
+    assert response.json() == {"detail": {"message": "Authentication service is unavailable.", "action": "stop"}}
 
 
 def test_missing_configuration_returns_a_service_error(client, api_headers, monkeypatch):
@@ -167,7 +170,7 @@ def test_missing_configuration_returns_a_service_error(client, api_headers, monk
     response = client.get("/test-auth", headers=api_headers)
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Authentication service is unavailable."}
+    assert response.json() == {"detail": {"message": "Authentication service is unavailable.", "action": "stop"}}
 
 
 @pytest.mark.parametrize("valid_secret", [True, False], ids=["valid", "incorrect"])

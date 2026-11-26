@@ -4,6 +4,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import Header, HTTPException, status
 from pydantic import ValidationError
 
+from app.api_errors import service_unavailable
 from app.api_key_store import ApiKeyStore
 from app.api_keys import verify_api_key_secret
 
@@ -24,12 +25,9 @@ def require_api_key(
 
     try:
         record = ApiKeyStore().get(key_id)
-    except (ValidationError, BotoCoreError, ClientError):
+    except (ValidationError, BotoCoreError, ClientError) as error:
         # An AWS or configuration failure does not mean the client's key is wrong.
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Authentication service is unavailable.",
-        ) from None
+        raise service_unavailable(error, message="Authentication service is unavailable.") from None
 
     stored_hash = record.get("secret_hash") if record is not None else None
     if not isinstance(stored_hash, str) or not verify_api_key_secret(key_secret, stored_hash):

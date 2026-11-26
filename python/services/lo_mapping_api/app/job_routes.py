@@ -5,6 +5,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import ValidationError
 
+from app.api_errors import service_unavailable
 from app.auth import require_api_key
 from app.batch_runner import MappingJobNotFoundError, MappingJobNotReadyError, run_batch
 from app.job_models import MappingJobRequest, MappingJobResponse, MappingJobResultsResponse
@@ -34,11 +35,8 @@ def create_job(request: MappingJobRequest) -> dict[str, object]:
             status_code=status.HTTP_409_CONFLICT,
             detail="Job ID already exists with different inputs.",
         ) from None
-    except (ValidationError, BotoCoreError, ClientError):
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Job storage is unavailable.",
-        ) from None
+    except (ValidationError, BotoCoreError, ClientError) as error:
+        raise service_unavailable(error, message="Job storage is unavailable.") from None
 
 
 @router.get("/{job_id}", response_model=MappingJobResponse)
@@ -49,11 +47,8 @@ def get_job(job_id: UUID) -> dict[str, object]:
     """
     try:
         job = MappingJobStore().get(job_id)
-    except (ValidationError, BotoCoreError, ClientError):
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Job storage is unavailable.",
-        ) from None
+    except (ValidationError, BotoCoreError, ClientError) as error:
+        raise service_unavailable(error, message="Job storage is unavailable.") from None
 
     if job is None:
         raise HTTPException(
@@ -95,11 +90,8 @@ def get_job_results(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid results cursor for this job.",
         ) from None
-    except (ValidationError, BotoCoreError, ClientError):
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Job storage is unavailable.",
-        ) from None
+    except (ValidationError, BotoCoreError, ClientError) as error:
+        raise service_unavailable(error, message="Job storage is unavailable.") from None
 
 
 @router.post("/{job_id}/run", response_model=MappingJobResponse)
@@ -124,10 +116,10 @@ def run_job_batch(job_id: UUID) -> dict[str, object]:
         ) from None
     except MappingJobLockError as error:
         # Laravel can check saved progress and retry later; don't start overlapping work.
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
-    except (ValidationError, BotoCoreError, ClientError):
-        # Results already saved stay recorded. Laravel can check progress before trying again.
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Job processing is unavailable.",
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"message": str(error), "action": "wait"},
         ) from None
+    except (ValidationError, BotoCoreError, ClientError) as error:
+        # Results already saved stay recorded. Laravel can check progress before trying again.
+        raise service_unavailable(error, message="Job processing is unavailable.") from None

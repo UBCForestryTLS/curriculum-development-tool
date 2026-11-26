@@ -194,18 +194,21 @@ def test_job_routes_reject_invalid_job_ids_before_accessing_storage(client, monk
 
 @pytest.mark.parametrize("operation", ["create", "get", "run", "get_results_page"])
 @pytest.mark.parametrize(
-    "storage_error",
+    ("storage_error", "action"),
     [
-        ClientError(
-            {"Error": {"Code": "AccessDeniedException", "Message": "private-storage-details"}},
-            "GetItem",
+        (
+            ClientError(
+                {"Error": {"Code": "AccessDeniedException", "Message": "private-storage-details"}},
+                "GetItem",
+            ),
+            "stop",
         ),
-        EndpointConnectionError(endpoint_url="https://private-storage-details.invalid"),
+        (EndpointConnectionError(endpoint_url="https://private-storage-details.invalid"), "retry"),
     ],
     ids=["aws-error", "connection-error"],
 )
 def test_storage_failures_return_503_without_exposing_details(
-    client, job_payload, monkeypatch, operation, storage_error
+    client, job_payload, monkeypatch, operation, storage_error, action
 ):
     # Authentication still succeeds; only the job storage or processing operation fails.
     if operation == "run":
@@ -226,7 +229,7 @@ def test_storage_failures_return_503_without_exposing_details(
 
     assert response.status_code == 503
     detail = "Job processing is unavailable." if operation == "run" else "Job storage is unavailable."
-    assert response.json() == {"detail": detail}
+    assert response.json() == {"detail": {"message": detail, "action": action}}
 
 
 @pytest.mark.parametrize("invalid_response", [False, True], ids=["mapped", "invalid-model-response"])
@@ -282,6 +285,7 @@ def test_locked_job_rejects_another_batch_but_still_allows_reads(client, table, 
     # Stand in for an active batch while another processing request reaches the API.
     response = client.post(f"/jobs/{job_id}/run")
     assert response.status_code == 409
+    assert response.json()["detail"]["action"] == "wait"
     model_calls.assert_not_called()
     assert store.get(job_id)["batch_lock_token"] == token
 
@@ -334,7 +338,7 @@ def test_run_can_resume_saved_progress_after_a_model_request_times_out(client, j
     model_calls.side_effect = timeout_second_call
     response = client.post(path)
     assert response.status_code == 503
-    assert response.json() == {"detail": "Job processing is unavailable."}
+    assert response.json() == {"detail": {"message": "Job processing is unavailable.", "action": "retry"}}
     progress = client.get(f"/jobs/{job_payload['job_id']}").json()
     assert progress["processed_pairs"] == 1 and progress["errored_pairs"] == 0
 
@@ -355,7 +359,7 @@ def test_run_returns_503_for_invalid_service_configuration(client, job_payload, 
     # These settings belong to the service, so this is a 503 rather than invalid caller input.
     response = client.post(f"/jobs/{job_payload['job_id']}/run")
     assert response.status_code == 503
-    assert response.json() == {"detail": "Job processing is unavailable."}
+    assert response.json() == {"detail": {"message": "Job processing is unavailable.", "action": "stop"}}
     model_calls.assert_not_called()
     assert client.get(f"/jobs/{job_payload['job_id']}").json()["processed_pairs"] == 0
 
