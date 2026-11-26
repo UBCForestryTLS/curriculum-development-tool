@@ -8,11 +8,17 @@ from pydantic import ValidationError
 from app.api_errors import service_unavailable
 from app.auth import require_api_key
 from app.batch_runner import MappingJobNotFoundError, MappingJobNotReadyError, run_batch
-from app.job_models import MappingJobRequest, MappingJobResponse, MappingJobResultsResponse
+from app.job_models import (
+    MappingJobRequest,
+    MappingJobResponse,
+    MappingJobResultsResponse,
+    MappingJobRetryRequest,
+)
 from app.job_store import (
     InvalidResultsCursorError,
     MappingJobConflictError,
     MappingJobLockError,
+    MappingJobRetryError,
     MappingJobStore,
 )
 
@@ -37,6 +43,27 @@ def create_job(request: MappingJobRequest) -> dict[str, object]:
         ) from None
     except (ValidationError, BotoCoreError, ClientError) as error:
         raise service_unavailable(error, message="Job storage is unavailable.") from None
+
+
+@router.post("/{job_id}/retry", response_model=MappingJobResponse)
+def create_retry_job(job_id: UUID, request: MappingJobRetryRequest) -> dict[str, object]:
+    """Create a new job for a finished job's failed pairs, leaving the original outcomes unchanged.
+
+    Reuse the new job ID if creation needs to be repeated. Processing starts through the run route.
+    """
+    try:
+        job = MappingJobStore().create_retry(job_id, request.job_id)
+    except (MappingJobConflictError, MappingJobRetryError) as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
+    except (ValidationError, BotoCoreError, ClientError) as error:
+        raise service_unavailable(error, message="Job storage is unavailable.") from None
+
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Mapping job not found.",
+        )
+    return job
 
 
 @router.get("/{job_id}", response_model=MappingJobResponse)

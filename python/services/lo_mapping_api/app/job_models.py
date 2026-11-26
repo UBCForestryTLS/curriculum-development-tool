@@ -67,10 +67,18 @@ class MappingJobRequest(_JobInput):
         return self
 
 
+class MappingJobRetryRequest(_JobInput):
+    """A new job ID for retrying saved failures; the service reads the original inputs."""
+
+    job_id: UUID
+
+
 class MappingJobResponse(BaseModel):
     """Job information returned to Laravel, without DynamoDB keys or the input hash."""
 
     job_id: UUID
+    # Keep retry results linked to their source job. Normal jobs have no source.
+    retry_of_job_id: UUID | None = None
     course_id: int
     program_id: int
     total_clos: int

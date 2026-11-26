@@ -23,6 +23,10 @@ class MappingJobConflictError(ValueError):
     """The job ID is already being used for different mapping inputs."""
 
 
+class MappingJobRetryError(ValueError):
+    """The source job is not ready for a failed-pair retry, or the new ID is invalid."""
+
+
 class InvalidResultsCursorError(ValueError):
     """The results cursor is malformed or belongs to a different job."""
 
@@ -51,23 +55,80 @@ class MappingJobStore:
 
     def create(self, request: MappingJobRequest) -> dict[str, object]:
         """Create the job and all pairs, or resume creation for the same job and inputs."""
-        job_id = str(request.job_id)
+        pairs = [
+            {
+                "clo_id": clo.l_outcome_id,
+                "plo_id": plo.pl_outcome_id,
+                "clo_text": clo.l_outcome,
+                "plo_text": plo.pl_outcome,
+            }
+            for clo in request.course_learning_outcomes
+            for plo in request.program_learning_outcomes
+        ]
+        return self._create_job(request.model_dump(mode="json"), pairs)
+
+    def create_retry(self, source_job_id: UUID | str, job_id: UUID | str) -> dict[str, object] | None:
+        """Create a job for exactly the source's failed pairs, or return None if the source is missing."""
+        source_job_id, job_id = str(UUID(str(source_job_id))), str(UUID(str(job_id)))
+        if source_job_id == job_id:
+            raise MappingJobRetryError("Retry job must use a new job ID.")
+
+        source = self.get(source_job_id)
+        if source is None:
+            return None
+        if not source["pairs_ready"] or source["status"] not in ("completed", "failed"):
+            raise MappingJobRetryError("Only finished jobs can be retried.")
+
+        # Keep the original outcomes intact by copying only the failed pairs into a new job.
+        # Sending their CLO and PLO lists through normal job creation would rebuild every
+        # combination, which could include pairs that already succeeded.
+        pairs = [
+            {
+                "clo_id": int(pair["clo_id"]),
+                "plo_id": int(pair["plo_id"]),
+                "clo_text": pair["clo_text"],
+                "plo_text": pair["plo_text"],
+            }
+            for pair in self.get_pairs(source_job_id)
+            if not pair["processed"] and pair["error"] is not None
+        ]
+        if not pairs:
+            raise MappingJobRetryError("Job has no failed pairs to retry.")
+
+        # Include the source and exact inputs in the fingerprint so reusing an ID cannot change the work.
+        inputs = {
+            "job_id": job_id,
+            "retry_of_job_id": source_job_id,
+            "course_id": int(source["course_id"]),
+            "program_id": int(source["program_id"]),
+            "mapping_scales": [
+                {**scale, "map_scale_id": int(scale["map_scale_id"])}
+                for scale in source["mapping_scale_options"]
+            ],
+            "pairs": pairs,
+        }
+        return self._create_job(inputs, pairs)
+
+    def _create_job(self, inputs: dict[str, object], pairs: list[dict[str, object]]) -> dict[str, object]:
+        """Share conditional creation and recovery between normal jobs and failed-pair retries."""
+        job_id = inputs["job_id"]
         # Fingerprint the inputs so retries can reuse a job only when the work is unchanged.
-        input_json = json.dumps(request.model_dump(mode="json"), sort_keys=True, ensure_ascii=False)
+        input_json = json.dumps(inputs, sort_keys=True, ensure_ascii=False)
         input_hash = hashlib.sha256(input_json.encode("utf-8")).hexdigest()
         record = {
             **self._key(job_id),
             # Index keys for looking up jobs by course or program.
-            "GSI1PK": f"COURSE#{request.course_id}",
+            "GSI1PK": f"COURSE#{inputs['course_id']}",
             "GSI1SK": f"JOB#{job_id}",
-            "GSI2PK": f"PROGRAM#{request.program_id}",
+            "GSI2PK": f"PROGRAM#{inputs['program_id']}",
             "GSI2SK": f"JOB#{job_id}",
             "job_id": job_id,
-            "course_id": request.course_id,
-            "program_id": request.program_id,
-            "total_clos": len(request.course_learning_outcomes),
-            "total_plos": len(request.program_learning_outcomes),
-            "total_pairs": len(request.course_learning_outcomes) * len(request.program_learning_outcomes),
+            "course_id": inputs["course_id"],
+            "program_id": inputs["program_id"],
+            "total_clos": len({pair["clo_id"] for pair in pairs}),
+            "total_plos": len({pair["plo_id"] for pair in pairs}),
+            # Retry jobs contain specific pairs, so their total is not CLO count times PLO count.
+            "total_pairs": len(pairs),
             # Successfully processed pairs can be unmapped, so keep this count separate.
             "processed_pairs": 0,
             "mapped_pairs": 0,
@@ -75,16 +136,17 @@ class MappingJobStore:
             "status": "pending",
             "created_at": datetime.now(UTC).isoformat(),
             # Save the allowed levels once so later processing uses the original definitions.
-            "mapping_scale_options": [scale.model_dump() for scale in request.mapping_scales],
+            "mapping_scale_options": inputs["mapping_scales"],
             "input_hash": input_hash,
             "pairs_ready": False,
         }
+        if "retry_of_job_id" in inputs:
+            record["retry_of_job_id"] = inputs["retry_of_job_id"]
 
         try:
             self.table.put_item(Item=record, ConditionExpression=Attr("pk").not_exists())
         except self.table.meta.client.exceptions.ConditionalCheckFailedException:
             record = self.get(job_id)
-            
             if record is None:
                 raise
             if record["input_hash"] != input_hash:
@@ -93,7 +155,7 @@ class MappingJobStore:
         if record["pairs_ready"]:
             return record
 
-        self._create_pairs(request)
+        self._create_pairs(job_id, pairs)
 
         # Only make the job ready after every pair is saved. Processing must check this flag.
         # If creation stops early, retrying adds missing pairs without resetting existing ones.
@@ -106,29 +168,24 @@ class MappingJobStore:
         )
         return response["Attributes"]
 
-    def _create_pairs(self, request: MappingJobRequest) -> None:
-        """Save every CLO-PLO combination without replacing pairs already stored."""
-        job_id = str(request.job_id)
-        for clo in request.course_learning_outcomes:
-            for plo in request.program_learning_outcomes:
-                record = {
-                    "pk": f"JOB#{job_id}",
-                    "sk": f"LO_PAIR#{clo.l_outcome_id}-{plo.pl_outcome_id}",
-                    "job_id": job_id,
-                    "clo_id": clo.l_outcome_id,
-                    "plo_id": plo.pl_outcome_id,
-                    "clo_text": clo.l_outcome,
-                    "plo_text": plo.pl_outcome,
-                    "processed": False,
-                    "error": None,
-                    "mapping_scales": [],
-                    "explanation": None,
-                }
-                try:
-                    self.table.put_item(Item=record, ConditionExpression=Attr("pk").not_exists())
-                except self.table.meta.client.exceptions.ConditionalCheckFailedException:
-                    # Another creation attempt already saved this pair; keep its current state.
-                    continue
+    def _create_pairs(self, job_id: str, pairs: list[dict[str, object]]) -> None:
+        """Save the supplied pairs with empty outcomes, without replacing records already stored."""
+        for pair in pairs:
+            record = {
+                "pk": f"JOB#{job_id}",
+                "sk": f"LO_PAIR#{pair['clo_id']}-{pair['plo_id']}",
+                "job_id": job_id,
+                **pair,
+                "processed": False,
+                "error": None,
+                "mapping_scales": [],
+                "explanation": None,
+            }
+            try:
+                self.table.put_item(Item=record, ConditionExpression=Attr("pk").not_exists())
+            except self.table.meta.client.exceptions.ConditionalCheckFailedException:
+                # Another creation attempt already saved this pair; keep its current state.
+                continue
 
     def get(self, job_id: UUID | str) -> dict[str, object] | None:
         """Read the latest job summary and progress, or None if the job does not exist."""

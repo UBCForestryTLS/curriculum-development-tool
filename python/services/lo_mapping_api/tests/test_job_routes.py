@@ -73,6 +73,7 @@ def test_create_and_get_return_public_job_information(client, table, job_payload
     # Checking the full response also catches internal fields accidentally being exposed.
     assert created == {
         "job_id": job_payload["job_id"],
+        "retry_of_job_id": None,
         "course_id": 4,
         "program_id": 9,
         "total_clos": 2,
