@@ -204,8 +204,15 @@ def test_job_routes_reject_invalid_job_ids_before_accessing_storage(client, monk
             "stop",
         ),
         (EndpointConnectionError(endpoint_url="https://private-storage-details.invalid"), "retry"),
+        (
+            ClientError({
+                "Error": {"Code": "ProvisionedThroughputExceededException", "Message": "private-storage-details"},
+                "ResponseMetadata": {"HTTPStatusCode": 400},
+            }, "GetItem"),
+            "retry",
+        ),
     ],
-    ids=["aws-error", "connection-error"],
+    ids=["aws-error", "connection-error", "throttling"],
 )
 def test_storage_failures_return_503_without_exposing_details(
     client, job_payload, monkeypatch, operation, storage_error, action
@@ -323,25 +330,46 @@ def test_run_rejects_unavailable_jobs_before_model_calls(
     model_calls.assert_not_called()
 
 
-def test_run_can_resume_saved_progress_after_a_model_request_times_out(client, job_payload, model_calls, monkeypatch):
+@pytest.mark.parametrize(
+    ("error_code", "http_status", "action"),
+    [
+        ("timeout", None, "retry"),
+        ("ThrottlingException", 429, "retry"),
+        ("UpstreamFailure", 503, "retry"),
+        ("AccessDeniedException", 403, "stop"),
+        ("UnknownFailure", 400, "stop"),
+    ],
+)
+def test_run_preserves_results_and_can_resume_after_a_service_failure(
+    client, job_payload, model_calls, monkeypatch, error_code, http_status, action
+):
     monkeypatch.setenv("LO_MAPPING_CONCURRENCY", "1")
     client.post("/jobs", json=job_payload)
     path = f"/jobs/{job_payload['job_id']}/run"
     original_reply = model_calls.side_effect
 
-    def timeout_second_call(prompt):
+    def fail_second_call(prompt):
         if model_calls.call_count == 2:
-            raise ReadTimeoutError(endpoint_url="https://private-model-details.invalid")
+            if error_code == "timeout":
+                raise ReadTimeoutError(endpoint_url="https://private-model-details.invalid")
+            raise ClientError({
+                "Error": {"Code": error_code, "Message": "private-model-details"},
+                "ResponseMetadata": {"HTTPStatusCode": http_status},
+            }, "Converse")
         return original_reply(prompt)
 
     # The first answer is saved before the second request fails. The HTTP error must not reset it.
-    model_calls.side_effect = timeout_second_call
+    model_calls.side_effect = fail_second_call
     response = client.post(path)
     assert response.status_code == 503
-    assert response.json() == {"detail": {"message": "Job processing is unavailable.", "action": "retry"}}
+    assert response.json() == {"detail": {"message": "Job processing is unavailable.", "action": action}}
+    assert model_calls.call_count == 2
     progress = client.get(f"/jobs/{job_payload['job_id']}").json()
     assert progress["processed_pairs"] == 1 and progress["errored_pairs"] == 0
+    saved_results = client.get(f"/jobs/{job_payload['job_id']}/results").json()["results"]
+    assert len(saved_results) == 1
 
+    # For stop errors, this stands in for fixing the underlying issue before requesting a resume.
     model_calls.side_effect = original_reply
     monkeypatch.setenv("LO_MAPPING_BATCH_SIZE", "6")
     resumed = client.post(path)
@@ -349,6 +377,41 @@ def test_run_can_resume_saved_progress_after_a_model_request_times_out(client, j
     assert resumed.json()["status"] == "completed"
     assert resumed.json()["processed_pairs"] == 6
     assert model_calls.call_count == 7
+    assert client.get(f"/jobs/{job_payload['job_id']}/results").json()["results"][0] == saved_results[0]
+
+
+@pytest.mark.parametrize(
+    ("reasons", "action"),
+    [
+        (["None", "TransactionConflict"], "retry"),
+        (["ThrottlingError", "ProvisionedThroughputExceeded"], "retry"),
+        (["ConditionalCheckFailed", "TransactionConflict"], "stop"),
+        (["ValidationError", "None"], "stop"),
+        ([], "stop"),
+    ],
+)
+def test_cancelled_saves_return_the_right_action_without_resetting_progress(
+    client, table, job_request, model_calls, monkeypatch, reasons, action
+):
+    store = MappingJobStore(table)
+    store.create(job_request)
+    store.save_pair_result(job_request.job_id, 21, 34, mapping_scale_ids=[3], explanation="Already saved.")
+    saved_job, saved_pairs = store.get(job_request.job_id), store.get_pairs(job_request.job_id)
+    monkeypatch.setenv("LO_MAPPING_CONCURRENCY", "1")
+    # Cancel the next save. A failed condition must not be treated like temporary throttling.
+    failure = ClientError({
+        "Error": {"Code": "TransactionCanceledException", "Message": "private-storage-details"},
+        "CancellationReasons": [{"Code": reason} for reason in reasons],
+    }, "TransactWriteItems")
+    monkeypatch.setattr(MappingJobStore, "save_pair_result", Mock(side_effect=failure))
+
+    response = client.post(f"/jobs/{job_request.job_id}/run")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": {"message": "Job processing is unavailable.", "action": action}}
+    assert model_calls.call_count == 1
+    assert store.get(job_request.job_id) == saved_job
+    assert store.get_pairs(job_request.job_id) == saved_pairs
 
 
 @pytest.mark.parametrize("setting", ["LO_MAPPING_BATCH_SIZE", "LO_MAPPING_BEDROCK_REGION"])
