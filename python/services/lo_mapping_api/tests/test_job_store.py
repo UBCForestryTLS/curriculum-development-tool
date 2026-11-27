@@ -1,0 +1,589 @@
+from datetime import UTC, datetime
+from unittest.mock import patch
+from uuid import uuid4
+
+import pytest
+from botocore.exceptions import ClientError, EndpointConnectionError
+
+from app.api_key_store import ApiKeyStore
+from app.api_keys import generate_api_key
+from app.job_models import MappingJobRequest
+from app.job_store import MappingJobConflictError, MappingJobLockError, MappingJobStore
+
+
+@pytest.fixture
+def store(table):
+    return MappingJobStore(table)
+
+
+@pytest.fixture
+def finished_job(store, job_request):
+    store.create(job_request)
+    # Two failures with different CLOs and PLOs would wrongly become four pairs if recombined.
+    for pair in store.get_pairs(job_request.job_id):
+        ids = (pair["clo_id"], pair["plo_id"])
+        if ids in {(21, 34), (22, 35)}:
+            store.save_pair_error(job_request.job_id, *ids, error="Invalid model response.")
+        else:
+            levels = [] if pair["plo_id"] == 36 else [3]
+            store.save_pair_result(job_request.job_id, *ids, mapping_scale_ids=levels, explanation="Saved result.")
+    return store.finish_if_complete(job_request.job_id)
+
+
+def test_retry_copies_only_failed_pairs_and_preserves_existing_results(store, finished_job):
+    original_pairs = store.get_pairs(finished_job["job_id"])
+    retry_id = uuid4()
+    retry = store.create_retry(finished_job["job_id"], retry_id)
+    pairs = store.get_pairs(retry_id)
+
+    assert len(pairs) == 2
+    assert {(pair["clo_id"], pair["plo_id"]) for pair in pairs} == {(21, 34), (22, 35)}
+    assert (retry["total_clos"], retry["total_plos"], retry["total_pairs"]) == (2, 2, 2)
+    assert retry["retry_of_job_id"] == finished_job["job_id"]
+    assert retry["status"] == "pending" and retry["pairs_ready"] is True
+    assert (retry["processed_pairs"], retry["mapped_pairs"], retry["errored_pairs"]) == (0, 0, 0)
+    for field in ("course_id", "program_id", "mapping_scale_options"):
+        assert retry[field] == finished_job[field]
+    for pair in pairs:
+        original = next(item for item in original_pairs if item["sk"] == pair["sk"])
+        assert (pair["clo_text"], pair["plo_text"]) == (original["clo_text"], original["plo_text"])
+        assert (pair["processed"], pair["error"], pair["mapping_scales"], pair["explanation"]) == (False, None, [], None)
+
+    # Repeating creation must keep both the original outcomes and any new retry progress.
+    assert store.create_retry(finished_job["job_id"], retry_id) == retry
+    store.save_pair_result(retry_id, 21, 34, mapping_scale_ids=[8], explanation="Retried successfully.")
+    progress, saved_pairs = store.get(retry_id), store.get_pairs(retry_id)
+    assert store.create_retry(finished_job["job_id"], retry_id) == progress
+    assert store.get_pairs(retry_id) == saved_pairs
+    assert store.get(finished_job["job_id"]) == finished_job
+    assert store.get_pairs(finished_job["job_id"]) == original_pairs
+
+
+def test_retry_creation_resumes_after_a_pair_write_fails(store, table, finished_job):
+    retry_id = uuid4()
+    original_put = table.put_item
+
+    def interrupted_put(**kwargs):
+        if kwargs["Item"]["sk"] == "LO_PAIR#22-35":
+            raise EndpointConnectionError(endpoint_url="https://dynamodb.invalid")
+        return original_put(**kwargs)
+
+    # Stop after the first retry pair is saved, then repeat the same creation request.
+    with patch.object(table, "put_item", side_effect=interrupted_put):
+        with pytest.raises(EndpointConnectionError):
+            store.create_retry(finished_job["job_id"], retry_id)
+    partial_job = store.get(retry_id)
+    partial_pairs = store.get_pairs(retry_id)
+    assert partial_job["pairs_ready"] is False and len(partial_pairs) == 1
+
+    resumed = store.create_retry(finished_job["job_id"], retry_id)
+    assert resumed["pairs_ready"] is True
+    assert resumed["created_at"] == partial_job["created_at"]
+    assert len(store.get_pairs(retry_id)) == 2
+    assert partial_pairs[0] in store.get_pairs(retry_id)
+
+
+def test_create_saves_job_metadata_and_initial_progress(store, table, job_request):
+    started = datetime.now(UTC)
+    record = store.create(job_request)
+    job_id = str(job_request.job_id)
+    expected = {
+        "pk": f"JOB#{job_id}",
+        "sk": "METADATA",
+        "GSI1PK": "COURSE#4",
+        "GSI1SK": f"JOB#{job_id}",
+        "GSI2PK": "PROGRAM#9",
+        "GSI2SK": f"JOB#{job_id}",
+        "job_id": job_id,
+        "course_id": 4,
+        "program_id": 9,
+        "total_clos": 2,
+        "total_plos": 3,
+        "total_pairs": 6,
+        "processed_pairs": 0,
+        "mapped_pairs": 0,
+        "errored_pairs": 0,
+        "status": "pending",
+        "pairs_ready": True,
+        "mapping_scale_options": [scale.model_dump() for scale in job_request.mapping_scales],
+    }
+
+    assert {field: record[field] for field in expected} == expected
+    assert started <= datetime.fromisoformat(record["created_at"]) <= datetime.now(UTC)
+    assert table.get_item(Key={"pk": record["pk"], "sk": "METADATA"})["Item"] == record
+
+
+def test_create_saves_every_pair_with_original_text_and_empty_results(store, job_request):
+    store.create(job_request)
+    pairs = store.get_pairs(job_request.job_id)
+    assert len(pairs) == 6
+    assert {(pair["clo_id"], pair["plo_id"]) for pair in pairs} == {
+        (21, 34), (21, 35), (21, 36), (22, 34), (22, 35), (22, 36),
+    }
+    clo_texts = {clo.l_outcome_id: clo.l_outcome for clo in job_request.course_learning_outcomes}
+    plo_texts = {plo.pl_outcome_id: plo.pl_outcome for plo in job_request.program_learning_outcomes}
+    for pair in pairs:
+        assert pair == {
+            "pk": f"JOB#{job_request.job_id}",
+            "sk": f"LO_PAIR#{pair['clo_id']}-{pair['plo_id']}",
+            "job_id": str(job_request.job_id),
+            "clo_id": pair["clo_id"],
+            "plo_id": pair["plo_id"],
+            "clo_text": clo_texts[pair["clo_id"]],
+            "plo_text": plo_texts[pair["plo_id"]],
+            "processed": False,
+            "error": None,
+            "mapping_scales": [],
+            "explanation": None,
+        }
+
+
+def test_reads_keep_jobs_and_api_keys_separate(store, table, job_request, job_payload):
+    first = store.create(job_request)
+    second_request = MappingJobRequest.model_validate({**job_payload, "job_id": str(uuid4())})
+    second = store.create(second_request)
+    credentials = generate_api_key()
+    key_record = ApiKeyStore(table).create(credentials)
+
+    assert store.get(str(job_request.job_id).upper()) == first
+    assert store.get(second_request.job_id) == second
+    for request in (job_request, second_request):
+        pairs = store.get_pairs(request.job_id)
+        assert len(pairs) == 6
+        assert {pair["job_id"] for pair in pairs} == {str(request.job_id)}
+        assert store.get_pending_pairs(request.job_id, limit=2) == pairs[:2]
+    assert ApiKeyStore(table).get(credentials.key_id) == key_record
+    missing_id = uuid4()
+    assert store.get(missing_id) is None
+    assert store.get_pairs(missing_id) == []
+
+
+def test_repeated_creation_preserves_saved_progress_and_results(store, table, job_request):
+    record = store.create(job_request)
+    assert store.create(job_request) == record
+    record.update(status="in_progress", processed_pairs=1, mapped_pairs=1)
+    table.put_item(Item=record)
+    pair = store.get_pairs(job_request.job_id)[0]
+    pair.update(processed=True, mapping_scales=[3], explanation="Saved alignment.")
+    table.put_item(Item=pair)
+    saved_pairs = store.get_pairs(job_request.job_id)
+
+    assert store.create(job_request) == record
+    assert store.get_pairs(job_request.job_id) == saved_pairs
+
+
+@pytest.mark.parametrize(
+    ("collection", "field", "value"),
+    [
+        (None, "course_id", 99),
+        (None, "program_id", 99),
+        ("course_learning_outcomes", "l_outcome", "Changed CLO."),
+        ("program_learning_outcomes", "pl_outcome", "Changed PLO."),
+        ("mapping_scales", "description", "Changed level definition."),
+    ],
+)
+def test_creation_rejects_changed_inputs_without_changing_saved_records(
+    store, job_request, job_payload, collection, field, value
+):
+    record = store.create(job_request)
+    pairs = store.get_pairs(job_request.job_id)
+    target = job_payload if collection is None else job_payload[collection][0]
+    target[field] = value
+
+    with pytest.raises(MappingJobConflictError, match="different inputs"):
+        store.create(MappingJobRequest.model_validate(job_payload))
+
+    assert store.get(job_request.job_id) == record
+    assert store.get_pairs(job_request.job_id) == pairs
+
+
+def test_creation_resumes_after_a_pair_write_fails(store, table, job_request):
+    original_put = table.put_item
+    failure = EndpointConnectionError(endpoint_url="https://dynamodb.invalid")
+
+    def interrupted_put(**kwargs):
+        if kwargs["Item"]["sk"] == "LO_PAIR#21-35":
+            raise failure
+        return original_put(**kwargs)
+
+    # Save the first pair, then lose the connection before the second one is saved.
+    with patch.object(table, "put_item", side_effect=interrupted_put):
+        with pytest.raises(EndpointConnectionError) as error:
+            store.create(job_request)
+    partial_job = store.get(job_request.job_id)
+    assert error.value is failure
+    assert partial_job["pairs_ready"] is False
+    assert len(store.get_pairs(job_request.job_id)) == 1
+
+    resumed_job = store.create(job_request)
+    assert resumed_job["pairs_ready"] is True
+    assert resumed_job["created_at"] == partial_job["created_at"]
+    assert len(store.get_pairs(job_request.job_id)) == 6
+
+
+def test_creation_preserves_results_saved_by_an_overlapping_attempt(store, table, job_request):
+    original_put = table.put_item
+    other_attempt_finished = False
+    saved_pair = None
+
+    def overlapping_put(**kwargs):
+        nonlocal other_attempt_finished, saved_pair
+        if kwargs["Item"]["sk"] == "LO_PAIR#21-34" and not other_attempt_finished:
+            other_attempt_finished = True
+            # Another attempt finishes creation and processing starts before this write resumes.
+            job = store.create(job_request)
+            job.update(status="in_progress", processed_pairs=1, mapped_pairs=1)
+            original_put(Item=job)
+            saved_pair = store.get_pairs(job_request.job_id)[0]
+            saved_pair.update(processed=True, mapping_scales=[3], explanation="Keep this result.")
+            original_put(Item=saved_pair)
+        return original_put(**kwargs)
+
+    with patch.object(table, "put_item", side_effect=overlapping_put):
+        record = store.create(job_request)
+
+    assert record["status"] == "in_progress"
+    assert record["processed_pairs"] == record["mapped_pairs"] == 1
+    pairs = store.get_pairs(job_request.job_id)
+    assert len(pairs) == 6
+    assert saved_pair in pairs
+
+
+def test_creation_can_retry_when_the_final_readiness_update_fails(store, table, job_request):
+    failure = EndpointConnectionError(endpoint_url="https://dynamodb.invalid")
+    with patch.object(table, "update_item", side_effect=failure):
+        with pytest.raises(EndpointConnectionError):
+            store.create(job_request)
+
+    assert store.get(job_request.job_id)["pairs_ready"] is False
+    saved_pairs = store.get_pairs(job_request.job_id)
+    assert len(saved_pairs) == 6
+    assert store.create(job_request)["pairs_ready"] is True
+    assert store.get_pairs(job_request.job_id) == saved_pairs
+
+
+@pytest.mark.parametrize("save_error", [False, True], ids=["result", "error"])
+def test_expired_lock_can_be_replaced_without_allowing_old_writes(store, job_request, save_error):
+    job_id = job_request.job_id
+    store.create(job_request)
+    save = store.save_pair_error if save_error else store.save_pair_result
+    fields = {"error": "Invalid response."} if save_error else {
+        "mapping_scale_ids": [3], "explanation": "Matched.",
+    }
+
+    with patch("app.job_store.time", return_value=1000) as clock:
+        old_token = store.acquire_batch_lock(job_id)
+        # Reach the exact expiry without sleeping. The old batch can no longer save.
+        clock.return_value = int(store.get(job_id)["batch_lock_expires_at"])
+        with pytest.raises(MappingJobLockError):
+            save(job_id, 21, 34, lock_token=old_token, **fields)
+
+        new_token = store.acquire_batch_lock(job_id)
+        assert new_token != old_token
+        saved_job, saved_pairs = store.get(job_id), store.get_pairs(job_id)
+        # Omitting the token must not bypass the new owner's lock either.
+        with pytest.raises(MappingJobLockError):
+            save(job_id, 21, 34, **fields)
+        with pytest.raises(MappingJobLockError):
+            store.finish_if_complete(job_id, lock_token=old_token)
+        assert store.release_batch_lock(job_id, old_token) is False
+        assert store.get(job_id) == saved_job
+        assert store.get_pairs(job_id) == saved_pairs
+
+        assert save(job_id, 21, 34, lock_token=new_token, **fields)
+        count = "errored_pairs" if save_error else "processed_pairs"
+        assert store.get(job_id)[count] == 1
+        assert store.release_batch_lock(job_id, new_token)
+
+
+def test_lock_takeover_during_save_rejects_both_pair_and_count_updates(store, table, job_request):
+    job_id = job_request.job_id
+    store.create(job_request)
+    saved_pairs = store.get_pairs(job_id)
+    original_write = table.meta.client.transact_write_items
+
+    with patch("app.job_store.time", return_value=1000) as clock:
+        old_token = store.acquire_batch_lock(job_id)
+        expires_at = int(store.get(job_id)["batch_lock_expires_at"])
+
+        def take_over_before_write(**kwargs):
+            # The first ownership check passed, but another batch takes over before the save.
+            clock.return_value = expires_at
+            store.acquire_batch_lock(job_id)
+            return original_write(**kwargs)
+
+        with patch.object(table.meta.client, "transact_write_items", side_effect=take_over_before_write):
+            with pytest.raises(MappingJobLockError):
+                store.save_pair_result(
+                    job_id, 21, 34, mapping_scale_ids=[3], explanation="Late answer.", lock_token=old_token,
+                )
+
+    progress = store.get(job_id)
+    assert progress["batch_lock_token"] != old_token
+    assert progress["processed_pairs"] == progress["mapped_pairs"] == 0
+    assert store.get_pairs(job_id) == saved_pairs
+
+
+def test_get_pairs_reads_every_page(store, table, job_request):
+    store.create(job_request)
+    expected_pairs = store.get_pairs(job_request.job_id)
+    original_query = table.meta.client.query
+
+    def limited_query(**kwargs):
+        # Small pages exercise pagination without needing a large test job.
+        return original_query(**{**kwargs, "Limit": 2})
+
+    with patch.object(table.meta.client, "query", side_effect=limited_query) as query:
+        assert store.get_pairs(job_request.job_id) == expected_pairs
+    assert query.call_count > 1
+    assert all("ExclusiveStartKey" in call.kwargs for call in query.call_args_list[1:])
+    assert all(call.kwargs["ConsistentRead"] is True for call in query.call_args_list)
+
+
+def test_pending_pairs_skip_saved_outcomes_and_continue_past_empty_pages(store, table, job_request):
+    store.create(job_request)
+    store.save_pair_result(job_request.job_id, 21, 34, mapping_scale_ids=[3], explanation="Matched.")
+    store.save_pair_result(job_request.job_id, 21, 35, mapping_scale_ids=[], explanation="No match.")
+    store.save_pair_error(job_request.job_id, 21, 36, error="Invalid response.")
+    remaining = store.get_pairs(job_request.job_id)[3:]
+
+    # The first page contains only saved outcomes. We still need to find the pending pairs after it.
+    with patch.object(table.meta.client, "query", wraps=table.meta.client.query) as query:
+        assert store.get_pending_pairs(job_request.job_id, limit=2) == remaining[:2]
+    assert query.call_count > 1
+    assert all(call.kwargs["ConsistentRead"] for call in query.call_args_list)
+    # Return fewer than the limit when the job only has three pairs left.
+    assert store.get_pending_pairs(job_request.job_id, limit=12) == remaining
+
+
+@pytest.mark.parametrize("limit", [0, -1, 1.5, True])
+def test_pending_pairs_reject_invalid_limits(store, job_request, limit):
+    # True counts as an int in Python, but shouldn't be accepted as a pair limit.
+    with pytest.raises(ValueError, match="positive integer"):
+        store.get_pending_pairs(job_request.job_id, limit=limit)
+
+
+@pytest.mark.parametrize("state", ["missing", "not_ready", "completed", "failed"])
+def test_pending_pairs_require_a_ready_unfinished_job(store, table, job_request, state):
+    job = store.create(job_request)
+    if state == "missing":
+        table.delete_item(Key={"pk": job["pk"], "sk": "METADATA"})
+    else:
+        job["pairs_ready"] = state != "not_ready"
+        if state in ("completed", "failed"):
+            job["status"] = state
+        table.put_item(Item=job)
+
+    # Pair records alone aren't enough to start processing; the job also needs to allow it.
+    if state in ("missing", "not_ready"):
+        with pytest.raises(ValueError, match="does not exist or is not ready"):
+            store.get_pending_pairs(job_request.job_id, limit=2)
+    else:
+        assert store.get_pending_pairs(job_request.job_id, limit=2) == []
+
+
+def test_finishing_a_job_handles_another_attempt_finishing_first(store, table, job_request):
+    job = store.create(job_request)
+    assert store.finish_if_complete(job_request.job_id) == job
+    for pair in store.get_pairs(job_request.job_id):
+        store.save_pair_result(
+            job_request.job_id, pair["clo_id"], pair["plo_id"],
+            mapping_scale_ids=[], explanation="No match.",
+        )
+    original_update = table.update_item
+
+    def finish_first(**kwargs):
+        # Another attempt finishes after we read the counts but before our update reaches DynamoDB.
+        with patch.object(table, "update_item", side_effect=original_update):
+            store.finish_if_complete(job_request.job_id)
+        return original_update(**kwargs)
+
+    with patch.object(table, "update_item", side_effect=finish_first):
+        finished = store.finish_if_complete(job_request.job_id)
+    assert finished["status"] == "completed"
+    assert finished["processed_pairs"] == 6
+    assert store.get(job_request.job_id) == finished
+
+
+def test_pair_outcomes_save_results_and_update_the_right_counts(store, job_request):
+    job_id = job_request.job_id
+    original_job = store.create(job_request)
+    original_pairs = store.get_pairs(job_id)
+
+    # Two matching levels still count as one mapped pair. A no-match is also a successful check.
+    assert store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3, 8], explanation="Both levels match.")
+    assert store.save_pair_result(job_id, 21, 35, mapping_scale_ids=[], explanation="No alignment.")
+    assert store.save_pair_error(job_id, 21, 36, error="Invalid model response.")
+
+    assert store.get(job_id) == {
+        **original_job,
+        "status": "in_progress",
+        "processed_pairs": 2,
+        "mapped_pairs": 1,
+        "errored_pairs": 1,
+    }
+    pairs = store.get_pairs(job_id)
+    assert pairs[0] == {
+        **original_pairs[0],
+        "processed": True,
+        "mapping_scales": [3, 8],
+        "explanation": "Both levels match.",
+    }
+    assert pairs[1] == {**original_pairs[1], "processed": True, "explanation": "No alignment."}
+    assert pairs[2] == {**original_pairs[2], "error": "Invalid model response."}
+    assert pairs[3:] == original_pairs[3:]
+
+
+@pytest.mark.parametrize("outcome", ["mapped", "unmapped", "error"])
+def test_repeated_pair_saves_preserve_the_first_outcome_and_counts(store, job_request, outcome):
+    job_id = job_request.job_id
+    store.create(job_request)
+    if outcome == "error":
+        store.save_pair_error(job_id, 21, 34, error="First failure.")
+    else:
+        levels = [3] if outcome == "mapped" else []
+        store.save_pair_result(job_id, 21, 34, mapping_scale_ids=levels, explanation="First answer.")
+    saved_job = store.get(job_id)
+    saved_pairs = store.get_pairs(job_id)
+
+    # A later result or error must not overwrite the first outcome, even when it disagrees.
+    assert store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[8], explanation="Later answer.") is False
+    assert store.save_pair_error(job_id, 21, 34, error="Later failure.") is False
+    assert store.get(job_id) == saved_job
+    assert store.get_pairs(job_id) == saved_pairs
+
+
+@pytest.mark.parametrize(
+    ("levels", "explanation"),
+    [
+        ([99], "Unknown level."),
+        ([3, 3], "Duplicate level."),
+        ([True], "Invalid ID."),
+        ([3], " "),
+    ],
+)
+def test_invalid_pair_results_leave_storage_unchanged(store, table, job_request, levels, explanation):
+    store.create(job_request)
+    original_records = table.scan()["Items"]
+
+    with pytest.raises(ValueError):
+        store.save_pair_result(job_request.job_id, 21, 34, mapping_scale_ids=levels, explanation=explanation)
+
+    assert table.scan()["Items"] == original_records
+
+
+def test_blank_pair_errors_leave_storage_unchanged(store, table, job_request):
+    store.create(job_request)
+    original_records = table.scan()["Items"]
+
+    with pytest.raises(ValueError, match="nonblank text"):
+        store.save_pair_error(job_request.job_id, 21, 34, error=" \n ")
+
+    assert table.scan()["Items"] == original_records
+
+
+@pytest.mark.parametrize("state", ["missing_job", "missing_pair", "not_ready", "completed", "failed"])
+def test_pair_saves_reject_missing_or_unavailable_work(store, table, job_request, state):
+    record = store.create(job_request)
+    if state == "not_ready":
+        record["pairs_ready"] = False
+    elif state in ("completed", "failed"):
+        record["status"] = state
+    table.put_item(Item=record)
+    original_records = table.scan()["Items"]
+    job_id = uuid4() if state == "missing_job" else job_request.job_id
+    clo_id = 99 if state == "missing_pair" else 21
+    error_type = ValueError if state in ("missing_job", "not_ready") else ClientError
+
+    with pytest.raises(error_type):
+        store.save_pair_result(job_id, clo_id, 34, mapping_scale_ids=[3], explanation="Attempted result.")
+
+    # A rejected pair write must not update counts, and a rejected job update must not save the pair.
+    assert table.scan()["Items"] == original_records
+
+
+@pytest.mark.parametrize("clo_id", [21, 22], ids=["same-pair", "different-pair"])
+def test_overlapping_pair_saves_preserve_results_and_progress(store, table, job_request, clo_id):
+    job_id = job_request.job_id
+    original_job = store.create(job_request)
+    original_write = table.meta.client.transact_write_items
+
+    def overlapping_write(**kwargs):
+        # Another save finishes after this attempt reads the job, but before its transaction runs.
+        with patch.object(table.meta.client, "transact_write_items", side_effect=original_write):
+            store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3], explanation="First answer.")
+        return original_write(**kwargs)
+
+    with patch.object(table.meta.client, "transact_write_items", side_effect=overlapping_write):
+        saved = store.save_pair_error(job_id, clo_id, 34, error="Later failure.")
+
+    assert saved is (clo_id == 22)
+    assert store.get(job_id) == {
+        **original_job,
+        "status": "in_progress",
+        "processed_pairs": 1,
+        "mapped_pairs": 1,
+        "errored_pairs": 1 if clo_id == 22 else 0,
+    }
+    assert store.get_pairs(job_id)[0]["explanation"] == "First answer."
+
+
+@pytest.mark.parametrize("failure_type", ["connection", "transaction_conflict"])
+def test_pair_storage_failures_reach_the_caller_without_changes(store, table, job_request, failure_type):
+    job_id = job_request.job_id
+    store.create(job_request)
+    store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3], explanation="Saved answer.")
+    original_records = table.scan()["Items"]
+    failure = EndpointConnectionError(endpoint_url="https://dynamodb.invalid")
+    if failure_type == "transaction_conflict":
+        failure = table.meta.client.exceptions.TransactionCanceledException(
+            {
+                "Error": {"Code": "TransactionCanceledException", "Message": "Transaction conflict."},
+                "CancellationReasons": [{"Code": "None"}, {"Code": "TransactionConflict"}],
+            },
+            "TransactWriteItems",
+        )
+
+    # An existing outcome must not cause unrelated AWS failures to be treated as a harmless retry.
+    with patch.object(table.meta.client, "transact_write_items", side_effect=failure):
+        with pytest.raises(type(failure)) as error:
+            store.save_pair_error(job_id, 21, 34, error="Later failure.")
+
+    assert error.value is failure
+    assert table.scan()["Items"] == original_records
+
+
+def test_retry_after_losing_the_save_response_does_not_count_the_pair_twice(store, table, job_request):
+    job_id = job_request.job_id
+    original_job = store.create(job_request)
+    original_write = table.meta.client.transact_write_items
+
+    def save_then_disconnect(**kwargs):
+        # DynamoDB saves both updates, but the caller never receives the success response.
+        original_write(**kwargs)
+        raise EndpointConnectionError(endpoint_url="https://dynamodb.invalid")
+
+    with patch.object(table.meta.client, "transact_write_items", side_effect=save_then_disconnect):
+        with pytest.raises(EndpointConnectionError):
+            store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3], explanation="Saved answer.")
+    saved_pairs = store.get_pairs(job_id)
+
+    assert store.save_pair_result(job_id, 21, 34, mapping_scale_ids=[3], explanation="Saved answer.") is False
+    assert store.get(job_id) == {
+        **original_job,
+        "status": "in_progress",
+        "processed_pairs": 1,
+        "mapped_pairs": 1,
+    }
+    assert store.get_pairs(job_id) == saved_pairs
+
+
+@pytest.mark.parametrize("operation", ["create", "get", "get_pairs"])
+def test_missing_table_errors_reach_the_caller(store, table, job_request, operation):
+    table.delete()
+    argument = job_request if operation == "create" else job_request.job_id
+
+    with pytest.raises(ClientError) as error:
+        getattr(store, operation)(argument)
+
+    assert error.value.response["Error"]["Code"] == "ResourceNotFoundException"

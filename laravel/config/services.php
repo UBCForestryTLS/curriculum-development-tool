@@ -39,6 +39,16 @@ return [
         'base_url' => env('LO_MAPPING_SERVICE_URL', 'http://127.0.0.1:8002'),
     ],
 
+    // New mapping API settings, separate from the existing service during the refactor.
+    'lo_mapping_api' => [
+        'base_url' => env('LO_MAPPING_API_URL'),
+        'key_id' => env('LO_MAPPING_API_KEY_ID'),
+        'key_secret' => env('LO_MAPPING_API_KEY_SECRET'),
+        // Leave time to receive the gateway's response after its 30 second timeout.
+        'timeout' => (int) env('LO_MAPPING_API_TIMEOUT', 35),
+        'connect_timeout' => (int) env('LO_MAPPING_API_CONNECT_TIMEOUT', 5),
+    ],
+
     // Extracts text and topics
     'text_extraction' => [
         'base_url' => env('TEXT_EXTRACTION_SERVICE_URL', 'http://127.0.0.1:8003'),

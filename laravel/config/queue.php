@@ -42,6 +42,17 @@ return [
             'after_commit' => false,
         ],
 
+        // Run with: php artisan queue:work mapping --queue=mapping
+        // Use the existing jobs table, even when the application's default connection is sync.
+        'mapping' => [
+            'driver' => 'database',
+            'table' => 'jobs',
+            'queue' => 'mapping',
+            // Allow the 80 sec worker timeout and 90 sec lock to expire before redelivery.
+            'retry_after' => 120,
+            'after_commit' => true,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => 'localhost',
